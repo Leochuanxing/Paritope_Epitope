@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# You have to type 'python' infront of the file to be run
+
+echo "Extract the sequence, contact, combined_ids, matched_ids, training_ids, testing_ids, training_sequence, training_contact, training_combined_ids, training_matched_ids, testing_sequence, testing_contact, testing_combined_ids, testing_matched_ids"
+python AAC_2.py
+
+echo "Do the alignments and delete the redundent"
+python AlignmentConstraint.py
+
+
+
