@@ -14,9 +14,6 @@ Output:
         a seq object corresponding to the aa_sequence
 '''
 
-
-               
-    
 def To_seq(aa_sequence):
     from Bio.Seq import Seq
     from Bio.Alphabet import IUPAC
@@ -80,32 +77,7 @@ def SeqCDR(sequence, matched_ids):
                     seqCDRL.append(CDRL)                        
 
     return seqCDRH, seqCDRL
-#    l_range = [[23, 40], [49, 63], [89, 107]]
-#    h_range = [[25, 37], [50, 71], [99, 129]]      
-#    '''
-#    Align according to the given criteria and choose the none redundent one
-#    '''   
-#    def Hamming_like_dist (u, v):
-#        # 1 creat the similarity matrix
-#        # 2 Do hyerachical clustering
-#        # 3 Chose the representative
-#        dist = 0 
-#        from Bio import Align
-#        aligner = Align.PairwiseAligner()
-#        aligner.open_gap_score = 0 # it is unlikly that two sequence of the same source could be different by a gap
-#        aligner.extend_gap_score = 0
-#        aligner.match = 1
-#        aligner.mismatch = 0 
-#        aligner.mode = 'local'
-#        
-#        dist += aligner.score(u[1], v[1])
-#        dist += aligner.score(u[2], v[2])
-#        dist += aligner.score(u[3], v[3])
-#        l1 = len(u[1]) + len(u[2]) + len(u[3])
-#        l2 = len(v[1]) + len(v[2]) + len(v[3])
-#        l = min(l1, l2)
-#        dist =  1 - dist /l
-#        return dist
+
     
 '''
 Hcluster:
@@ -257,16 +229,8 @@ def Draw_elbow(sd, heights_nCDRH_nCDRL):
     plt.savefig('CDRL_clusters Vs cut_distance.png')
     plt.show()
     plt.close()
-    
+################################################################################    
    
-    
-
-    
-    
-
-        
-        
-        
 '''
 Cluster_by_cut_dist:
     A function to find the clusters according to the giving cut_dist
@@ -300,7 +264,7 @@ def Cluster_by_cut_dist(hcluster, cut_dist):
         clusters.append(subcluster)
             
     return clusters
-
+########################################################################
 '''
 Select_representatives:
     this function is to select the representive element, which has the
@@ -344,7 +308,7 @@ def Select_representatives(contact, seqCDR, clusters):
 #        m_ctns.append(max_contact)
             
     return rpts
-
+##########################################################################
 '''
 Prepare_for_FrameConstraint:
     The output of this function is used as the beginning data of FrameConstraint module
@@ -373,14 +337,7 @@ def Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts):
         ac_contact[pdbid + HL + hl] = container
         
     return ac_contact
-
-    
-
-                
-
-        
-        
-
+###########################################################################
 
 def main(): 
     # wd is the working directory, where you can find the returned results from AAC_2
@@ -420,9 +377,7 @@ def main():
             json.dump(heights_nCDRH_nCDRL, f)
         with open(header + 'ac_contact', 'w') as f:
             json.dump(ac_contact, f)
-
-
-
+############################################################################
     
 if __name__ == '__main__':
     main()
