@@ -488,11 +488,15 @@ def The_middle_aa(FC_parameter):
                     
         for i in range(len(Ab_pos)-1):
             if Ab_pos[i+1]-Ab_pos[i] == 2:
-                middle_Ab_aa.append(chain_sequence[key[4]][Ab_pos[i]:Ab_pos[i]+3])
+                flank_middle = chain_sequence[key[4]][Ab_pos[i]:Ab_pos[i]+3]
+                flank_middle.append(key)
+                middle_Ab_aa.append(flank_middle)
         
         for i in range(len(Ag_pos)-1):
             if Ag_pos[i+1]-Ag_pos[i] == 2:
-                middle_Ag_aa.append(chain_sequence[key[6]][Ag_pos[i]:Ag_pos[i]+3])
+                flank_middle = chain_sequence[key[6]][Ag_pos[i]:Ag_pos[i]+3]
+                flank_middle.append(key)
+                middle_Ag_aa.append(flank_middle)
 
            
     FC_parameter['middle_Ab_aa'] = middle_Ab_aa
