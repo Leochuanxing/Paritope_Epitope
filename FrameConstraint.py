@@ -571,7 +571,7 @@ def Main():
                         Change_to_aa(FC_parameter)
                                                                    
                         # Save the results
-                        os.chdir(wd)
+#                        os.chdir(wd)
                         name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
                         print('working on '+ name)
 
@@ -597,6 +597,96 @@ if __name__ == '__main__':
 
                             
 #############################################################################
+'''
+# Set the working directory and the saving directory
+wd = '/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A'
+sd = '/home/leo/Documents/Database/Pipeline_New/Cores'
+
+
+training_testing = ['training', 'testing']
+for train_test in training_testing:
+    # Go to the working directory
+    os.chdir(wd)
+    with open(train_test+'_ac_contact', 'r') as f:
+        ac_contact = json.load(f)
+    with open(train_test+'_sequence', 'r') as f:
+        sequence = json.load(f)
+    with open('contact', 'r') as f:
+        contact = json.load(f)
+        
+    FC_parameter={}
+    FC_parameter['ac_contact'] = ac_contact
+    FC_parameter['contact'] = contact
+    FC_parameter['sequence'] = sequence   
+     
+    CN_gate = 1
+    FC_parameter['CN_gate'] = CN_gate 
+    
+    CN_gated(FC_parameter) 
+    Ab_Ag_Contact(FC_parameter)
+    # Calculate the middle aa
+#    The_middle_aa(FC_parameter)
+#    # Save the results
+#    with open(train_test+'_middle_Ab_aa', 'w') as f:
+#        json.dump(FC_parameter['middle_Ab_aa'], f)
+#    with open(train_test+'_middle_Ag_aa', 'w') as f:
+#        json.dump(FC_parameter['middle_Ag_aa'], f)
+    # Select the cores by assigning different number of cores per chain
+    for i in range(1, 5):
+        for j in range(1, 5):                
+            Ag_length =i
+            Ab_length = j
+            FC_parameter['Ag_length'] = Ag_length
+            FC_parameter['Ab_length'] = Ab_length
+            
+            for k in [1, 0]:
+                Ag_free_type = k
+                Ab_free_type = k
+                FC_parameter['Ag_free_type'] = Ag_free_type
+                FC_parameter['Ab_free_type'] = Ab_free_type
+                
+                l_range = [[23, 40], [49, 63], [89, 110]]
+                h_range = [[25, 37], [50, 71], [99, 129]]
+                FC_parameter['l_range'] = l_range  
+                FC_parameter['h_range'] = h_range 
+                
+                Match_up_indices(FC_parameter)
+                Adjust_the_order(FC_parameter)
+                    
+                for h in [1, 2, 3]:
+                    core_number_per_chain = h
+                    core_separation = 2                       
+                    FC_parameter['core_number_per_chain'] = core_number_per_chain
+                    FC_parameter['core_separation'] = core_separation
+                    
+                    Select_match_up_indices(FC_parameter)
+                    Change_to_aa(FC_parameter)
+                                                               
+                    # Save the results
+#                        os.chdir(wd)
+                    name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+#                    print('working on '+ name)
+                    
+
+                    print (train_test+'_'+name, len(FC_parameter['core_aa']))
+
+#                    # Save the core aa
+#                    os.chdir(sd)
+#                    with open(train_test+'_'+name, 'w') as f:
+#                        json.dump(FC_parameter['core_aa'], f)
+                        
+                Each_CDR_get_one(FC_parameter)
+                FC_parameter['selected_match_up_indices'] = FC_parameter['each_CDR_get_one']
+                Change_to_aa(FC_parameter)                    
+                # save the results
+                os.chdir(sd)
+                name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
+#                print('working on '+ name)
+                print(train_test+'_'+name, len(FC_parameter['core_aa'])) 
+
+#                with open(train_test+'_'+name, 'w') as f:
+#                    json.dump(FC_parameter['core_aa'], f)
+############################################################################
 #'''
 #The following comments is for testing the above function with a small artifical data set.
 #'''
