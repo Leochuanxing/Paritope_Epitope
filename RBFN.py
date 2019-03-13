@@ -6,6 +6,7 @@ import os
 import json
 import math
 import copy
+import timeit
 from matplotlib import pyplot as plt
 
 
@@ -413,6 +414,7 @@ def One_step_reduce_centers(parameter):
     coeff = np.reshape(coeff, (-1, 1))
     # Update the design matrix
     design_matrix = np.delete(design_matrix, removed_col, 1)
+    print('Shape of the design matrix: ',np.shape(design_matrix))
 
     # Load the updated values to the parameter
     parameter['centers']= centers
@@ -478,7 +480,7 @@ def Coeff_select_centers(parameter):
             # update the n_centers
             centers = parameter['centers']
             n_centers = len(centers)
-            print('Length of centers: ', n_centers)
+#            print('Length of centers: ', n_centers)
         list_centers.append(copy.deepcopy(centers))
         # Load list_coeff and list_reg
         list_coeff.append(copy.deepcopy(parameter['coeff']))
@@ -488,7 +490,7 @@ def Coeff_select_centers(parameter):
     parameter['list_centers'] = list_centers
     parameter['list_coeff'] = list_coeff
     parameter['list_reg'] = list_reg
-    
+ 
 ##################################################################################################
 '''
 Generate_cross_testing_training:
@@ -610,48 +612,48 @@ def Cross_validation(parameter):
     
     # Go into the cross
     for i_cross in range(cross_number):
-        print('cross   ' + i_cross)
+        print('cross   ' + str(i_cross))
         # Get the row_indices and the col_indices
         row_indices = cross_test_indices[i_cross]
-        col_indices= copy.deepcopy(cross_train_indices[i_cross])
+        col_indices= cross_train_indices[i_cross]
         
         # Get the cross training set
         cross_training_set = []
         for indx in col_indices:
             cross_training_set.append(training_set[indx])
-        
-        # Extract the design matrix
-        col_indices.append(-1)# attach the last column of the constant 1
-        parameter['design_matrix'] = all_training_design_matrix[row_indices,:][:,col_indices]
-        
-        # Load the list_n_centers
-        parameter['list_n_centers'] = []
-        for per in percentages:
-            n_center = math.floor(len(cross_train_indices[i_cross])*per)
-            if n_center >= 1:
-                parameter['list_n_centers'].append(n_center)
                 
         # Load the beginning centers
         centers, non_redundent_training_set = Remove_duplicates(cross_training_set)
         parameter['centers']=centers
         
+        # Load the list_n_centers
+        parameter['list_n_centers'] = []
+        for per in percentages:
+            n_center = math.floor(len(centers)*per)
+            if n_center >= 1:
+                parameter['list_n_centers'].append(n_center)
+        
+        # Extract the design matrix
+        centers.append(-1)# attach the last column of the constant 1
+        parameter['design_matrix'] = all_training_design_matrix[row_indices,:][:,centers]
+        centers.remove(-1)
+        
         # Load the observed values
         observed_values = all_training_observed_values[row_indices]
+        observed_values = np.reshape(observed_values, (-1,1))
         parameter['observed_values'] = observed_values
         
         # initiate the coeff
-        coeff = np.zeros((len(col_indices), 1))
+        coeff = np.zeros((len(centers)+1, 1))
         parameter['coeff'] = coeff
         # Initiate the reg
-        reg = np.ones((len(col_indices),1))
+        reg = np.ones((len(coeff),1))
         parameter['reg'] = reg
         
         # Select the centers and train the model
         Coeff_select_centers(parameter)
         
-        # Calculate the areas
-        
-                
+        # Calculate the areas                       
         # Go into one set of centers
         list_centers = parameter['list_centers']
         for i in range(len(list_centers)):
@@ -680,37 +682,95 @@ def Cross_validation(parameter):
                 area += n_positive/(n_positive+n_negative)
             
             # Take the average
-            area/(len(row_indices) * cross_number)
+            area/=(len(row_indices) * cross_number)
             # load to the list area under rp curve
             list_area_under_rp_curve[i] += area
             
-    parameter['list_area_under_rp_curve'] = list_area_under_rp_curve
-            
-
-        
+    parameter['list_area_under_rp_curve'] = list_area_under_rp_curve         
+########################################################################################
+'''
+Recall_precision_on_testing_data:
+    a function to draw a precision recall curve 
+'''
+#######################################################################################
+positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
+for i in [1,2,3,4]:
+    for j in [1,2,3,4]:
+        for k in [1,0]:
+            for h in [1,2,3]:
+                name = 'training_'+str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+                print('working on: ' + name )
+                os.chdir(positive_d)
+                # Read the positive samples
+                with open(name,'r') as f:
+                    positive_training_set = json.load(f)
+                # Read the negative samples
+                os.chdir(negative_d)
+                with open(name+'_negative', 'r') as f:
+                    negative_training_set = json.load(f)
+                    
+                # Timeit
+                start = timeit.default_timer()
+                parameter ={}
+                parameter['positive_training_set'] = positive_training_set
+                parameter['negative_training_set'] = negative_training_set
+                training_set = copy.deepcopy(positive_training_set)
+                training_set.extend(negative_training_set)
+                parameter['training_set'] = training_set
+                all_training_observed_values = []
+                for train in training_set:
+                    if train[2] >0:
+                        all_training_observed_values.append(1)
+                    else:
+                        all_training_observed_values.append(train[2])
+                parameter['all_training_observed_values'] = np.array(all_training_observed_values)
                 
-#            # Calculate the denominator
-#            denominator = 0
-#            for i in observed_values:
-#                if i == 1:
-#                    denominator += 1
-#            # Calculate the recall and precision        
-#            n_positive = 0
-#            n_negative = 0
-#            precision = []
-#            recall = []
-#            for match in match_up:
-#                if match[1] == 1:
-#                    n_positive += 1
-#                else:
-#                    n_negative += 1
-#                precision.append(n_positive/(n_positive + n_negative))
-#                recall.append(n_positive/denominator)
-#            list_recall_precision.append([copy.deepcopy(recall), copy.deepcopy(precision)])
+                print('caltulating the design matrix of ' + name)
+                distance_matrix = Distance_matrix(training_set, training_set, square=True)
+                all_training_design_matrix = Design_matrix(distance_matrix)
+                
+                parameter['all_training_design_matrix'] = all_training_design_matrix
+                parameter['cross_number'] = 6
+                parameter['percentages'] = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+                
+                Cross_validation(parameter)
+                
+                percentages_areas = {}
+                percentages_areas['percentages'] = parameter['percentages']
+                percentages_areas['areas'] = parameter['list_area_under_rp_curve']
+                
+                # Save the results
+                os.chdir(positive_d)   
+                saving_name = 'cross_'+str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'                
+                with open(saving_name+'_percentages_areas', 'w') as f:
+                    json.dump(percentages_areas, f)
+                end = timeit.default_timer()
+                print('Time spent   ' , end)
+                       
+####################################################################################
+#positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+#negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
+#for i in [1,2,3,4]:
+#    for j in [1,2,3,4]:
+#        for k in [1, 0]:
+#            for h in [1,2,3]:
+#                name = 'training_'+str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+#                os.chdir(positive_d)
+#                with open(name,'r') as f:
+#                    positive_training_set = json.load(f)
+#                os.chdir(negative_d)
+#                with open(name+'_negative', 'r') as f:
+#                    negative_training_set = json.load(f)
 #                
-#            parameter['list_recall_precision'] = list_recall_precision
-    pass
-########################################################################################3    
+#                print(name)
+#                if len(positive_training_set) == len(negative_training_set):
+#                    print('Positive length equals negative length            ', len(positive_training_set))
+#                else:
+#                    print('Positive length            ', len(positive_training_set))
+#                    print('Negative length            ', len(negative_training_set))
+
+#
 ## Test the above validation  
 #os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
 #with open('training_2_2_0_0_1_1perCDR','r') as f:
@@ -813,7 +873,7 @@ def Cross_validation(parameter):
 #reg = np.ones((len(coeff),1))
 #parameter['reg'] = reg
 #np.shape(coeff)
-#
+
 ## Select the centers and train the model
 #Coeff_select_centers(parameter)
 #
@@ -900,8 +960,8 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 ######################################################
-ordered_headers = ['2_2','3_3', '2_3', '3_2', '3_4', '4_3','2_4', '4_2','4_4',\
-                   '1_1','1_2', '2_1', '1_3', '3_1', '1_4', '4_1']
+#ordered_headers = ['2_2','3_3', '2_3', '3_2', '3_4', '4_3','2_4', '4_2','4_4',\
+#                   '1_1','1_2', '2_1', '1_3', '3_1', '1_4', '4_1']
 ############################################################
 
 ############################################################

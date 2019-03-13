@@ -318,7 +318,9 @@ def Core_selection(matched_up_indices_list, core_number_per_chain, core_separati
             # make sure the distance between the selected Ab pos and the Ab pos in the value
             # are separated by at least core_separation number of amino acids
             if abs(Ab_pos_start-selected_Ab_pos_end)<= core_separation or \
-            abs(Ab_pos_end - selected_Ab_pos_start) <= core_separation:
+            abs(Ab_pos_end - selected_Ab_pos_start) <= core_separation or \
+            abs(Ab_pos_start - selected_Ab_pos_start) <= core_separation or\
+            abs(Ab_pos_end - selected_Ab_pos_end) <= core_separation:
                 to_be_removed.append(match)
         for i in to_be_removed:
             value.remove(i)
@@ -592,8 +594,8 @@ def Main():
 
     
 ##########################################################################
-if __name__ == '__main__':
-    Main()
+#if __name__ == '__main__':
+#    Main()
 
                             
 #############################################################################
