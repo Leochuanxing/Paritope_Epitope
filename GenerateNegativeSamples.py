@@ -25,13 +25,20 @@ Generate_random_negative:
 Input:
     data: 
         a list of core paires, which is the output of the module of FrameConstraint
+    sample_size:
+        the size of the negative samples need to be generated
 Output:
     negative_samples:
          a list of randomly generated cores, with the element in the form of 
          [['ALA','GLU'], ['TYR','MET'], -1, -1]
-         The length of the negative sampels equals to the length of data
+         The length of the negative sampels equals to the sample size
+         
+*****************Important to know***********************
+When we generate the negative samples, we have to use the training samples as the reference 
+to decide whether the randomly generated samples are negative or not. The testing samples can not
+be used because the testing samples are samples that we pretend don't know when we build this model.
 '''          
-def Generate_random_negative(data):
+def Generate_random_negative(data, sample_size):
     
     TripleSingle =  [['TYR', 'Y'], ['LYS', 'K'],['ASP', 'D'], ['ASN', 'N'], ['TRP', 'W'], ['PHE', 'F'], ['GLN', 'Q'],
                     ['GLU', 'E'], ['PRO', 'P'], ['GLY', 'G'], ['THR', 'T'],['SER', 'S'], ['ARG', 'R'], ['HIS', 'H'],
@@ -46,7 +53,6 @@ def Generate_random_negative(data):
         
     Ab_length = len(Ab_Ag[0][0])
     Ag_length = len(Ab_Ag[0][1])
-    sample_size = len(data)
     
     negative_samples = []
     while len(negative_samples) < sample_size:
@@ -70,7 +76,7 @@ def With_replacement_sample(population, size):
 def main():
     # Set the working directory and the saving directory
     wd = '/home/leo/Documents/Database/Pipeline_New/Cores'
-    training_testing = ['training', 'testing']
+    training_testing = ['testing']
     # we want to generate 10 negative samples
     for n in range(10):
         sd = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/'+'Sample_'+str(n)        
@@ -85,11 +91,14 @@ def main():
     
                             # Save the core aa
                             os.chdir(wd)
-                            with open(train_test+'_'+name, 'r') as f:
+                            with open('training_'+name, 'r') as f:
                                 data = json.load(f)
+                            with open('testing_'+name, 'r') as f:
+                                testing_data = json.load(f)
+                            
                             
                             # Generate the negative samples
-                            negative_samples = Generate_random_negative(data)
+                            negative_samples = Generate_random_negative(data, len(testing_data))
                             
                             # Save the negative samples
                             os.chdir(sd)
@@ -101,10 +110,13 @@ def main():
                         name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
                         print('working on '+ name)
                         
-                        with open(train_test+'_'+name, 'r') as f:
+                        with open('training_'+name, 'r') as f:
                             data = json.load(f)
                             
-                        negative_samples = Generate_random_negative(data)
+                        with open('testing_'+name, 'r') as f:
+                            testing_data = json.load(f)                            
+                            
+                        negative_samples = Generate_random_negative(data, len(testing_data))
                         
                         # Save the results
                         os.chdir(sd)
@@ -113,20 +125,88 @@ def main():
                             json.dump(negative_samples, f)
    
 ####################################################################
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()
 
 ####################################################################
 '''
 Need to take a look at the negative samples, make sure they have nothing in common with the real cores
 '''
-        
-        
-        
-        
-        
-        
-        
+#def Check():
+#        # Set the working directory and the saving directory
+#    wd = '/home/leo/Documents/Database/Pipeline_New/Cores'
+#    # we want to generate 10 negative samples
+#    for n in range(10):
+#        sd = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/'+'Sample_'+str(n)        
+#        for i in range(1, 5):
+#            for j in range(1, 5):                
+#                for k in [1, 0]:                        
+#                    for h in [1, 2, 3]:                                                                   
+#
+#                        name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+#
+#                        # Save the core aa
+#                        os.chdir(wd)
+#                        with open('training_'+name, 'r') as f:
+#                            positive_training_data = json.load(f)
+#                            
+#                        with open('testing_'+name, 'r') as f:
+#                            positive_testing_data = json.load(f)                            
+#                        
+#                        # Save the negative samples
+#                        os.chdir(sd)
+#                        save_name =  name + '_negative'
+#                        with open('testing_'+save_name, 'r') as f:
+#                            negative_testing_data = json.load( f)
+#                        with open('training_'+save_name, 'r') as f:
+#                            negative_training_data = json.load(f)
+#                            
+#                        # Check 
+#                        res1 = Subcheck(positive_training_data, negative_testing_data)
+#                        res2 = Subcheck(positive_training_data, negative_training_data)
+#                        
+#                        if res1 and res2 and len(positive_testing_data)== len(negative_testing_data):
+#                            print(' Correct')
+#                        else:
+#                            print(print(name+'\n not correct'))
+#
+#                    os.chdir(wd)
+#                    with open('training_'+name, 'r') as f:
+#                        positive_training_data = json.load(f)
+#                        
+#                    with open('testing_'+name, 'r') as f:
+#                        positive_testing_data = json.load(f)                            
+#                    
+#                    # Save the negative samples
+#                    os.chdir(sd)
+#                    save_name = name + '_negative'
+#                    with open('testing_'+save_name, 'r') as f:
+#                        negative_testing_data = json.load( f)
+#                    with open('training_'+save_name, 'r') as f:
+#                        negative_training_data = json.load(f)
+#                        
+#                    # Check 
+#                    res1 = Subcheck(positive_training_data, negative_testing_data)
+#                    res2 = Subcheck(positive_training_data, negative_training_data)
+#                    
+#                    if res1 and res2 and len(positive_testing_data)== len(negative_testing_data):
+#                        print(' Correct')
+#                    else:
+#                        print(print(name+'\n not correct'))    
+#    
+#        
+#def Subcheck(data, sub_data):
+#    res = True
+#    pool = [x[:2] for x in data]
+#    for sub in sub_data:
+#        if sub[:] in pool:
+#            res = False
+#            break
+#    return res
+#    
+#        
+#Check()        
+ 
         
         
         

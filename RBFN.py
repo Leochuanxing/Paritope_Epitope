@@ -693,265 +693,123 @@ Recall_precision_on_testing_data:
     a function to draw a precision recall curve 
 '''
 #######################################################################################
-positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
-negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
-for i in [1,2,3,4]:
-    for j in [1,2,3,4]:
-        for k in [1,0]:
-            for h in [1,2,3]:
-                name = 'training_'+str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
-                print('working on: ' + name )
-                os.chdir(positive_d)
-                # Read the positive samples
-                with open(name,'r') as f:
-                    positive_training_set = json.load(f)
-                # Read the negative samples
-                os.chdir(negative_d)
-                with open(name+'_negative', 'r') as f:
-                    negative_training_set = json.load(f)
+def Cross_RBFN():
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
+    saving_d = '/home/leo/Documents/Database/Pipeline_New/Results'
+    cross_result_RBFN = {}
+    for i in [1,2,3,4]:
+        for j in [1,2,3,4]:
+            for k in [1,0]:
+                PerCDR_cross_validation(i,j,k, cross_result_RBFN)
+                for h in [1,2,3]:
+                    name = 'training_'+str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+                    key = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+                    print('working on: ' + name )
+                    os.chdir(positive_d)
+                    # Read the positive samples
+                    with open(name,'r') as f:
+                        positive_training_set = json.load(f)
+                    # Read the negative samples
+                    os.chdir(negative_d)
+                    with open(name+'_negative', 'r') as f:
+                        negative_training_set = json.load(f)
+                        
+
+                    parameter ={}
+                    parameter['positive_training_set'] = positive_training_set
+                    parameter['negative_training_set'] = negative_training_set
+                    training_set = copy.deepcopy(positive_training_set)
+                    training_set.extend(negative_training_set)
+                    parameter['training_set'] = training_set
+                    all_training_observed_values = []
+                    for train in training_set:
+                        if train[2] >0:
+                            all_training_observed_values.append(1)
+                        else:
+                            all_training_observed_values.append(train[2])
+                    parameter['all_training_observed_values'] = np.array(all_training_observed_values)
                     
-                # Timeit
-                start = timeit.default_timer()
-                parameter ={}
-                parameter['positive_training_set'] = positive_training_set
-                parameter['negative_training_set'] = negative_training_set
-                training_set = copy.deepcopy(positive_training_set)
-                training_set.extend(negative_training_set)
-                parameter['training_set'] = training_set
-                all_training_observed_values = []
-                for train in training_set:
-                    if train[2] >0:
-                        all_training_observed_values.append(1)
-                    else:
-                        all_training_observed_values.append(train[2])
-                parameter['all_training_observed_values'] = np.array(all_training_observed_values)
-                
-                print('caltulating the design matrix of ' + name)
-                distance_matrix = Distance_matrix(training_set, training_set, square=True)
-                all_training_design_matrix = Design_matrix(distance_matrix)
-                
-                parameter['all_training_design_matrix'] = all_training_design_matrix
-                parameter['cross_number'] = 6
-                parameter['percentages'] = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
-                
-                Cross_validation(parameter)
-                
-                percentages_areas = {}
-                percentages_areas['percentages'] = parameter['percentages']
-                percentages_areas['areas'] = parameter['list_area_under_rp_curve']
-                
-                # Save the results
-                os.chdir(positive_d)   
-                saving_name = 'cross_'+str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'                
-                with open(saving_name+'_percentages_areas', 'w') as f:
-                    json.dump(percentages_areas, f)
-                end = timeit.default_timer()
-                print('Time spent   ' , end)
+                    print('caltulating the design matrix of ' + name)
+                    distance_matrix = Distance_matrix(training_set, training_set, square=True)
+                    all_training_design_matrix = Design_matrix(distance_matrix)
+                    
+                    parameter['all_training_design_matrix'] = all_training_design_matrix
+                    parameter['cross_number'] = 6
+                    parameter['percentages'] = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+                    
+                    Cross_validation(parameter)
+                    
+                    percentages_areas = {}
+                    percentages_areas['percentages'] = parameter['percentages']
+                    percentages_areas['areas'] = parameter['list_area_under_rp_curve']
+                    
+                    cross_result_RBFN[key]={}
+                    cross_result_RBFN[key]['percentages']=copy.deepcopy(parameter['percentages'])
+                    cross_result_RBFN[key]['areas'] = parameter['list_area_under_rp_curve']
+                    
+    # Save the results
+    os.chdir(saving_d)           
+    with open('cross_result_RBFN', 'w') as f:
+        json.dump('cross_result_RBFN', f)
+
                        
 ####################################################################################
-#positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
-#negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
-#for i in [1,2,3,4]:
-#    for j in [1,2,3,4]:
-#        for k in [1, 0]:
-#            for h in [1,2,3]:
-#                name = 'training_'+str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
-#                os.chdir(positive_d)
-#                with open(name,'r') as f:
-#                    positive_training_set = json.load(f)
-#                os.chdir(negative_d)
-#                with open(name+'_negative', 'r') as f:
-#                    negative_training_set = json.load(f)
-#                
-#                print(name)
-#                if len(positive_training_set) == len(negative_training_set):
-#                    print('Positive length equals negative length            ', len(positive_training_set))
-#                else:
-#                    print('Positive length            ', len(positive_training_set))
-#                    print('Negative length            ', len(negative_training_set))
+def PerCDR_cross_validation(i,j,k, cross_result_RBFN):
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
 
-#
-## Test the above validation  
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
-#with open('training_2_2_0_0_1_1perCDR','r') as f:
-#    positive_training_set = json.load(f)
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0')
-#with open('training_2_2_0_0_1_1perCDR_negative', 'r') as f:
-#    negative_training_set = json.load(f)
-#len(positive_training_set)
-#len(negative_training_set)
-#
-## Load up the parameter
-#parameter ={}
-#parameter['positive_training_set'] = positive_training_set
-#parameter['negative_training_set'] = negative_training_set
-#training_set = copy.deepcopy(positive_training_set)
-#training_set.extend(negative_training_set)
-#parameter['training_set'] = training_set
-#all_training_observed_values = []
-#for train in training_set:
-#    if train[2] >0:
-#        all_training_observed_values.append(1)
-#    else:
-#        all_training_observed_values.append(train[2])
-#all_training_observed_values[:6]
-#all_training_observed_values[-6:]
-#parameter['all_training_observed_values'] = np.array(all_training_observed_values)
-#
-#print('caltulating the design matrix')
-#distance_matrix = Distance_matrix(training_set, training_set, square=True)
-#all_training_design_matrix = Design_matrix(distance_matrix)
-#parameter['all_training_design_matrix'] = all_training_design_matrix
-#parameter['cross_number'] = 6
-#parameter['percentages'] = [0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
-## initiate the coeff and reg
-#
-## Take out the values
-#all_training_design_matrix = parameter['all_training_design_matrix']
-#all_training_observed_values = parameter['all_training_observed_values']# pay attention to this one, it is used in the one step reduce
-#positive_training_set = parameter['positive_training_set']
-#negative_training_set = parameter['negative_training_set']
-#training_set = parameter['training_set']
-#cross_number = parameter['cross_number']
-#percentages = parameter['percentages']
-#
-## Initiate list_area_under_rp_curve 
-#list_area_under_rp_curve = [0*i for i in range(len(percentages))]
-#    
-## Generate the cross indices
-#cross_train_indices, cross_test_indices = \
-#Raised_cross_indices(positive_training_set, negative_training_set, cross_number)
-#
-#
-## Go into the cross
-#for i_cross in range(cross_number):
-#    pass
-#i_cross = 0
-#print('cross    ',i_cross)
-## Get the row_indices and the col_indices
-#row_indices = cross_test_indices[i_cross]
-#col_indices= copy.deepcopy(cross_train_indices[i_cross])
-#
-## Get the cross training set
-#cross_training_set = []
-#for indx in col_indices:
-#    cross_training_set.append(training_set[indx])
-#
-#len(cross_training_set)
-#len(col_indices)
-#len(training_set)
-#
-## Load the beginning centers
-#centers, non_redundent_training_set = Remove_duplicates(cross_training_set)
-## Extract the design matrix
-#centers.append(-1)# attach the last column of the constant 1
-#parameter['design_matrix'] = all_training_design_matrix[row_indices,:][:,centers]
-#centers.remove(-1)
-#
-## Load the list_n_centers
-#parameter['list_n_centers'] = []
-#for per in percentages:
-#    n_center = math.floor(len(cross_train_indices[i_cross])*per)
-#    if n_center >= 1:
-#        parameter['list_n_centers'].append(n_center)
-#        
-#
-#parameter['centers']=centers
-#len(centers)
-#len(cross_training_set)
-#centers[:6]
-## Load the observed values
-#observed_values = all_training_observed_values[row_indices]
-#observed_values = np.reshape(observed_values, (-1,1))
-#parameter['observed_values'] = observed_values
-#len(observed_values)
-## initiate the coeff
-#observed_values
-#coeff = np.zeros((len(centers)+1, 1))
-#parameter['coeff'] = coeff
-## Initiate the reg
-#reg = np.ones((len(coeff),1))
-#parameter['reg'] = reg
-#np.shape(coeff)
+    name = 'training_'+str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
+    key = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
+    print('working on: ' + name )
+    os.chdir(positive_d)
+    # Read the positive samples
+    with open(name,'r') as f:
+        positive_training_set = json.load(f)
+    # Read the negative samples
+    os.chdir(negative_d)
+    with open(name+'_negative', 'r') as f:
+        negative_training_set = json.load(f)
 
-## Select the centers and train the model
-#Coeff_select_centers(parameter)
-#
-## Calculate the areas
-#
-#        
-## Go into one set of centers
-#list_centers = parameter['list_centers']
-#for i in list_centers:
-#    print(len(i))
-#for i in parameter['list_coeff']:
-#    print(len(i))
-#for i in parameter['list_reg']:
-#    print(len(i))
-#len(list_centers)
-#
-#len(list_area_under_rp_curve)
-#for i in range(len(list_centers)):
-#    print(i)
-#for i in range(len(list_centers)):
-#    coeff = parameter['list_coeff'][i]
-#    centers_pos = list_centers[i]
-#    centers_pos.append(-1)
-#    design_matrix = all_training_design_matrix[row_indices,:][:,centers_pos]
-#    centers_pos.remove(-1)
-#    
-#    # Make prediction
-#    pred = design_matrix.dot(coeff)
-#    # Match up the observed values with the pred
-#    match_up = []
-#    for j in range(len(observed_values)):
-#        match_up.append([pred[j], observed_values[j]])
-#    match_up.sort(key = lambda x:x[0], reverse = True)
-#    
-#    area = 0
-#    n_positive = 0
-#    n_negative = 0
-#    for match in match_up:
-#        if match[1] == 1:
-#            n_positive += 1
-#        elif match[1] == -1:
-#            n_negative += 1
-#        area += n_positive/(n_positive+n_negative)
-#    
-#    # Take the average
-#    area = area/(len(row_indices))
-#    # load to the list area under rp curve
-#    print(i)
-#    list_area_under_rp_curve[i] += area
-#list_area_under_rp_curve    
-#parameter['list_area_under_rp_curve'] = list_area_under_rp_curve
-##np.shape(observed_values)
-#    # Unpack the dictionary 
-#coeff = parameter['coeff']
-#reg = parameter['reg']
-#np.shape(coeff)
-#np.shape(design_matrix)
-#coeff_square = coeff*coeff
-#
-#observed_values = np.reshape(observed_values, (-1, 1))
-#diff = design_matrix.dot(coeff) - observed_values
-#np.shape(observed_values)
-#np.shape(diff)
-#diff
-#loss = (diff.T).dot(diff)
-#loss += (coeff_square.T).dot(reg)
-#grad_coeff = 2*(design_matrix.T).dot(diff) + 2 * coeff * reg
-#np.shape(grad_coeff)
-## Pack up the results
-#gradient = {}
-#gradient['coeff'] = grad_coeff
-#design_matrix 
-#grad_coeff
-#all_training_design_matrix[6:, 6:]
-#design_matrix[:, -5:]
-#####################################################################################
-# Record the time
+    parameter ={}
+    parameter['positive_training_set'] = positive_training_set
+    parameter['negative_training_set'] = negative_training_set
+    training_set = copy.deepcopy(positive_training_set)
+    training_set.extend(negative_training_set)
+    parameter['training_set'] = training_set
+    all_training_observed_values = []
+    for train in training_set:
+        if train[2] >0:
+            all_training_observed_values.append(1)
+        else:
+            all_training_observed_values.append(train[2])
+    parameter['all_training_observed_values'] = np.array(all_training_observed_values)
+    
+    print('caltulating the design matrix of ' + name)
+    distance_matrix = Distance_matrix(training_set, training_set, square=True)
+    all_training_design_matrix = Design_matrix(distance_matrix)
+    
+    parameter['all_training_design_matrix'] = all_training_design_matrix
+    parameter['cross_number'] = 6
+    parameter['percentages'] = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+    
+    Cross_validation(parameter)
+    
+    percentages_areas = {}
+    percentages_areas['percentages'] = parameter['percentages']
+    percentages_areas['areas'] = parameter['list_area_under_rp_curve']
+    
+    cross_result_RBFN[key]={}
+    cross_result_RBFN[key]['percentages']=copy.deepcopy(parameter['percentages'])
+    cross_result_RBFN[key]['areas'] = parameter['list_area_under_rp_curve']
+                
 
+    
+
+##############################################################################
+
+#if __name__ == '__main__':
+#    Cross_RBFN()
 
 #########################################################################
 class NumpyEncoder(json.JSONEncoder):
@@ -959,25 +817,222 @@ class NumpyEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
-######################################################
-#ordered_headers = ['2_2','3_3', '2_3', '3_2', '3_4', '4_3','2_4', '4_2','4_4',\
-#                   '1_1','1_2', '2_1', '1_3', '3_1', '1_4', '4_1']
-############################################################
+##############################################################
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+with open('cross_result_RBFN', 'r') as f:
+    cross_result_RBFN  = json.load(f)
+    
+def Find_the_best(cross_result_RBFN):
+    best = {}
+    for i in range(1,5):
+        for j in range(1,5):
+            best[str(i)+'_'+str(j)] = []
+            for k in [1,0]:
+                key = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
+                area = 0
+                percentage = 0
+                for n in range(len(cross_result_RBFN[key]['percentages'])):
+                    if cross_result_RBFN[key]['areas'][n] > area:
+                        area = cross_result_RBFN[key]['areas'][n]
+                        percentage = cross_result_RBFN[key]['percentages'][n]
+                    
+                best[str(i)+'_'+str(j)].append([area, percentage, key])
+                
+                for h in [1,2,3]:
+                    key = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+                    area = 0
+                    percentage = 0
+                    for n in range(len(cross_result_RBFN[key]['percentages'])):
+                        if cross_result_RBFN[key]['areas'][n] > area:
+                            area = cross_result_RBFN[key]['areas'][n]
+                            percentage = cross_result_RBFN[key]['percentages'][n]
+                        
+                    best[str(i)+'_'+str(j)].append([area, percentage, key])
 
-############################################################
-#os.chdir("/home/leo/Documents/Database/Pipeline/Results/1_free")
-#with open('2_2_test_results_coeff_RBFN','r') as f:
-#    test_results_coeff_RBFN = json.load(f)
-#test_results_coeff_RBFN.keys()
-#coverage_recall = test_results_coeff_RBFN['recall']
-#list_recall_precision = test_results_coeff_RBFN['list_recall_precision']
-#len(test_results_coeff_RBFN['centers'])
-#for i in test_results_coeff_RBFN['list_n_centers']:
-#    print(i)
-#for i in range(len(list_recall_precision)):
-#    plt.plot(list_recall_precision[i][0], list_recall_precision[i][1])
-#    plt.show()
-#####################################################################################
+    for key, value in best.items():
+        value.sort(key=lambda x:x[0], reverse= True)
+        print(value[0])
+
+#Find_the_best(cross_result_RBFN)
+
+'''
+*******************************************************************************
+***************** We chose free type as 1, assumption 1 per chain*****************
+**********************************************************************************
+'''
+###################################################################
+'''
+Recall_precision:
+    this function is to draw the recall precision curve, and return the recall precision 
+    values
+Input:
+    rp_parameter, a dictionary
+    rp_parameter['positive_training_set'] = positive_training_set
+    rp_parameter['positive_testing_set'] = positive_testing_set
+    rp_parameter['negative_training_set'] = negative_training_set
+    rp_parameter['negative_testing_set'] = negative_testing_set
+    rp_parameter['best_percentage'] = best_percentage
+    rp_parameter['match_type'] = match_type 
+    
+    recall_precision:
+        a dictionary contains the results of the output of this function
+Output:
+    recall_precision:
+        a dictionary with keys match types, the values are dictionaries with keys
+        'recall' and 'precision'   
+'''
+def Recall_precision(rp_parameter, recall_precision = {}):
+    # Take out the values
+    positive_training_set = rp_parameter['positive_training_set']
+    positive_testing_set = rp_parameter['positive_testing_set']
+    negative_training_set = rp_parameter['negative_training_set'] 
+    negative_testing_set = rp_parameter['negative_testing_set']
+    best_percentage = rp_parameter['best_percentage']
+    match_type = rp_parameter['match_type']
+    
+    training_set = copy.deepcopy(positive_training_set)
+    training_set.extend(negative_training_set)
+    testing_set = copy.deepcopy(positive_testing_set)
+    testing_set.extend(negative_testing_set)
+    
+    observed_values = []
+    for test in testing_set:
+        if test[2] > 0:
+            observed_values.append(1)
+        elif test[2] == -1:
+            observed_values.append(-1)
+    observed_values = np.reshape(np.array(observed_values), (-1,1))
+    
+    centers, non_redundant_training_set = Remove_duplicates(training_set)
+    
+    # Calculate the design matrix
+    print('Calculating the design matrix')
+    distance_matrix = Distance_matrix(testing_set, training_set, square = False)
+    big_design_matrix = Design_matrix(distance_matrix)
+    
+    centers.append(-1)
+    design_matrix = big_design_matrix[:, centers]
+    centers.remove(-1)
+    
+    # Load up the rp_parameter
+    rp_parameter['design_matrix'] = design_matrix
+    rp_parameter['observed_values'] =  observed_values
+    rp_parameter['centers'] = centers
+    rp_parameter['coeff'] = np.zeros((len(centers)+1, 1))
+    rp_parameter['reg'] = np.ones_like(rp_parameter['coeff'])
+    
+    
+    # Reduce the centers according to the best_percentage
+    n_centers = len(centers)
+    n = math.floor(len(centers)*best_percentage)
+    while n_centers > n:
+        rp_parameter = One_step_reduce_centers(rp_parameter)
+        # update the n_centers
+        centers = rp_parameter['centers']
+        n_centers = len(centers)
+    
+    # Do the prediction
+    coeff = rp_parameter['coeff']
+    design_matrix = rp_parameter['design_matrix']
+    pred = design_matrix.dot(coeff)
+    
+    # match up the pred with the observed values
+    match_up = []
+    for j in range(len(observed_values)):
+        match_up.append([pred[j], observed_values[j]])
+    match_up.sort(key = lambda x:x[0], reverse = True)
+    
+    # Calculate the recall and precision
+    recall_precision[match_type] = {}
+    recall = []
+    precision = []
+    n_positive = 0
+    n_negative = 0
+    denominator =  len(positive_testing_set)
+     
+    for match in match_up:
+        if match[1] == 1:
+            n_positive += 1
+        elif match[1] == -1:
+            n_negative += 1
+            
+        recall.append(n_positive/denominator)
+        precision.append(n_positive/(n_positive+n_negative))
+    
+    recall_precision[match_type]['recall'] = recall
+    recall_precision[match_type]['precision'] = precision
+'''
+Batch_recall_precision:
+    This function is to calculate the recall precision in a batch wise way
+'''
+def Batch_recall_precision():
+    
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'  
+    
+    recall_precision = {}
+    for i in range(1, 5):
+        for j in range(1, 5):
+            match_type = str(i)+'_'+str(j)
+            name = match_type+'_1_1_1_2_1perchain'
+            os.chdir(positive_d) 
+            with open('training_'+name, 'r') as f:
+                positive_training_set = json.load(f)
+            with open('testing_'+name, 'r') as f:
+                positive_testing_set = json.load(f)
+                
+            os.chdir(negative_d) 
+            with open('training_'+name+'_negative', 'r') as f:
+                negative_training_set = json.load(f)
+            with open('testing_'+name+'_negative', 'r') as f:
+                negative_testing_set = json.load(f)
+            
+            best_percentage = 0.2
+            # Load the rp_parameter
+            rp_parameter = {}
+            rp_parameter['positive_training_set'] = positive_training_set
+            rp_parameter['positive_testing_set'] = positive_testing_set
+            rp_parameter['negative_training_set'] = negative_training_set
+            rp_parameter['negative_testing_set'] = negative_testing_set
+            rp_parameter['best_percentage'] = best_percentage
+            rp_parameter['match_type'] = match_type
+            
+            Recall_precision(rp_parameter, recall_precision) 
+            
+    return recall_precision
+ 
+recall_precision = Batch_recall_precision()
+# Save the results
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')  
+with open('recall_precision', 'w') as f:
+    json.dump(recall_precision, f)
+    
+# Draw the curves
+with open('recall_precision', 'r') as f:
+    recall_precision = json.load(f)
+
+def Draw_rp_curves(recall_precision):
+    for key, value in recall_precision.items():
+        recall = value['recall'] 
+        precision = value['precision']
+        plt.plot(recall, precision)
+        plt.title(key)
+        plt.show()
+
+        
+
+    
+
+
+
+
+
+
+
+
+
+
+
 
 
 
