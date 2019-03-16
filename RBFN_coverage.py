@@ -610,6 +610,8 @@ def Cross_validation(parameter):
             
     parameter['list_area_under_rp_curve'] = list_area_under_rp_curve  
 #################################################################################
+
+################################################################################
 #'''
 #Try the cross validation on one set of data
 #'''
@@ -726,6 +728,200 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 ###################################################################################
+#cross_coverage_RBFN = Batch_cross_validation()
+
+## Save the results
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+#with open('cross_coverage_RBFN', 'w') as f:
+#    json.dump(cross_coverage_RBFN, f)
+
+#########################################################################
+'''
+From the cross_coverage_RBFN, we see that more the number of the centers, the better
+the prediction. Thus we use all the non_redundent_training set as the centers
+
+Test_coverage_RBFN:
+    This function is to calculate the precision recall rate for the positive_testing_set
+    and the negative_testing_set. There are ten different sets of negative_testing_set. We
+    can calculate the separately
+Input:
+    best_percentage:
+        The percentage which performs the best in the cross_coverage_RBFN
+Output:
+    test_coverage_RBFN_results:
+        a list of dictionaries, each dictionary contains the following values
+        coeff:
+            a list of coefficients
+        non_redundant_training_set:
+            a sub set of training_set with the redundant removed
+        area_list:
+            a list of areas, for each negative_testing_set
+        recall_list:
+            a list of recalls, each recall is a list, corresponding to one 
+            set of negative_testing_set.
+        precision_list:
+            a list of precisions, each precision is a list, corresponding to one
+            set of negative_testing_set.
+'''
+def Calculate_recall_precision():
+    test_coverage_RBFN_results={}
+    # Read the training_data and the testing data
+    negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    for i in range(1,5):
+        for j in range(1,5):
+            # set the empty container
+            key = str(i)+'_'+str(j)+'_1_1_1_2_1perchain'
+            test_coverage_RBFN_results[key] = {}
+            
+            p_train = 'training_'+str(i)+'_'+str(j)+'_1_1_1_2_1perchain'
+            p_test = 'testing_'+str(i)+'_'+str(j)+'_1_1_1_2_1perchain'
+            os.chdir(positive_d)
+            with open(p_train, 'r') as f:
+                positive_training_set = json.load(f)
+            with open(p_test, 'r') as f:
+                positive_testing_set = json.load(f)
+                
+            n_traing = p_train+'_negative'
+            n_test = p_test + '_negative'
+            os.chdir(negative_d)
+            with open(n_traing, 'r') as f:
+                negative_training_set = json.load(f)
+                
+            # Train the model
+            training_set = copy.deepcopy(positive_training_set)
+            training_set.extend(negative_training_set)
+
+            all_training_observed_values = []
+            for train in training_set:
+                if train[2] >0:
+                    all_training_observed_values.append(1)
+                else:
+                    all_training_observed_values.append(train[2])
+            all_training_observed_values = np.array(all_training_observed_values)
+            all_training_observed_values = np.reshape(all_training_observed_values, (-1,1))
+
+            print('Calculating the design matrix')
+            all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)            
+            all_training_design_matrix = Design_matrix(all_training_distance_matrix)
+            
+            # Remove the duplicates
+            centers, non_redundent_training_set = Remove_duplicates(training_set)
+            # Load
+            test_coverage_RBFN_results[key]['non_redundent_training_set'] = non_redundent_training_set
+            
+            # Extract the design matrix
+            centers.append(-1)
+            design_matrix = all_training_design_matrix[:,:][:, centers]
+            centers.remove(-1)
+            
+            # Train the model
+            # Pay attention to the termination condition
+            parameter, loss = Train_RBFN_BFGS(design_matrix, all_training_observed_values,\
+                                              rho=0.9, c = 1e-3, termination = 1e-2,\
+                                             parameter_inheritance = False) 
+            # Take out the coeff
+            coeff = parameter['coeff']
+            # Load
+            test_coverage_RBFN_results[key]['coeff'] = coeff
+            
+            # Pedict on different testing set
+            area_list = []
+            precisions_list = []
+            recalls_list = []
+            for n in range(10):
+                negative_test_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_' + str(n)
+                os.chdir(negative_test_d)
+                with open(n_test, 'r') as f:
+                    negative_testing_set = json.load(f)
+                
+                testing_set = copy.deepcopy(positive_testing_set)
+                testing_set.extend(negative_testing_set)
+                
+                # Calculate the observed_values
+                observed_values = []
+                for test in testing_set:
+                    if test[2] > 0:
+                        observed_values.append(1)
+                    else:
+                        observed_values.append(test[2])
+                        
+                # Calculate the testing_design_matrix
+                print('Length of the testing set:  ', len(testing_set))
+                print('Length of the observed values:  ' , len(observed_values))
+                print('Calculating the testing design matrix: ', n)
+                testing_distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
+                testing_design_matrix = Design_matrix(testing_distance_matrix)
+                
+                # Do the prediction
+                pred = testing_design_matrix.dot(coeff)
+
+                # Match up the observed values with the pred
+                match_up = []
+                for j in range(len(observed_values)):
+                    match_up.append([pred[j], observed_values[j]])
+                match_up.sort(key = lambda x:x[0], reverse = True)
+                
+                # Calculate the area, precision, recall and precision
+                area = 0
+                n_positive = 0
+                n_negative = 0
+                denominator = len(positive_testing_set)
+                recalls = []
+                precisions = []
+                for match in match_up:
+                    if match[1] == 1:
+                        n_positive += 1
+                    elif match[1] == -1:
+                        n_negative += 1
+                    precision = n_positive/(n_positive+n_negative)
+                    area += precision
+                    recall = n_positive/denominator
+                    
+                    recalls.append(recall)
+                    precisions.append(precision)                    
+                
+                # Take the average
+                area/=(len(testing_set))
+                
+                # Load
+                area_list.append(area)
+                recalls_list.append(recalls)
+                precisions_list.append(precisions)
+                
+            test_coverage_RBFN_results[key]['area_list'] = area_list
+            test_coverage_RBFN_results[key]['recalls_list'] = recalls_list
+            test_coverage_RBFN_results[key]['precisions_list'] = precisions_list
+            
+    return test_coverage_RBFN_results
+#######################################################################
+if __name__ == '__main__':                
+                    
+    test_coverage_RBFN_results = Calculate_recall_precision()                
+                    
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('test_coverage_RBFN_results', 'w') as f:
+        json.dump(test_coverage_RBFN_results, f, cls = NumpyEncoder)
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
