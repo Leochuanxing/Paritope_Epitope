@@ -877,9 +877,10 @@ Input:
     recall_precision:
         a dictionary contains the results of the output of this function
 Output:
-    recall_precision:
+    testing_results:
         a dictionary with keys match types, the values are dictionaries with keys
-        'recall' and 'precision'   
+        'recall' and 'precision' , 'centers', 'coeff' ,'len_non_redundant_train'
+    
 '''
 def Recall_precision(rp_parameter, recall_precision = {}):
     # Take out the values
@@ -961,6 +962,9 @@ def Recall_precision(rp_parameter, recall_precision = {}):
     
     recall_precision[match_type]['recall'] = recall
     recall_precision[match_type]['precision'] = precision
+    recall_precision[match_type]['centers'] = copy.deepcopy(rp_parameter['centers'])
+    recall_precision[match_type]['coeff'] = copy.deepcopy(coeff)
+    recall_precision[match_type]['len_non_redundant_training_set'] = len(non_redundant_training_set)
 '''
 Batch_recall_precision:
     This function is to calculate the recall precision in a batch wise way
@@ -1019,6 +1023,7 @@ def Draw_rp_curves(recall_precision):
         plt.title(key)
         plt.show()
 
+Draw_rp_curves(recall_precision)
         
 
     
