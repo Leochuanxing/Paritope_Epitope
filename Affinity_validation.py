@@ -164,11 +164,13 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff=7):
                 
     # We have to make sure the selected_contact contains all the mutations, otherwise our
     # prediction doesn't make sense
+    '''*********************************'''
     for mut in mutations_pos:
         if mut not in equal_mutations:
             selected_contact = []; possible_opposite = []            
             break        
-                             
+       
+    '''*******************************'''                      
     return selected_contact, possible_opposite, pdbid_sequence
 
 
@@ -678,7 +680,7 @@ def Count_correct(results, fold_change_cut = 1):
         # Take out the values
         if res[-1] != ['Empty Match']:
             fold_change = res[-1][2]
-            if fold_change > fold_change_cut:
+            if fold_change > fold_change_cut or fold_change <1/fold_change_cut:
                 total_prediction += 1
                 correct_prediction += res[-1][3]
             
@@ -699,7 +701,11 @@ if __name__ == '__main__':
         test_coverage_RBFN_results = json.load(f)
         
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    data = get_data('Affinities.ods')['Sheet1']
+    data_raw = get_data('Affinities.ods')['Sheet1']
+    data = []
+    for d in data_raw:
+        if d != []:
+            data.append(d)
 #    small_data = data['Sheet1']
 
         
@@ -711,11 +717,35 @@ if __name__ == '__main__':
     total_prediction, correct_prediction = Count_correct(results)
     
     # Save the results
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('affinity_testing_results', 'w') as f:
-        json.dump(results, f)
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+#    with open('affinity_testing_results', 'w') as f:
+#        json.dump(results, f)
 
-
-#total_prediction
-#correct_prediction
-#results
+len(data)
+total_prediction
+correct_prediction
+results
+#39/45
+#os.chdir('/home/leo/Documents/Database/Pipeline/Affinity/1dvf')
+#with open('good_matched_ids', 'r') as f:
+#    good_matched_ids = json.load(f)
+#with open('good_combined_ids', 'r') as f:
+#    good_combined_ids = json.load(f)
+#with open('sequence', 'r') as f:
+#    dvf_sequence = json.load(f)
+#    
+#good_matched_ids
+#for key, value in good_matched_ids.items():
+#    matched_ids[key] = value
+#for key, value in good_combined_ids.items():
+#    combined_ids[key] = value
+#for key, value in dvf_sequence.items():
+#    sequence[key] = value
+#
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+#with open('matched_ids', 'w') as f:
+#    json.dump(matched_ids, f)
+#with open('combined_ids', 'w') as f:
+#    json.dump(combined_ids, f)
+#with open('sequence', 'w') as f:
+#    json.dump(sequence, f)
