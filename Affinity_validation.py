@@ -2,6 +2,7 @@ import copy
 import numpy as np
 import json
 import os
+from pyexcel_ods import get_data
 #import math
 os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes')
 from AAC_2 import Coordinates, Get_contact
@@ -113,7 +114,7 @@ Input:
         mutation_match_parameter['pdbid']
         mutation_match_parameter['mutation_chain']: 
             a string, gives one of the names of the mutation chains
-        mutation_match_parameter['mutations']:
+        mutation_match_parameter['mutations_pos']:
             a list of integers, gives the positions of the mutations on the mutations_chain, it should
             in an increasing order.
         mutation_match_parameter['matched_ids']:
@@ -131,7 +132,7 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff=5):
     # take out the parameter
     pdbid = mutation_match_parameter['pdbid']
     chain = mutation_match_parameter['mutation_chain']
-    mutations = mutation_match_parameter['mutations']
+    mutations_pos = mutation_match_parameter['mutations_pos']
     matched_ids = mutation_match_parameter['matched_ids']
     combined_ids = mutation_match_parameter['combined_ids']
     opposite_chain = mutation_match_parameter['opposite_chain']
@@ -154,7 +155,7 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff=5):
     # take out all the contact containing the chain_name
     selected_contact = []; possible_opposite = []; equal_mutations = []    
     for i in contact:
-        if chain == i[0][chain_pos] and i[aa_pos] in mutations \
+        if chain == i[0][chain_pos] and i[aa_pos] in mutations_pos \
         and i[0][opposite_chain_pos] == opposite_chain: 
                
             selected_contact.append(i)
@@ -163,7 +164,7 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff=5):
                 
     # We have to make sure the selected_contact contains all the mutations, otherwise our
     # prediction doesn't make sense
-    for mut in mutations:
+    for mut in mutations_pos:
         if mut not in equal_mutations:
             selected_contact = []; possible_opposite = []            
             break        
@@ -193,7 +194,7 @@ def Paire_select(mutation_match_parameter, sequence):
     selected_contact, possible_opposite, pdbid_sequence = Select_contact_opposite(mutation_match_parameter, sequence)
     # Take out the values from the parameters
     chain = mutation_match_parameter['mutation_chain']
-    mutations = mutation_match_parameter['mutations']
+    mutations_pos = mutation_match_parameter['mutations_pos']
     opposite_chain = mutation_match_parameter['opposite_chain']
     Ab_Ag = mutation_match_parameter['Ab_Ag']
     # make sure we have got something and Get the longest possible consecutives 
@@ -216,13 +217,13 @@ def Paire_select(mutation_match_parameter, sequence):
     #        if len(mutations) >= 2 and len(choosen_opposite_pos)>=2:
             if len(choosen_opposite_pos)>=2:
                 if Ab_Ag == 'Ab':
-                     Order_Ab_sequence(mutations, choosen_opposite_pos, selected_contact)
+                     Order_Ab_sequence(mutations_pos, choosen_opposite_pos, selected_contact)
                 elif  Ab_Ag == 'Ag':
-                    Order_Ab_sequence(choosen_opposite_pos, mutations, selected_contact)            
+                    Order_Ab_sequence(choosen_opposite_pos, mutations_pos, selected_contact)            
     
             # Load the amino acids to the paires according to the choosen_epitope_pos          
             original_aa = []
-            for i in mutations:
+            for i in mutations_pos:
                 original_aa.append(pdbid_sequence[chain][i])
             opposite_aa = []
             for i in choosen_opposite_pos:
@@ -261,7 +262,7 @@ Output:
 '''
 def Original_mutation_sets(mutation_match_parameter):
     # take out the values
-    mutation_aa = mutation_match_parameter['mutations_aa']
+    mutate_to_aa = mutation_match_parameter['mutate_to_aa']
     Ab_Ag = mutation_match_parameter['Ab_Ag']
     paires = mutation_match_parameter['paires']
     # Do the work
@@ -269,10 +270,10 @@ def Original_mutation_sets(mutation_match_parameter):
         mutated_paires = []
         if Ab_Ag == 'Ab':
             for parepi in paires:
-                mutated_paires.append([mutation_aa, parepi[1]])
+                mutated_paires.append([mutate_to_aa, parepi[1]])
         elif Ab_Ag == 'Ag':
             for parepi in paires:
-                mutated_paires.append([parepi[0], mutation_aa])
+                mutated_paires.append([parepi[0], mutate_to_aa])
         # Load the results to original_mutation_sets.
         original_mutation_sets = [paires, mutated_paires]
         mutation_match_parameter['original_mutation_sets'] = original_mutation_sets
@@ -358,7 +359,184 @@ def Compare(mutation_match_parameter, model = 'RBFN'):
     return original_mutation_score
 
 ######################################################################
-                
+'''
+Initiate_mutation_match_parameter:
+    a function to initiate the mutation_match_parameter for later usage
+Input:
+    good_matched_ids:
+        The same as we always use.
+    good_combined_ids:
+        As above
+    one_mutation:
+        a dictionary, with keys 'mutations', 'affinities'. This dictionay is one of
+        the element of the recorded mutaions from the literatures
+Output:
+    unit_list:
+        a list of mutation_match_parameters, and this list is a basic prediction unit
+'''
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+data = get_data('Affinities.ods')
+small_data = data['Sheet1']
+small_data
+########################################################################
+'''
+Parse_mutations:
+    This function is to pares the mutation information into a list of dictionaies
+Input:
+    mutation information from the .ods file
+Output:
+    list_mutaions
+    a list of dictionaries with keys pdbid and values dictionries, 
+    the value dictionary has keys 'mutations' and 'affinities'
+**********************************************************************
+The small_data will be parsed into the following form.
+[[['1hh9',[ 'C', [7, 9], ['GLY', 'ARG']],['affinities', 1.00E-05, 1.00E-07, 'Kd']],
+  [['1hh6', ['C', [7, 9], ['ASN', 'LYS']], [affinities', 1.00E-07, 1.00E-05], 'Kd']]]
+'''
+def Parse_mutations(mutation_data, free_type):
+    # Separate the mutation complexes
+    separated_mutation_complex = []
+    starts = []
+    ends = []
+    for i in range(len(mutation_data)):
+        if len(mutation_data[i][0]) == 4:
+            starts.append(i)
+        elif mutation_data[i][0] == 'affinities':
+            ends.append(i)
+    
+    if len(starts) != len(ends):
+        print(len(starts),' complexes \n', len(ends), ' affinities')
+        return None
+    
+    for nth_complex in range(len(starts)):
+        start = starts[nth_complex]
+        end = ends[nth_complex]
+        
+        # Get the pdbid
+        pdbid = mutation_data[start][0]
+        # get the list of mutaions
+        mutations_list_onepdb = mutation_data[start:end]
+        # grouped mutations by free_type
+        mutations_by_free_type_chain = Sub_parse_mutations(mutations_list_onepdb, free_type)
+        # affinities
+        affinities = mutation_data[end]
+        
+        separated_mutation_complex.append([pdbid, mutations_by_free_type_chain,affinities])
+        
+    return separated_mutation_complex
+
+separated_mutation_complex = Parse_mutations(small_data, free_type = 1)
+separated_mutation_complex
+##########################################################################
+'''
+Input:
+    a list of the form 
+   [ ['1hh6', 'C', 7, 'ASN'], ['', 'C', 9, 'LYS'], ['', 'C', 11, 'TYR'], ['', 'C', 15, 'SER'], \
+   ['', 'D', 9, 'LYS'], ['', 'D', 11, 'TYR'], ['', 'D', 15, 'SER']]
+Output:
+    a list of the form 
+    [['C', [7, 9, 11], ['ASN', 'LYS', 'TYR']],
+ ['C', [15], ['SER']],
+ ['D', [9, 11], ['LYS', 'TYR']],
+ ['D', [15], ['SER']]]
+'''
+def Sub_parse_mutations(mutations_list_onepdb, free_type):
+    # Empty container for the final retrun value
+    chain_pos_aa_list = []
+    # Creat an empty dictionary
+    chain_mutation_dict = {}
+    for mutation in mutations_list_onepdb:
+        if mutation[1] not in chain_mutation_dict:
+            chain_mutation_dict[mutation[1]] = [mutation[2:4]]
+        else:
+            chain_mutation_dict[mutation[1]].append(mutation[2:4])
+            
+    # Find the consecutives for each chain        
+    for key, value in chain_mutation_dict.items():
+        value.sort(key = lambda x:x[0])
+        
+        # Find the consecutive pos and the consecutive aa
+        chain_pos_aa_list.append([key, [value[0][0]], [value[0][1]]])
+        if len(value) > 1:
+            for i in range(1, len(value)):
+                diff = value[i][0] - chain_pos_aa_list[-1][1][-1]
+                if diff <= free_type+1:
+                    chain_pos_aa_list[-1][1].append(value[i][0])
+                    chain_pos_aa_list[-1][2].append(value[i][1])
+                else:
+                    chain_pos_aa_list.append([key, [value[i][0]], [value[i][1]]])
+                    
+    return chain_pos_aa_list
+
+################################################################################
+
+def Initiate_mutation_match_parameter(matched_ids, combined_ids, one_mutation):
+    # Take out the values from the one_mutations
+    pdbid = one_mutation[0]    
+    # Find the affinity type    
+    affinity_type = one_mutation[-1][-1]    
+    # Calculate the fold change
+    fold_change = one_mutation[-1][1]/one_mutation[-1][2]
+    # Find the combined ids
+    combined_ids = combined_ids[pdbid]
+    # Find the matched ids
+    matched_ids = matched_ids[pdbid]
+    # Get the opposite chain
+    # create an empty list
+    unit_list = []
+    # Load up the list
+    for mutations in one_mutation[1]:
+        mutation_chain = mutations[0]
+        mutations_pos = mutations[1]
+        mutate_to_aa = mutations[2]        
+        opposite_chains = []
+        for match in matched_ids:            
+            for i in range(3):
+                if match[i] == mutation_chain and i == 2:
+                    Ab_Ag = 'Ag'
+                    for j in range(2):
+                        if match[i] not in opposite_chains and match[i] != '':
+                            opposite_chains.append(match[i])                  
+                elif match[i] == mutation_chain and i != 2:
+                    Ab_Ag = 'Ab'
+                    opposite_chains.append(match[2])
+
+        for opposite in opposite_chains:
+            # Creat an empty dictionary
+            temp_mutation_match_parameter = {}
+            # Load the Ab_Ag
+            temp_mutation_match_parameter['Ab_Ag'] = Ab_Ag
+            # Load the pdbid
+            temp_mutation_match_parameter['pdbid'] = pdbid
+            # Load the mutation chain
+            temp_mutation_match_parameter['mutation_chain'] = mutation_chain
+            # Load the mutations
+            temp_mutation_match_parameter['mutations_pos'] = mutations_pos
+            # Load the mutations_aa
+            temp_mutation_match_parameter['mutate_to_aa'] = mutate_to_aa
+            # Load the opposite chain 
+            temp_mutation_match_parameter['opposite_chain'] = opposite
+            # Load the fold change
+            temp_mutation_match_parameter['fold_change'] = fold_change
+            # Load the matched_ids
+            temp_mutation_match_parameter['matched_ids'] = matched_ids
+            # Load the combined_ids
+            temp_mutation_match_parameter['combined_ids'] = combined_ids
+            # Load the affinity type
+            temp_mutation_match_parameter['affinity_type'] = affinity_type                        
+            # Add the dictionary to the unit_list
+            unit_list.append(copy.deepcopy(temp_mutation_match_parameter))
+    
+    return unit_list
+######################################################################
+os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+with open('matched_ids', 'r') as f:
+    matched_ids = json.load(f)
+with open('combined_ids', 'r') as f:
+    combined_ids = json.load(f)
+unit = Initiate_mutation_match_parameter(matched_ids, combined_ids, separated_mutation_complex[0])
+
+#########################################################################              
 '''
 Mutation_list_prediction:
     to make prediction for a mutation list
@@ -422,84 +600,7 @@ def Mutation_list_prediction(one_list, sequence,  model = 'RBFN'):
 
 
 ##################################################################
-'''
-Initiate_mutation_match_parameter:
-    a function to initiate the mutation_match_parameter for later usage
-Input:
-    good_matched_ids:
-        The same as we always use.
-    good_combined_ids:
-        As above
-    one_mutation:
-        a dictionary, with keys 'mutations', 'affinities'. This dictionay is one of
-        the element of the recorded mutaions from the literatures
-Output:
-    unit_list:
-        a list of mutation_match_parameters, and this list is a basic prediction unit
-'''
-def Initiate_mutation_match_parameter(good_matched_ids, good_combined_ids, one_mutation):
-    # Take out the values from the one_mutations
-    mutations_info = one_mutation['mutations']
-    affinities = one_mutation['affinities']
-    mutate_to = affinities[0][1]
-    # Calculate the fold change
-    fold = float(affinities[1][0])/float(affinities[1][1])
-    #Load up the fold_change
-    fold_change = [affinities[1][0], affinities[1][1], affinities[2], fold]
-    # Finde the pdbid
-    pdbid = mutations_info[0][0]
-    # Find the combined ids
-    combined_ids = good_combined_ids[pdbid]
-    # Find the matched ids
-    matched_ids = good_matched_ids[pdbid]
-    # Get the opposite chain
-    # create an empty list
-    unit_list = []
-    # Load up the list
-    for i in range(len(mutations_info)):
-        sub_mutaion = mutations_info[i]
-        # Find the mutaion chain
-        mutation_chain = sub_mutaion[1]    
-        # Find the value of Ab_Ag and opposite_chains
-        opposite_chains = []
-        for match in matched_ids:            
-            for i in range(3):
-                if match[i] == mutation_chain and i == 2:
-                    Ab_Ag = 'Ag'
-                    opposite_chains.extend([match[0], match[1]])                  
-                elif match[i] == mutation_chain and i != 2:
-                    Ab_Ag = 'Ab'
-                    opposite_chains.append(match[2])
-        # Find the opposite chains
-#        opposite_chains = sub_mutaion[4]
-        for opposite in opposite_chains:
-            # Creat an empty dictionary
-            temp_mutation_match_parameter = {}
-            # Load the Ab_Ag
-            temp_mutation_match_parameter['Ab_Ag'] = Ab_Ag
-            # Load the pdbid
-            temp_mutation_match_parameter['pdbid'] = pdbid
-            # Load the mutation chain
-            temp_mutation_match_parameter['mutation_chain'] = mutation_chain
-            # Load the mutations
-            temp_mutation_match_parameter['mutations'] = sub_mutaion[2]
-            # Load the mutations_aa
-            temp_mutation_match_parameter['mutations_aa'] = sub_mutaion[3]
-            # Load the opposite chain 
-            temp_mutation_match_parameter['opposite_chain'] = opposite
-            # Load the mutate to
-            temp_mutation_match_parameter['mutate_to'] = mutate_to
-            # Load the fold change
-            temp_mutation_match_parameter['fold_change'] = fold_change
-            # Load the matched_ids
-            temp_mutation_match_parameter['matched_ids'] = matched_ids
-            # Load the combined_ids
-            temp_mutation_match_parameter['combined_ids'] = combined_ids            
-            
-            # Add the dictionary to the unit_list
-            unit_list.append(copy.deepcopy(temp_mutation_match_parameter))
-    
-    return unit_list
+
 ############################################################
 '''
 List_list_other:
@@ -666,4 +767,6 @@ if __name__ == '__main__':
 total_prediction
 correct_prediction
 40/49
+
+
 
