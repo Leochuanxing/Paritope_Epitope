@@ -52,14 +52,14 @@ def Max_contact(consecutive, selected_contact, Ab_Ag):
     max_contact = -1
     max_nple = []
     if Ab_Ag == 'Ab':
-        chain_pos = 2
+        chain_pos = 1
     elif Ab_Ag == 'Ag':
-        chain_pos = 3
+        chain_pos = 2
     for nple in consecutive:
         n_contact = 0
-        for i in selected_contact:
-            if i[chain_pos] in nple:
-                n_contact += i[3]
+        for fcdn in selected_contact:
+            if fcdn[chain_pos] in nple:                
+                n_contact += fcdn[3]
         if n_contact >= max_contact:
             max_contact = n_contact
             max_nple = nple
@@ -128,7 +128,7 @@ Input:
         cutoff: 
             a float, give the relaxed cutoff value
 '''
-def Select_contact_opposite(mutation_match_parameter, sequence, cutoff=5):
+def Select_contact_opposite(mutation_match_parameter, sequence, cutoff=7):
     # take out the parameter
     pdbid = mutation_match_parameter['pdbid']
     chain = mutation_match_parameter['mutation_chain']
@@ -188,10 +188,11 @@ Output:
         #### The epitope are the ones with the longest consecutive sequences in the 1_free 
         #### sense, but not more than four amino acids
 '''
-def Paire_select(mutation_match_parameter, sequence):
+def Paire_select(mutation_match_parameter, sequence, mode = 'single', cutoff = 6):
 
     # Extract the required information from the pdb file
-    selected_contact, possible_opposite, pdbid_sequence = Select_contact_opposite(mutation_match_parameter, sequence)
+    selected_contact, possible_opposite, pdbid_sequence =\
+        Select_contact_opposite(mutation_match_parameter, sequence, cutoff)
     # Take out the values from the parameters
     chain = mutation_match_parameter['mutation_chain']
     mutations_pos = mutation_match_parameter['mutations_pos']
@@ -209,39 +210,78 @@ def Paire_select(mutation_match_parameter, sequence):
             longest_possible_consecutives = Get_consecutive(possible_opposite, length, free_type=1)
             if longest_possible_consecutives != []:
                 break
-            
-        for choosen_opposite_pos in longest_possible_consecutives:
+        if mode == 'all':   
+            for choosen_opposite_pos in longest_possible_consecutives:
+                temp_paires = Sub_paire_select(mutations_pos, choosen_opposite_pos, selected_contact,\
+                         Ab_Ag, pdbid_sequence, chain, opposite_chain)
+                paires.extend(copy.deepcopy(temp_paires))
+        elif mode == 'single':
+            maxt_n = Max_contact(longest_possible_consecutives, selected_contact, Ab_Ag)
+            paires = Sub_paire_select(mutations_pos, maxt_n, selected_contact,\
+                         Ab_Ag, pdbid_sequence, chain, opposite_chain)
+        
             # Correct the direction of the choosen_opposite_pos
-            choosen_opposite_pos.sort()
-            # define a small function to change the order of the paires
-    #        if len(mutations) >= 2 and len(choosen_opposite_pos)>=2:
-            if len(choosen_opposite_pos)>=2:
-                if Ab_Ag == 'Ab':
-                     Order_Ab_sequence(mutations_pos, choosen_opposite_pos, selected_contact)
-                elif  Ab_Ag == 'Ag':
-                    Order_Ab_sequence(choosen_opposite_pos, mutations_pos, selected_contact)            
-    
-            # Load the amino acids to the paires according to the choosen_epitope_pos          
-            original_aa = []
-            for i in mutations_pos:
-                original_aa.append(pdbid_sequence[chain][i])
-            opposite_aa = []
-            for i in choosen_opposite_pos:
-                opposite_aa.append(pdbid_sequence[opposite_chain][i]) 
-            # Make a deep copy to be safe       
-            kept_opposite_aa = copy.deepcopy(opposite_aa)
-            kept_original_aa = copy.deepcopy(original_aa)
-            # Here we have to make sure the Ab amino acids is the first element of 
-            # the paires and the Ag amino acids is the second element of the paires.
-            if Ab_Ag == 'Ab':
-                paires.append([kept_original_aa, kept_opposite_aa])
-            elif Ab_Ag == 'Ag':
-                paires.append([kept_opposite_aa, kept_original_aa]) 
+#            choosen_opposite_pos.sort()
+#            # define a small function to change the order of the paires
+#    #        if len(mutations) >= 2 and len(choosen_opposite_pos)>=2:
+#            if len(choosen_opposite_pos)>=2:
+#                if Ab_Ag == 'Ab':
+#                     Order_Ab_sequence(mutations_pos, choosen_opposite_pos, selected_contact)
+#                elif  Ab_Ag == 'Ag':
+#                    Order_Ab_sequence(choosen_opposite_pos, mutations_pos, selected_contact)            
+#    
+#            # Load the amino acids to the paires according to the choosen_epitope_pos          
+#            original_aa = []
+#            for i in mutations_pos:
+#                original_aa.append(pdbid_sequence[chain][i])
+#            opposite_aa = []
+#            for i in choosen_opposite_pos:
+#                opposite_aa.append(pdbid_sequence[opposite_chain][i]) 
+#            # Make a deep copy to be safe       
+#            kept_opposite_aa = copy.deepcopy(opposite_aa)
+#            kept_original_aa = copy.deepcopy(original_aa)
+#            # Here we have to make sure the Ab amino acids is the first element of 
+#            # the paires and the Ag amino acids is the second element of the paires.
+#            if Ab_Ag == 'Ab':
+#                paires.append([kept_original_aa, kept_opposite_aa])
+#            elif Ab_Ag == 'Ag':
+#                paires.append([kept_opposite_aa, kept_original_aa]) 
     
     # Load the results
     mutation_match_parameter['paires'] = paires
             
-#    return mutation_match_parameter
+#####################################################################
+def Sub_paire_select(mutations_pos, choosen_opposite_pos, selected_contact,\
+                     Ab_Ag, pdbid_sequence, chain, opposite_chain):
+    # Creat the empty container
+    paires = []
+    choosen_opposite_pos.sort()
+    # define a small function to change the order of the paires
+    #        if len(mutations) >= 2 and len(choosen_opposite_pos)>=2:
+    if len(choosen_opposite_pos)>=2:
+        if Ab_Ag == 'Ab':
+             Order_Ab_sequence(mutations_pos, choosen_opposite_pos, selected_contact)
+        elif  Ab_Ag == 'Ag':
+            Order_Ab_sequence(choosen_opposite_pos, mutations_pos, selected_contact)            
+    
+    # Load the amino acids to the paires according to the choosen_epitope_pos          
+    original_aa = []
+    for i in mutations_pos:
+        original_aa.append(pdbid_sequence[chain][i])
+    opposite_aa = []
+    for i in choosen_opposite_pos:
+        opposite_aa.append(pdbid_sequence[opposite_chain][i]) 
+    # Make a deep copy to be safe       
+    kept_opposite_aa = copy.deepcopy(opposite_aa)
+    kept_original_aa = copy.deepcopy(original_aa)
+    # Here we have to make sure the Ab amino acids is the first element of 
+    # the paires and the Ag amino acids is the second element of the paires.
+    if Ab_Ag == 'Ab':
+        paires.append([kept_original_aa, kept_opposite_aa])
+    elif Ab_Ag == 'Ag':
+        paires.append([kept_opposite_aa, kept_original_aa]) 
+        
+    return paires
 ######################################################################
 
 '''
@@ -280,7 +320,6 @@ def Original_mutation_sets(mutation_match_parameter):
     else:
         mutation_match_parameter['original_mutation_sets'] = []
     
-#    return mutation_match_parameter
            
 #######################################################################
 '''
@@ -300,12 +339,9 @@ Output:
         an arrey in the shape of (len(testing_data), a), gives the predicted values
         of the paires.
 '''
-def Predition_RBFN_coverage(testing_set):
+def Predition_RBFN_coverage(test_coverage_RBFN_results, testing_set):
 #testing_set = testing5
-    key = str(len(testing_set[0][0]))+'_'+str(len(testing_set[0][1]))+'_1_1_1_2_1perchain'
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('test_coverage_RBFN_results', 'r') as f:
-        test_coverage_RBFN_results = json.load(f)            
+    key = str(len(testing_set[0][0]))+'_'+str(len(testing_set[0][1]))+'_1_1_1_2_1perchain'    
 
     non_redundent_training_set = test_coverage_RBFN_results[key]['non_redundent_training_set']
     distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
@@ -337,7 +373,7 @@ Output:
         a list of float numbers, [original_pred_sum, mutation_pred_sum]
 '''
 
-def Compare(mutation_match_parameter, model = 'RBFN'):
+def Compare(mutation_match_parameter, test_coverage_RBFN_results):
     # Take out the values
 #    fold_change = mutation_match_parameter['fold_change']
     original_mutation_sets = mutation_match_parameter['original_mutation_sets']
@@ -346,38 +382,56 @@ def Compare(mutation_match_parameter, model = 'RBFN'):
         original_sets = original_mutation_sets[0]
         mutated_sets = original_mutation_sets[1]
         # Make predictions for each set
-        if model == 'RBFN':
-            original_pred = Predition_RBFN_coverage(original_sets)
-            mutated_pred = Predition_RBFN_coverage(mutated_sets)
-#        if model == 'Logistic':
-#            original_pred = Prediction_LogisticRegression(original_sets, wd_results, wd_negative_samples)
-#            mutated_pred = Prediction_LogisticRegression(mutated_sets, wd_results, wd_negative_samples)
-        original_mutation_score = [np.sum(original_pred), np.sum(mutated_pred)]
+        original_pred = Predition_RBFN_coverage(test_coverage_RBFN_results,original_sets)
+        mutated_pred = Predition_RBFN_coverage(test_coverage_RBFN_results, mutated_sets)
+        # Put together
+        original_mutation_score = [np.average(original_pred), np.average(mutated_pred)]
     else:
         return 'Empty Match'        
         
     return original_mutation_score
 
 ######################################################################
+
 '''
-Initiate_mutation_match_parameter:
-    a function to initiate the mutation_match_parameter for later usage
 Input:
-    good_matched_ids:
-        The same as we always use.
-    good_combined_ids:
-        As above
-    one_mutation:
-        a dictionary, with keys 'mutations', 'affinities'. This dictionay is one of
-        the element of the recorded mutaions from the literatures
+    a list of the form 
+   [ ['1hh6', 'C', 7, 'ASN'], ['', 'C', 9, 'LYS'], ['', 'C', 11, 'TYR'], ['', 'C', 15, 'SER'], \
+   ['', 'D', 9, 'LYS'], ['', 'D', 11, 'TYR'], ['', 'D', 15, 'SER']]
 Output:
-    unit_list:
-        a list of mutation_match_parameters, and this list is a basic prediction unit
+    a list of the form 
+    [['C', [7, 9, 11], ['ASN', 'LYS', 'TYR']],
+ ['C', [15], ['SER']],
+ ['D', [9, 11], ['LYS', 'TYR']],
+ ['D', [15], ['SER']]]
 '''
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-data = get_data('Affinities.ods')
-small_data = data['Sheet1']
-small_data
+def Sub_parse_mutations(mutations_list_onepdb, free_type):
+    # Empty container for the final retrun value
+    chain_pos_aa_list = []
+    # Creat an empty dictionary
+    chain_mutation_dict = {}
+    for mutation in mutations_list_onepdb:
+        if mutation[1] not in chain_mutation_dict:
+            chain_mutation_dict[mutation[1]] = [mutation[2:4]]
+        else:
+            chain_mutation_dict[mutation[1]].append(mutation[2:4])
+            
+    # Find the consecutives for each chain        
+    for key, value in chain_mutation_dict.items():
+        value.sort(key = lambda x:x[0])
+        
+        # Find the consecutive pos and the consecutive aa
+        chain_pos_aa_list.append([key, [value[0][0]], [value[0][1]]])
+        if len(value) > 1:
+            for i in range(1, len(value)):
+                diff = value[i][0] - chain_pos_aa_list[-1][1][-1]
+                if diff <= free_type+1:
+                    chain_pos_aa_list[-1][1].append(value[i][0])
+                    chain_pos_aa_list[-1][2].append(value[i][1])
+                else:
+                    chain_pos_aa_list.append([key, [value[i][0]], [value[i][1]]])
+                    
+    return chain_pos_aa_list
 ########################################################################
 '''
 Parse_mutations:
@@ -425,50 +479,24 @@ def Parse_mutations(mutation_data, free_type):
         
     return separated_mutation_complex
 
-separated_mutation_complex = Parse_mutations(small_data, free_type = 1)
-separated_mutation_complex
-##########################################################################
-'''
-Input:
-    a list of the form 
-   [ ['1hh6', 'C', 7, 'ASN'], ['', 'C', 9, 'LYS'], ['', 'C', 11, 'TYR'], ['', 'C', 15, 'SER'], \
-   ['', 'D', 9, 'LYS'], ['', 'D', 11, 'TYR'], ['', 'D', 15, 'SER']]
-Output:
-    a list of the form 
-    [['C', [7, 9, 11], ['ASN', 'LYS', 'TYR']],
- ['C', [15], ['SER']],
- ['D', [9, 11], ['LYS', 'TYR']],
- ['D', [15], ['SER']]]
-'''
-def Sub_parse_mutations(mutations_list_onepdb, free_type):
-    # Empty container for the final retrun value
-    chain_pos_aa_list = []
-    # Creat an empty dictionary
-    chain_mutation_dict = {}
-    for mutation in mutations_list_onepdb:
-        if mutation[1] not in chain_mutation_dict:
-            chain_mutation_dict[mutation[1]] = [mutation[2:4]]
-        else:
-            chain_mutation_dict[mutation[1]].append(mutation[2:4])
-            
-    # Find the consecutives for each chain        
-    for key, value in chain_mutation_dict.items():
-        value.sort(key = lambda x:x[0])
-        
-        # Find the consecutive pos and the consecutive aa
-        chain_pos_aa_list.append([key, [value[0][0]], [value[0][1]]])
-        if len(value) > 1:
-            for i in range(1, len(value)):
-                diff = value[i][0] - chain_pos_aa_list[-1][1][-1]
-                if diff <= free_type+1:
-                    chain_pos_aa_list[-1][1].append(value[i][0])
-                    chain_pos_aa_list[-1][2].append(value[i][1])
-                else:
-                    chain_pos_aa_list.append([key, [value[i][0]], [value[i][1]]])
-                    
-    return chain_pos_aa_list
+
 
 ################################################################################
+'''
+Initiate_mutation_match_parameter:
+    a function to initiate the mutation_match_parameter for later usage
+Input:
+    good_matched_ids:
+        The same as we always use.
+    good_combined_ids:
+        As above
+    one_mutation:
+        a dictionary, with keys 'mutations', 'affinities'. This dictionay is one of
+        the element of the recorded mutaions from the literatures
+Output:
+    unit_list:
+        a list of mutation_match_parameters, and this list is a basic prediction unit
+'''
 
 def Initiate_mutation_match_parameter(matched_ids, combined_ids, one_mutation):
     # Take out the values from the one_mutations
@@ -495,8 +523,8 @@ def Initiate_mutation_match_parameter(matched_ids, combined_ids, one_mutation):
                 if match[i] == mutation_chain and i == 2:
                     Ab_Ag = 'Ag'
                     for j in range(2):
-                        if match[i] not in opposite_chains and match[i] != '':
-                            opposite_chains.append(match[i])                  
+                        if match[j] not in opposite_chains and match[j] != '':
+                            opposite_chains.append(match[j])                  
                 elif match[i] == mutation_chain and i != 2:
                     Ab_Ag = 'Ab'
                     opposite_chains.append(match[2])
@@ -528,13 +556,6 @@ def Initiate_mutation_match_parameter(matched_ids, combined_ids, one_mutation):
             unit_list.append(copy.deepcopy(temp_mutation_match_parameter))
     
     return unit_list
-######################################################################
-os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
-with open('matched_ids', 'r') as f:
-    matched_ids = json.load(f)
-with open('combined_ids', 'r') as f:
-    combined_ids = json.load(f)
-unit = Initiate_mutation_match_parameter(matched_ids, combined_ids, separated_mutation_complex[0])
 
 #########################################################################              
 '''
@@ -549,23 +570,19 @@ Output:
         or ['Empty Match']
 '''
 
-def Mutation_list_prediction(one_list, sequence,  model = 'RBFN'):  
+def Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mode = 'single', cutoff=6):  
 
     # Select the the paires and Generate the original and mutation sets
 #    list_parameters = []
     for mutation_match_parameter in one_list:
-#        mutation_match_parameter = Paire_select(mutation_match_parameter,sequence)
-#        list_parameters.append(copy.deepcopy(Original_mutation_sets(mutation_match_parameter)))
-        Paire_select(mutation_match_parameter,sequence)
+        Paire_select(mutation_match_parameter,sequence, mode, cutoff)
         Original_mutation_sets(mutation_match_parameter)
     # Make prediction
     # When we make prediction, we simply assume each paratope-epitope paire contribute equally to 
     # the final affinity
     all_original_mutation_score= []
     for parameter in one_list:
-        original_mutation_score = Compare( parameter, model)
-        # Everytime after Compare we have to switch the working directory back. THis is not good.
-        os.chdir('/home/leo/Documents/Database/Pipeline/Complexes with Affinity/structure')
+        original_mutation_score = Compare( parameter, test_coverage_RBFN_results)
         # Load the results to scores
         all_original_mutation_score.append(original_mutation_score)
 
@@ -578,95 +595,43 @@ def Mutation_list_prediction(one_list, sequence,  model = 'RBFN'):
     # Add up the scores
     scores_original=0
     scores_mutation = 0
+    length = len(all_original_mutation_score)
     for original_mutaion in all_original_mutation_score:
-        scores_original += original_mutaion[0]
-        scores_mutation += original_mutaion[1]
+        scores_original += original_mutaion[0]/length
+        scores_mutation += original_mutaion[1]/length
     
     return [scores_original, scores_mutation]
 
 ######################################################################
-#os.chdir('/home/leo/Documents/Database/Pipeline/Complexes with Affinity')
-#with open('good_matched_ids', 'r') as f:
-#    good_matched_ids = json.load(f)
-#with open('good_combined_ids', 'r') as f:
-#    good_combined_ids = json.load(f)
-#with open('contact', 'r') as f:
-#    contact = json.load(f)    
-#with open('sequence', 'r') as f:
-#    sequence = json.load(f)
-
-#os.chdir('/home/leo/Documents/Database/Pipeline/Complexes with Affinity/structure')
-
-
-
-##################################################################
-
-############################################################
 '''
-List_list_other:
-    a function to generate similar output as List_list, the only difference is that 
-    the input is a little bit different from List_list
-Input:
-    other_mutations: mutations collected from papers
-    good_matched_ids:
-    good_combined_ids:
-    
-Output:
-    list_list_other:
-        in the same form as the output of List_list
+Test the above functions
 '''
-def List_list_other(other_mutations, good_matched_ids, good_combined_ids):
-    list_list_other = []
-    # Initiate the mutation_match_parameters
-    for one_mutation in other_mutations:
-        unit_list = Initiate_mutation_match_parameter(good_matched_ids, good_combined_ids, one_mutation)
-#        for mutation_match_parameter in unit_list:
-#            Paire_select(mutation_match_parameter)
-#            Original_mutation_sets(mutation_match_parameter)
-#            # Load to the list_list_other
-        list_list_other.append(copy.deepcopy(unit_list))
+#data = small_data
+def Predict(data, matched_ids, combined_ids, sequence, test_coverage_RBFN_results, mode = 'single', cutoff=7):
+    mu_list = Parse_mutations(data, free_type = 1)
+    results = []
+
+    for mutation in mu_list: 
+        sub_result = []
+        one_list = Initiate_mutation_match_parameter(matched_ids, combined_ids, mutation)
+        scores = Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mode, cutoff)
+        sub_result.append(mutation[0])
+        for para in one_list:
+            affinity_type =  para['affinity_type']
+            fold_change = para['fold_change']
+            sub_result.append(para['original_mutation_sets'])
+        if scores != ['Empty Match']:
+            r_w = Right_or_wrong(fold_change, affinity_type, scores[0], scores[1])
+            scores.extend([fold_change,r_w])
         
-    return list_list_other
-    
-#################################################################
+        sub_result.append(scores)
+        results.append(copy.deepcopy(sub_result))
+        
+    return results  
+#results = Predict(data) 
+#results
+############################################################
 
-'''
-Predict_list_list:
-    a function to make prediction on the given list_list
-Input:
-    list_list:
-        a list of  basic prediction unit, which is list of mutation_match_parameter dictionaries
-Output:
-    results_list: a list, each element is a 
-        a dictionary in the following form:
-        results['original'] = original pdbid
-        results['mutate_to'] = the pidbid of the complex the original complex is mutated to
-        results['fold_change'] = the fold change of the affinity  original_affinity/mutation_affinity
-        results['predictions'] = [original_prediction_value, mutation_prediction_value]
-'''
-def Predict_list_list(list_list, wd_results, wd_negative_samples,sequence, model):
-    results_list = []
-    for i in range(len(list_list)):
-        list_1 = list_list[i]
-        # Change the working directory
-        os.chdir('/home/leo/Documents/Database/Pipeline/All with peptide 5+ resolution 4A/structure')
-               
-        # Create a dictionary to contain the detailed prediction results
-        results_1 = {}
-        # Make prediction for the lists
-        if list_1 != []:
-            prediction_1 = Mutation_list_prediction(list_1, wd_results, wd_negative_samples,sequence, model)
-            # Store the results
-            results_1['original'] = list_1[0]['pdbid']
-            results_1['mutate_to'] = list_1[0]['mutate_to']
-            results_1['fold_change'] = list_1[0]['fold_change']
-            results_1['predictions'] = prediction_1
-       
-        if results_1 != {}:
-            results_list.append(results_1)
-    return results_list
-
-#####################################################################
 '''
 Right_or_wrong:
     a function to tell whether our  prediction is right or wrong
@@ -701,72 +666,56 @@ def Right_or_wrong(fold, affinity_type, prediction1, prediction2):
     
     return right_or_wrong
 ########################################################################
+
 '''
 Count the number of predictions and the number of correct predictions
 '''
-def Count_correct(results_list, fold_change_cut = 1):
+def Count_correct(results, fold_change_cut = 1):
     total_prediction = 0
     correct_prediction = 0
     
-    for results in results_list:
+    for res in results:
         # Take out the values
-        fold_change = results['fold_change']
-        fold = fold_change[3]
-        affinity_type = fold_change[2]
-        predictions = results['predictions']
-        
-        if predictions[0] != 'Empty Match' and fold >= fold_change_cut: 
-            total_prediction += 1
-            if Right_or_wrong(fold, affinity_type, predictions[0], predictions[1]):
-                correct_prediction += 1
-                
-        elif predictions[0] != 'Empty Match' and fold <= 1/fold_change_cut:
-            total_prediction += 1
-            if Right_or_wrong(fold, affinity_type, predictions[0], predictions[1]):
-                correct_prediction += 1
-
+        if res[-1] != ['Empty Match']:
+            fold_change = res[-1][2]
+            if fold_change > fold_change_cut:
+                total_prediction += 1
+                correct_prediction += res[-1][3]
+            
     return total_prediction, correct_prediction
 ###############################################################################
-'''
-Do the prediction, let us use one paires of complexes as an example to build up the 
-steps
-'''
-#  Assign the working directories
-directory_paires = [['/home/leo/Documents/Database/Pipeline/Results/1_free',\
-  '/home/leo/Documents/Database/Pipeline/Negative samples/1_free'],\
- ['/home/leo/Documents/Database/Pipeline/Results/0_free',\
-                       '/home/leo/Documents/Database/Pipeline/Negative samples/0_free']]
-        
-wd_results = directory_paires[0][0]
-wd_negative_samples = directory_paires[0][1]
 
-# Open the workable list
-os.chdir('/home/leo/Documents/Database/Pipeline/Affinity/All_structures')
-with open('mutations', 'r') as f:
-    mutations = json.load(f)
-with open('combined_ids', 'r') as f:
-    good_combined_ids = json.load(f)
-with open('matched_ids', 'r') as f:
-    good_matched_ids = json.load(f)
-with open('mutations_mix', 'r') as f:
-    mutations_mix = json.load(f)
-with open('sequence', 'r') as f:
-    sequence = json.load(f)
-with open('mutations_1dvf', 'r') as f:
-    mutations_1dvf = json.load(f)
-#len(mutations)
-############################################################
 if __name__ == '__main__':
-    list_list = List_list_other(mutations, good_matched_ids, good_combined_ids)
-    results_list = Predict_list_list(list_list, wd_results, wd_negative_samples,sequence, model = 'RBFN')
-    total_prediction, correct_prediction = Count_correct(results_list, fold_change_cut = 1)   
-    total_prediction
-    correct_prediction
-    results_list
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+    with open('matched_ids', 'r') as f:
+        matched_ids = json.load(f)
+    with open('combined_ids', 'r') as f:
+        combined_ids = json.load(f)
+    with open('sequence', 'r') as f:
+        sequence = json.load(f)
+        
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('test_coverage_RBFN_results', 'r') as f:
+        test_coverage_RBFN_results = json.load(f)
+        
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    data = get_data('Affinities.ods')['Sheet1']
+#    small_data = data['Sheet1']
+
+        
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')
     
-total_prediction
-correct_prediction
-40/49
+    results = Predict(data, matched_ids, combined_ids, sequence,\
+                      test_coverage_RBFN_results, mode = 'single', cutoff=7)
+    
+    total_prediction, correct_prediction = Count_correct(results)
+    
+    # Save the results
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('affinity_testing_results', 'w') as f:
+        json.dump(results, f)
 
 
-
+#total_prediction
+#correct_prediction
+#results
