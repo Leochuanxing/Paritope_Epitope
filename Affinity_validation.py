@@ -130,7 +130,7 @@ Input:
         cutoff: 
             a float, give the relaxed cutoff value
 '''
-def Select_contact_opposite(mutation_match_parameter, sequence, cutoff=7):
+def Select_contact_opposite(mutation_match_parameter, sequence, cutoff):
     # take out the parameter
     pdbid = mutation_match_parameter['pdbid']
     chain = mutation_match_parameter['mutation_chain']
@@ -155,6 +155,7 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff=7):
     contact = Get_contact(cdn, matched_ids, cutoff)
     # Carry out the above process:
     # take out all the contact containing the chain_name
+    '''*******This part can be modified to add the moving cut mode*******'''
     selected_contact = []; possible_opposite = []; equal_mutations = []    
     for i in contact:
         if chain == i[0][chain_pos] and i[aa_pos] in mutations_pos \
@@ -192,7 +193,7 @@ Output:
         #### The epitope are the ones with the longest consecutive sequences in the 1_free 
         #### sense, but not more than four amino acids
 '''
-def Paire_select(mutation_match_parameter, sequence, mode = 'single', cutoff = 6):
+def Paire_select(mutation_match_parameter, sequence, mode, cutoff):
 
     # Extract the required information from the pdb file
     selected_contact, possible_opposite, pdbid_sequence =\
@@ -233,6 +234,10 @@ def Sub_paire_select(mutations_pos, choosen_opposite_pos, selected_contact,\
                      Ab_Ag, pdbid_sequence, chain, opposite_chain):
     # Creat the empty container
     paires = []
+    # If the length mutaions position is out of range, then the prediction is out of domain
+    if len(mutations_pos) > 3:
+        return paries
+    
     choosen_opposite_pos.sort()
     # define a small function to change the order of the paires
     #        if len(mutations) >= 2 and len(choosen_opposite_pos)>=2:
@@ -383,7 +388,9 @@ Output:
  ['D', [9, 11], ['LYS', 'TYR']],
  ['D', [15], ['SER']]]
 '''
-def Sub_parse_mutations(mutations_list_onepdb, free_type):
+def Sub_parse_mutations(mutations_list_onepdb, free_type, single = 'False'):
+    if single:
+        free_type = -1
     # Empty container for the final retrun value
     chain_pos_aa_list = []
     # Creat an empty dictionary
@@ -425,7 +432,7 @@ The small_data will be parsed into the following form.
 [[['1hh9',[ 'C', [7, 9], ['GLY', 'ARG']],['affinities', 1.00E-05, 1.00E-07, 'Kd']],
   [['1hh6', ['C', [7, 9], ['ASN', 'LYS']], [affinities', 1.00E-07, 1.00E-05], 'Kd']]]
 '''
-def Parse_mutations(mutation_data, free_type):
+def Parse_mutations(mutation_data, free_type, single):
     # Separate the mutation complexes
     separated_mutation_complex = []
     starts = []
@@ -449,7 +456,7 @@ def Parse_mutations(mutation_data, free_type):
         # get the list of mutaions
         mutations_list_onepdb = mutation_data[start:end]    
         # grouped mutations by free_type
-        mutations_by_free_type_chain = Sub_parse_mutations(mutations_list_onepdb, free_type)
+        mutations_by_free_type_chain = Sub_parse_mutations(mutations_list_onepdb, free_type, single)
         # affinities
         affinities = mutation_data[end]
         
@@ -559,7 +566,7 @@ Output:
         or ['Empty Match']
 '''
 
-def Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mode = 'single', cutoff=6):  
+def Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mode, cutoff):  
 
     # Select the the paires and Generate the original and mutation sets
 #    list_parameters = []
@@ -596,8 +603,8 @@ def Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mo
 Test the above functions
 '''
 #data = small_data
-def Predict(data, matched_ids, combined_ids, sequence, test_coverage_RBFN_results, mode = 'single', cutoff=7):
-    mu_list = Parse_mutations(data, free_type = 0)
+def Predict(data, matched_ids, combined_ids, sequence, test_coverage_RBFN_results, mode, cutoff, free_type, single):
+    mu_list = Parse_mutations(data, free_type, single)
     results = []
 
     for mutation in mu_list: 
@@ -718,9 +725,14 @@ def ROC_AUC(results_all, fold_cut = 1):
         AUC += TPR[i] * (FPR[i]- FPR[i-1])
     
     return TPR, FPR, AUC
-    
-    
-################################################################################
+######################################################################
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+###########################################################    
+
 '''
 [['1vfb', 'B', 27, 'ASN'],
  ['affinities', 1.49, 1.9, 'Kd'],
@@ -749,69 +761,32 @@ if __name__ == '__main__':
     data_raw = get_data('Affinities.ods')
     keys = data_raw.keys()
 #    keys = ['1jrh']
-    affinity_results_dict_single = {}
-    for cut in np.arange(4, 8.5, 0.5):
-        results = []
-        for key in keys:
-            print('working on:  ' + key)
-            data = []
-            for d in data_raw[key]:
-                if d != []:
-                    data.append(d)
-    
-            os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')
+    single_list = [False, True]
+    mode_list = ['single', 'all']
+    affinity_results_dict = {}
+    for sing in single_list:
+        for mod in mode_list:
+            sufix ='_' + str(sing) +'_'+mod
+            for cut in np.arange(4, 8.5, 0.5):
+                results = []
+                for key in keys:
+                    print('working on:  ' + key)
+                    data = []
+                    for d in data_raw[key]:
+                        if d != []:
+                            data.append(d)
             
-            results.extend(Predict(data, matched_ids, combined_ids, sequence,\
-                              test_coverage_RBFN_results, mode = 'single', cutoff=cut))
-            
-        affinity_results_dict_single[str(cut)] = copy.deepcopy(results)
+                    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')
+                    
+                    results.extend(Predict(data, matched_ids, combined_ids, sequence,\
+                                      test_coverage_RBFN_results, mode = mod, cutoff=cut, free_type = 0, single=sing))
+                    
+                affinity_results_dict[str(cut)] = copy.deepcopy(results)
+                
+                # Save the results
+            os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+            with open('affinity_results_dict_all'+sufix, 'w') as f:
+                json.dump(affinity_results_dict, f, cls = NumpyEncoder)
 ###############################################################################
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
-###########################################################
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-with open('affinity_results_dict_single', 'w') as f:
-    json.dump(affinity_results_dict_single, f, cls = NumpyEncoder)
 
-#    TPR, FPR, AUC = ROC_AUC(results)
 
-#TPR, FPR, AUC = ROC_AUC(results, fold_cut=2.5)
-
-#len(results)
-#TPR, FPR, AUC = ROC_AUC(results)     
-#AUC  
-#        total_prediction, correct_prediction = \
-#                        Count_correct(results, fold_change_cut = 1)
-    
-    # Save the results
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-#    with open('affinity_testing_results', 'w') as f:
-#        json.dump(results, f)
-
-#print(len(data), total_prediction, correct_prediction)
-
-#results
-
-#TPR, FPR, AUC = ROC_AUC(results)
-
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-#data_raw = get_data('Affinities.ods')
-#keys = data_raw.keys()
-#for key in keys:
-#    data = data_raw[key]
-#    for mu in data:
-#        if mu != [] and mu[3] != '':
-#            if mu[3] == 'DDG':
-#                mu[2] = mu[1]
-#                mu[1] = 0
-#        data_raw.update({key: data})
-#save_data('Affinities.ods', data_raw)
-        
-#    
-#data = []
-#for d in data_raw:
-#    if d != []:
-#        data.append(d)
