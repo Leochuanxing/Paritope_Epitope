@@ -2,7 +2,7 @@ import copy
 import numpy as np
 import json
 import os
-from pyexcel_ods import get_data
+from pyexcel_ods import get_data, save_data
 #import math
 os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes')
 from AAC_2 import Coordinates, Get_contact
@@ -22,6 +22,8 @@ aligner.match = 1
 aligner.mismatch = -1 
 aligner.mode = 'global'
 #####################################################################
+
+#########################################################################################
 
 '''
 Criteria:
@@ -208,8 +210,9 @@ def Paire_select(mutation_match_parameter, sequence, mode = 'single', cutoff = 6
     if possible_opposite != []:
         # Find all the longest possible consecutives
         possible_opposite.sort()
-        for length in [4, 3, 2, 1]:
-            longest_possible_consecutives = Get_consecutive(possible_opposite, length, free_type=1)
+        '''***********************'''
+        for length in [3,2,1]:
+            longest_possible_consecutives = Get_consecutive(possible_opposite, length, free_type=0)
             if longest_possible_consecutives != []:
                 break
         if mode == 'all':   
@@ -221,33 +224,6 @@ def Paire_select(mutation_match_parameter, sequence, mode = 'single', cutoff = 6
             maxt_n = Max_contact(longest_possible_consecutives, selected_contact, Ab_Ag)
             paires = Sub_paire_select(mutations_pos, maxt_n, selected_contact,\
                          Ab_Ag, pdbid_sequence, chain, opposite_chain)
-        
-            # Correct the direction of the choosen_opposite_pos
-#            choosen_opposite_pos.sort()
-#            # define a small function to change the order of the paires
-#    #        if len(mutations) >= 2 and len(choosen_opposite_pos)>=2:
-#            if len(choosen_opposite_pos)>=2:
-#                if Ab_Ag == 'Ab':
-#                     Order_Ab_sequence(mutations_pos, choosen_opposite_pos, selected_contact)
-#                elif  Ab_Ag == 'Ag':
-#                    Order_Ab_sequence(choosen_opposite_pos, mutations_pos, selected_contact)            
-#    
-#            # Load the amino acids to the paires according to the choosen_epitope_pos          
-#            original_aa = []
-#            for i in mutations_pos:
-#                original_aa.append(pdbid_sequence[chain][i])
-#            opposite_aa = []
-#            for i in choosen_opposite_pos:
-#                opposite_aa.append(pdbid_sequence[opposite_chain][i]) 
-#            # Make a deep copy to be safe       
-#            kept_opposite_aa = copy.deepcopy(opposite_aa)
-#            kept_original_aa = copy.deepcopy(original_aa)
-#            # Here we have to make sure the Ab amino acids is the first element of 
-#            # the paires and the Ag amino acids is the second element of the paires.
-#            if Ab_Ag == 'Ab':
-#                paires.append([kept_original_aa, kept_opposite_aa])
-#            elif Ab_Ag == 'Ag':
-#                paires.append([kept_opposite_aa, kept_original_aa]) 
     
     # Load the results
     mutation_match_parameter['paires'] = paires
@@ -343,7 +319,7 @@ Output:
 '''
 def Predition_RBFN_coverage(test_coverage_RBFN_results, testing_set):
 #testing_set = testing5
-    key = str(len(testing_set[0][0]))+'_'+str(len(testing_set[0][1]))+'_1_1_1_2_1perchain'    
+    key = str(len(testing_set[0][0]))+'_'+str(len(testing_set[0][1]))+'_0_0_1_2_1perchain'    
 
     non_redundent_training_set = test_coverage_RBFN_results[key]['non_redundent_training_set']
     distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
@@ -471,7 +447,7 @@ def Parse_mutations(mutation_data, free_type):
         # Get the pdbid
         pdbid = mutation_data[start][0]
         # get the list of mutaions
-        mutations_list_onepdb = mutation_data[start:end]
+        mutations_list_onepdb = mutation_data[start:end]    
         # grouped mutations by free_type
         mutations_by_free_type_chain = Sub_parse_mutations(mutations_list_onepdb, free_type)
         # affinities
@@ -504,9 +480,20 @@ def Initiate_mutation_match_parameter(matched_ids, combined_ids, one_mutation):
     # Take out the values from the one_mutations
     pdbid = one_mutation[0]    
     # Find the affinity type    
-    affinity_type = one_mutation[-1][-1]    
+    affinity_type = one_mutation[-1][3]    
     # Calculate the fold change
-    fold_change = one_mutation[-1][1]/one_mutation[-1][2]
+    '''Here we would like to transform all the fold change to Kd '''
+    if affinity_type == 'Kd':
+        fold_change = one_mutation[-1][2]/one_mutation[-1][1]
+    elif affinity_type == 'Ka':
+        fold_change = one_mutation[-1][1]/one_mutation[-1][2]
+    elif affinity_type == 'DDG':
+        if one_mutation[-1][2] == 0:
+            fold_change = 1
+        else:
+            fold_change = np.exp(one_mutation[-1][2]/(8.31*298))
+    else:
+        print(affinity_type, pdbid)
     # Find the combined ids
     combined_ids = combined_ids[pdbid]
     # Find the matched ids
@@ -610,7 +597,7 @@ Test the above functions
 '''
 #data = small_data
 def Predict(data, matched_ids, combined_ids, sequence, test_coverage_RBFN_results, mode = 'single', cutoff=7):
-    mu_list = Parse_mutations(data, free_type = 1)
+    mu_list = Parse_mutations(data, free_type = 0)
     results = []
 
     for mutation in mu_list: 
@@ -649,22 +636,33 @@ Output:
 '''
 def Right_or_wrong(fold, affinity_type, prediction1, prediction2):
     # In the case when the affinity_type is Kd
-    if affinity_type == 'Kd':
-        if fold > 1 and prediction1 < prediction2:
-            right_or_wrong = True
-        elif fold < 1 and prediction1 > prediction2:
-            right_or_wrong = True
-        else:
-            right_or_wrong = False
+    right_or_wrong = True
+#    if affinity_type == 'Kd':
+    if fold < 1 and prediction1 < prediction2:
+        right_or_wrong = True
+    elif fold > 1 and prediction1 > prediction2:
+        right_or_wrong = True
+    elif fold == 1:
+        right_or_wrong = 'Undecided'
+    else:
+        right_or_wrong = False
             
-    # In the case when the affinity_type is Ka      
-    elif affinity_type == 'Ka':
-        if fold > 1 and prediction1 > prediction2:
-            right_or_wrong = True
-        elif fold < 1 and prediction1 < prediction2:
-            right_or_wrong = True
-        else:
-            right_or_wrong = False
+#    # In the case when the affinity_type is Ka      
+#    elif affinity_type == 'Ka':
+#        if fold > 1 and prediction1 > prediction2:
+#            right_or_wrong = True
+#        elif fold < 1 and prediction1 < prediction2:
+#            right_or_wrong = True
+#        else:
+#            right_or_wrong = False
+#    elif affinity_type == 'DDG':
+#        fold = np.exp(fold*1000/(8.31*298))
+#        if fold > 1 and prediction1 > prediction2:
+#            right_or_wrong = True
+#        elif fold < 1 and prediction1 < prediction2:
+#            right_or_wrong = True
+#        else:
+#            right_or_wrong = False    
     
     return right_or_wrong
 ########################################################################
@@ -681,11 +679,58 @@ def Count_correct(results, fold_change_cut = 1):
         if res[-1] != ['Empty Match']:
             fold_change = res[-1][2]
             if fold_change > fold_change_cut or fold_change <1/fold_change_cut:
-                total_prediction += 1
-                correct_prediction += res[-1][3]
+                if res[-1][3] != 'Undecided':
+                    total_prediction += 1
+                    correct_prediction += res[-1][3]
             
     return total_prediction, correct_prediction
 ###############################################################################
+def ROC_AUC(results_all, fold_cut = 1):
+    res_all = []
+    for results in results_all:
+        
+        if results[-1][0]!= 'Empty Match' and  results[-1][2] != 1:
+            res_all.append([results[-1][2], results[-1][1]-results[-1][0]])
+    res_all.sort(key = lambda x:x[1], reverse = True)
+    TPR = []
+    FPR = []
+    total_positive = 0
+    total_negative = 0
+    # Count the total_positive and total_negative
+    for res in res_all:
+        if res[0] < 1/fold_cut:
+            total_positive += 1
+        elif res[0] > fold_cut:
+            total_negative += 1
+    # Calculate the TPR and FPR
+    tp = 0
+    fp = 0
+    for res in res_all:
+        if res[0] < 1/fold_cut:
+            tp += 1
+        elif res[0] > fold_cut:
+            fp += 1
+        TPR.append(tp/total_positive)
+        FPR.append(fp/total_negative)
+    # Calculate AUC
+    AUC = 0
+    for i in range(1, len(TPR)):
+        AUC += TPR[i] * (FPR[i]- FPR[i-1])
+    
+    return TPR, FPR, AUC
+    
+    
+################################################################################
+'''
+[['1vfb', 'B', 27, 'ASN'],
+ ['affinities', 1.49, 1.9, 'Kd'],
+ [],
+ ['1vfb', 'B', 27, 'GLN'],
+ ['affinities', 1.49, 1.7, 'Kd']]
+'''
+# Change the mutations into the forms given above   
+
+###########################################################################
 
 if __name__ == '__main__':
     os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
@@ -697,55 +742,76 @@ if __name__ == '__main__':
         sequence = json.load(f)
         
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('test_coverage_RBFN_results', 'r') as f:
+    with open('test_coverage_RBFN_0_0_results', 'r') as f:
         test_coverage_RBFN_results = json.load(f)
         
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    data_raw = get_data('Affinities.ods')['Sheet1']
-    data = []
-    for d in data_raw:
-        if d != []:
-            data.append(d)
-#    small_data = data['Sheet1']
+    data_raw = get_data('Affinities.ods')
+    keys = data_raw.keys()
+#    keys = ['1jrh']
+    affinity_results_dict_single = {}
+    for cut in np.arange(4, 8.5, 0.5):
+        results = []
+        for key in keys:
+            print('working on:  ' + key)
+            data = []
+            for d in data_raw[key]:
+                if d != []:
+                    data.append(d)
+    
+            os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')
+            
+            results.extend(Predict(data, matched_ids, combined_ids, sequence,\
+                              test_coverage_RBFN_results, mode = 'single', cutoff=cut))
+            
+        affinity_results_dict_single[str(cut)] = copy.deepcopy(results)
+###############################################################################
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+###########################################################
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+with open('affinity_results_dict_single', 'w') as f:
+    json.dump(affinity_results_dict_single, f, cls = NumpyEncoder)
 
-        
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')
-    
-    results = Predict(data, matched_ids, combined_ids, sequence,\
-                      test_coverage_RBFN_results, mode = 'single', cutoff=7)
-    
-    total_prediction, correct_prediction = Count_correct(results)
+#    TPR, FPR, AUC = ROC_AUC(results)
+
+#TPR, FPR, AUC = ROC_AUC(results, fold_cut=2.5)
+
+#len(results)
+#TPR, FPR, AUC = ROC_AUC(results)     
+#AUC  
+#        total_prediction, correct_prediction = \
+#                        Count_correct(results, fold_change_cut = 1)
     
     # Save the results
 #    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
 #    with open('affinity_testing_results', 'w') as f:
 #        json.dump(results, f)
 
-len(data)
-total_prediction
-correct_prediction
-results
-#39/45
-#os.chdir('/home/leo/Documents/Database/Pipeline/Affinity/1dvf')
-#with open('good_matched_ids', 'r') as f:
-#    good_matched_ids = json.load(f)
-#with open('good_combined_ids', 'r') as f:
-#    good_combined_ids = json.load(f)
-#with open('sequence', 'r') as f:
-#    dvf_sequence = json.load(f)
+#print(len(data), total_prediction, correct_prediction)
+
+#results
+
+#TPR, FPR, AUC = ROC_AUC(results)
+
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+#data_raw = get_data('Affinities.ods')
+#keys = data_raw.keys()
+#for key in keys:
+#    data = data_raw[key]
+#    for mu in data:
+#        if mu != [] and mu[3] != '':
+#            if mu[3] == 'DDG':
+#                mu[2] = mu[1]
+#                mu[1] = 0
+#        data_raw.update({key: data})
+#save_data('Affinities.ods', data_raw)
+        
 #    
-#good_matched_ids
-#for key, value in good_matched_ids.items():
-#    matched_ids[key] = value
-#for key, value in good_combined_ids.items():
-#    combined_ids[key] = value
-#for key, value in dvf_sequence.items():
-#    sequence[key] = value
-#
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
-#with open('matched_ids', 'w') as f:
-#    json.dump(matched_ids, f)
-#with open('combined_ids', 'w') as f:
-#    json.dump(combined_ids, f)
-#with open('sequence', 'w') as f:
-#    json.dump(sequence, f)
+#data = []
+#for d in data_raw:
+#    if d != []:
+#        data.append(d)
