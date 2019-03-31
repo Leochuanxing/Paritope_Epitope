@@ -1,13 +1,17 @@
 import copy
 import numpy as np
+import math
 import json
 import os
 from pyexcel_ods import get_data, save_data
+from scipy.stats.stats import pearsonr
+from pydoc import help
 #import math
 os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes')
-from AAC_2 import Coordinates, Get_contact
+from AAC_2 import  Get_contact
 from FrameConstraint import Get_consecutive
 from RBFN_coverage import Distance_matrix, Design_matrix
+from matplotlib import pyplot as plt
 
 
 
@@ -23,8 +27,6 @@ aligner.mismatch = -1
 aligner.mode = 'global'
 #####################################################################
 
-#########################################################################################
-
 '''
 Criteria:
     First we pick the number of mutations positions, they should be continuous in the 1_free sense.
@@ -33,7 +35,103 @@ Criteria:
              Among all those consecutive antigen amino acids with length no more than 4, we 
              choose the one with the largest contact numbers with the given mutation positions.   
 '''
-###################################################################################
+##################################################################################
+'''
+Coordinates:
+    a function to extract coordinates. This one is designed for Affinity validation, and it is talored from the
+    'Coordinates' in AAC_2_2 but more efficient.
+Input:
+    file, combined_chain_id: They are the same as in AAC_2
+    Ab_Ag: the mutations chain
+    mutations_pos: a list gives the mutation position
+    mutaion_chain: a string gives the name of the mutation chaing
+'''
+def Coordinates(file, combined_chain_id, Ab_Ag, mutations_pos, mutation_chain):
+    # creat an empty dictionary to contain the results
+    cdn = {}
+    for i in combined_chain_id[0]:
+        cdn['h1'+i], cdn['h2'+i], cdn['h3'+i] = [], [], []
+    for i in combined_chain_id[1]:
+        cdn['l1'+i], cdn['l2'+i], cdn['l3'+i] = [], [], []
+    for i in combined_chain_id[2]:
+        cdn[i] = []
+        
+    # creat a tracker dictionary, and a counter dictionary
+    tracker = {}
+    counter = {}
+    ids = combined_chain_id[0] + combined_chain_id[1] + combined_chain_id[2]
+    for i in ids:
+        tracker[i] = ''
+        counter[i] = -1
+        
+    # creat a dictionary to indicate the types of chains
+    chain_type = {}
+    for i in combined_chain_id[0]:
+        chain_type[i] = 'H'
+    for i in combined_chain_id[1]:
+        chain_type[i] = 'L'
+    for i in combined_chain_id[2]:
+        chain_type[i] = 'A'
+        
+#    l_range = list(range(1000))
+    l_range = []
+    l_range.extend(list(range(23, 41)))
+    l_range.extend(list(range(49, 64)))
+    l_range.extend(list(range(89, 111)))
+#        l_range = [[23, 40], [49, 63], [89, 110]]
+#        h_range = [[25, 37], [50, 71], [99, 129]]
+#    h_range = list(range(1000))
+    h_range = []
+    h_range.extend(list(range(25, 38)))
+    h_range.extend(list(range(50, 72)))
+    h_range.extend(list(range(99,130)))
+    '''Set the l_range, h_range, and a_range'''
+    if mutation_chain in combined_chain_id[0]:
+        for pos in mutations_pos:
+            if pos not in h_range:
+                return []
+        h_range = mutations_pos
+        l_range = []
+        a_range = list(range(10000))
+    elif mutation_chain in combined_chain_id[1]:
+        for pos in mutations_pos:
+            if pos not in l_range:
+                return []
+        h_range = []
+        l_range = mutations_pos
+        a_range = list(range(10000))
+    elif mutation_chain in combined_chain_id[2]:
+        a_range = mutations_pos
+
+    
+    # extract the coordinates
+    for line in file:
+        if line[:6] == 'ATOM  ' and line[21] in ids:
+            # update the parameters
+            if tracker[line[21]]!= line[22:27]:
+                counter[line[21]] += 1
+                tracker[line[21]] = line[22:27]
+            # extract all the parameters corresponding to line[21]
+            c_type = chain_type[line[21]]
+            count = counter[line[21]]
+            # collect the coordinates according to c_type
+            if c_type == 'H':
+                if count in h_range:
+                    cdn['h1'+line[21]].append([float(line[30:38]), float(line[38:46]), float(line[46:54]),
+                                       count, line[17:20]])
+    
+            if c_type == 'L':
+                if count in l_range:
+                    cdn['l1'+line[21]].append([float(line[30:38]), float(line[38:46]), float(line[46:54]),
+                                       count, line[17:20]])
+
+            if c_type == 'A':
+                if count in a_range:
+                    cdn[line[21]].append([float(line[30:38]), float(line[38:46]), float(line[46:54]),
+                                           count, line[17:20]])            
+    
+    return cdn
+#################################################################################
       
 '''
 Max_contact:
@@ -130,7 +228,8 @@ Input:
         cutoff: 
             a float, give the relaxed cutoff value
 '''
-def Select_contact_opposite(mutation_match_parameter, sequence, cutoff):
+def Select_contact_opposite(mutation_match_parameter, sequence, cutoff,\
+                            moving, moving_step, moving_start, moving_end):
     # take out the parameter
     pdbid = mutation_match_parameter['pdbid']
     chain = mutation_match_parameter['mutation_chain']
@@ -141,8 +240,10 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff):
     Ab_Ag = mutation_match_parameter['Ab_Ag']
     # Extract the required data
     with open(pdbid+'.pdb', 'r') as file:
-        cdn = Coordinates(file, combined_ids)
-#    with open(pdbid+'.pdb', 'r') as file:
+        cdn = Coordinates(file, combined_ids, Ab_Ag, mutations_pos, mutation_chain=chain)
+    # Check if the cdn is []
+    if cdn == []:
+        return [],[],[]
 #        pdbid_sequence = Chain_seq(file, combined_ids)
     pdbid_sequence = sequence[pdbid]
     # store the paires in paires
@@ -151,19 +252,36 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff):
         chain_pos = 2; opposite_chain_pos = 3; aa_pos = 1; opposite_aa_pos = 2
     elif Ab_Ag == 'Ag':
         chain_pos = 3; opposite_chain_pos = 2; aa_pos = 2; opposite_aa_pos = 1
-        
-    contact = Get_contact(cdn, matched_ids, cutoff)
-    # Carry out the above process:
-    # take out all the contact containing the chain_name
-    '''*******This part can be modified to add the moving cut mode*******'''
-    selected_contact = []; possible_opposite = []; equal_mutations = []    
-    for i in contact:
-        if chain == i[0][chain_pos] and i[aa_pos] in mutations_pos \
-        and i[0][opposite_chain_pos] == opposite_chain: 
-               
-            selected_contact.append(i)
-            possible_opposite.append(i[opposite_aa_pos]) 
-            equal_mutations.append(i[aa_pos])
+    
+    selected_contact = []; possible_opposite = []; equal_mutations = [] 
+    if not moving:    
+        contact = Get_contact(cdn, matched_ids, cutoff)
+        # Carry out the above process:
+        # take out all the contact containing the chain_name
+        '''*******This part can be modified to add the moving cut mode*******'''        
+        if contact != []:
+            for i in contact:
+                if chain == i[0][chain_pos] and i[aa_pos] in mutations_pos \
+                and i[0][opposite_chain_pos] == opposite_chain: 
+                       
+                    selected_contact.append(i)
+                    possible_opposite.append(i[opposite_aa_pos]) 
+                    equal_mutations.append(i[aa_pos])
+                    
+    if moving:
+        moving_cutoff = moving_start
+        while possible_opposite == [] and moving_cutoff <= moving_end:
+            
+            contact = Get_contact(cdn, matched_ids, moving_cutoff)       
+            if contact != []:
+                for i in contact:
+                    if chain == i[0][chain_pos] and i[aa_pos] in mutations_pos \
+                    and i[0][opposite_chain_pos] == opposite_chain: 
+                           
+                        selected_contact.append(i)
+                        possible_opposite.append(i[opposite_aa_pos]) 
+                        equal_mutations.append(i[aa_pos])
+            moving_cutoff += moving_step
                 
     # We have to make sure the selected_contact contains all the mutations, otherwise our
     # prediction doesn't make sense
@@ -193,11 +311,13 @@ Output:
         #### The epitope are the ones with the longest consecutive sequences in the 1_free 
         #### sense, but not more than four amino acids
 '''
-def Paire_select(mutation_match_parameter, sequence, mode, cutoff):
+def Paire_select(mutation_match_parameter, sequence, mode, cutoff,\
+                 moving, moving_step, moving_start, moving_end, one_to_one = False):
 
     # Extract the required information from the pdb file
     selected_contact, possible_opposite, pdbid_sequence =\
-        Select_contact_opposite(mutation_match_parameter, sequence, cutoff)
+        Select_contact_opposite(mutation_match_parameter, sequence, cutoff,\
+                                moving, moving_step, moving_start, moving_end)
     # Take out the values from the parameters
     chain = mutation_match_parameter['mutation_chain']
     mutations_pos = mutation_match_parameter['mutations_pos']
@@ -212,7 +332,12 @@ def Paire_select(mutation_match_parameter, sequence, mode, cutoff):
         # Find all the longest possible consecutives
         possible_opposite.sort()
         '''***********************'''
-        for length in [3,2,1]:
+        if one_to_one:
+            length_list = [1]
+        if not one_to_one:
+            length_list = [3, 2, 1]
+        '''************************'''    
+        for length in length_list:
             longest_possible_consecutives = Get_consecutive(possible_opposite, length, free_type=0)
             if longest_possible_consecutives != []:
                 break
@@ -236,7 +361,7 @@ def Sub_paire_select(mutations_pos, choosen_opposite_pos, selected_contact,\
     paires = []
     # If the length mutaions position is out of range, then the prediction is out of domain
     if len(mutations_pos) > 3:
-        return paries
+        return paires
     
     choosen_opposite_pos.sort()
     # define a small function to change the order of the paires
@@ -388,7 +513,7 @@ Output:
  ['D', [9, 11], ['LYS', 'TYR']],
  ['D', [15], ['SER']]]
 '''
-def Sub_parse_mutations(mutations_list_onepdb, free_type, single = 'False'):
+def Sub_parse_mutations(mutations_list_onepdb, free_type, single):
     if single:
         free_type = -1
     # Empty container for the final retrun value
@@ -566,12 +691,14 @@ Output:
         or ['Empty Match']
 '''
 
-def Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mode, cutoff):  
+def Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mode, cutoff,\
+                             moving, moving_step, moving_start, moving_end, one_to_one):  
 
     # Select the the paires and Generate the original and mutation sets
 #    list_parameters = []
     for mutation_match_parameter in one_list:
-        Paire_select(mutation_match_parameter,sequence, mode, cutoff)
+        Paire_select(mutation_match_parameter,sequence, mode, cutoff,\
+                     moving, moving_step, moving_start, moving_end, one_to_one, )
         Original_mutation_sets(mutation_match_parameter)
     # Make prediction
     # When we make prediction, we simply assume each paratope-epitope paire contribute equally to 
@@ -603,14 +730,16 @@ def Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mo
 Test the above functions
 '''
 #data = small_data
-def Predict(data, matched_ids, combined_ids, sequence, test_coverage_RBFN_results, mode, cutoff, free_type, single):
+def Predict(data, matched_ids, combined_ids, sequence, test_coverage_RBFN_results, mode, cutoff, free_type, single,\
+            moving, moving_step, moving_start, moving_end, one_to_one):
     mu_list = Parse_mutations(data, free_type, single)
     results = []
 
     for mutation in mu_list: 
         sub_result = []
         one_list = Initiate_mutation_match_parameter(matched_ids, combined_ids, mutation)
-        scores = Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mode, cutoff)
+        scores = Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mode, cutoff,\
+                                          moving, moving_step, moving_start, moving_end, one_to_one)
         sub_result.append(mutation[0])
         for para in one_list:
             affinity_type =  para['affinity_type']
@@ -668,7 +797,7 @@ def Right_or_wrong(fold, affinity_type, prediction1, prediction2):
 #            right_or_wrong = True
 #        elif fold < 1 and prediction1 < prediction2:
 #            right_or_wrong = True
-#        else:
+#        else:value_new = affinity_results_dict['results']
 #            right_or_wrong = False    
     
     return right_or_wrong
@@ -692,11 +821,11 @@ def Count_correct(results, fold_change_cut = 1):
             
     return total_prediction, correct_prediction
 ###############################################################################
-def ROC_AUC(results_all, fold_cut = 1):
+def ROC_AUC(results_all, fold_cut):
     res_all = []
     for results in results_all:
         
-        if results[-1][0]!= 'Empty Match' and  results[-1][2] != 1:
+        if results[-1][0]!= 'Empty Match':
             res_all.append([results[-1][2], results[-1][1]-results[-1][0]])
     res_all.sort(key = lambda x:x[1], reverse = True)
     TPR = []
@@ -710,21 +839,27 @@ def ROC_AUC(results_all, fold_cut = 1):
         elif res[0] > fold_cut:
             total_negative += 1
     # Calculate the TPR and FPR
-    tp = 0
-    fp = 0
+    tp = 0; fp = 0
+    Dscore = []; Dfold = []
     for res in res_all:
         if res[0] < 1/fold_cut:
             tp += 1
+            TPR.append(tp/total_positive)
+            FPR.append(fp/total_negative)
+            Dscore.append(res[1])
+            Dfold.append(res[0])
         elif res[0] > fold_cut:
             fp += 1
-        TPR.append(tp/total_positive)
-        FPR.append(fp/total_negative)
+            TPR.append(tp/total_positive)
+            FPR.append(fp/total_negative)
+            Dscore.append(res[1])
+            Dfold.append(res[0])
     # Calculate AUC
     AUC = 0
     for i in range(1, len(TPR)):
         AUC += TPR[i] * (FPR[i]- FPR[i-1])
     
-    return TPR, FPR, AUC
+    return TPR, FPR, AUC, Dscore, Dfold
 ######################################################################
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -753,40 +888,164 @@ if __name__ == '__main__':
     with open('sequence', 'r') as f:
         sequence = json.load(f)
         
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('test_coverage_RBFN_0_0_results', 'r') as f:
-        test_coverage_RBFN_results = json.load(f)
+
         
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
     data_raw = get_data('Affinities.ods')
     keys = data_raw.keys()
-#    keys = ['1jrh']
-    single_list = [False, True]
-    mode_list = ['single', 'all']
-    affinity_results_dict = {}
+    
+    auc_dict = {}
+    res_dict = {}
+    single_list = [True]
+    mode_list = ['single']
+    moving_list = [True]
+    binary_list = [True]
+    
+    
     for sing in single_list:
         for mod in mode_list:
-            sufix ='_' + str(sing) +'_'+mod
-            for cut in np.arange(4, 8.5, 0.5):
-                results = []
-                for key in keys:
-                    print('working on:  ' + key)
-                    data = []
-                    for d in data_raw[key]:
-                        if d != []:
-                            data.append(d)
-            
-                    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')
+            for mov in moving_list:
+                for binary in binary_list:
+                    # Use different coverage model, binary or numerical
+                    if binary:
+                        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+                        with open('test_coverage_RBFN_results', 'r') as f:
+                            test_coverage_RBFN_results = json.load(f)
+                    if not binary:
+                        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+                        with open('test_coverage_RBFN_numerical_results', 'r') as f:
+                            test_coverage_RBFN_results = json.load(f)
+                        
+                    sufix = 'single_'+str(sing) +'_'+'mode_'+mod+'_moving_'+str(mov)+'_binary_'+str(binary)
                     
-                    results.extend(Predict(data, matched_ids, combined_ids, sequence,\
-                                      test_coverage_RBFN_results, mode = mod, cutoff=cut, free_type = 0, single=sing))
+                    # Calculate the auc for different cut under differnt sufix
+                    # if it is moving, the cut is uesless, let the cut be 0
+                    # auc_cut_dict is a dictionary to store the auc under differnt cut and different fold_change and different sufix
+                    auc_cut_dict = {}
+                    # Store the results
+                    results_dict = {}
+                    if not mov:
+                        cut_range = np.arange(4, 8.5, 0.5)
+                    if mov:
+                        cut_range = [0]
+                    # For different cut   
+                    for cut in cut_range:
+                        auc_cut_dict[str(cut)] = []
+                        results = []
+                        for key in keys:
+                            print('working on:  ' + key)
+                            data = []
+                            for d in data_raw[key]:
+                                if d != []:
+                                    data.append(d)
                     
-                affinity_results_dict[str(cut)] = copy.deepcopy(results)
-                
-                # Save the results
-            os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-            with open('affinity_results_dict_all'+sufix, 'w') as f:
-                json.dump(affinity_results_dict, f, cls = NumpyEncoder)
+                            os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')
+                            
+                            results.extend(Predict(data, matched_ids, combined_ids, sequence,\
+                                              test_coverage_RBFN_results, mode = mod, cutoff=cut, free_type = 0, single=sing,\
+                                              moving=mov, moving_step=0.5, moving_start=3, moving_end=8, one_to_one = True))
+                        # Load the results
+                        results_dict[str(cut)] = copy.deepcopy(results)
+                        # for different fold_change
+                        for fold_change in [1, 1.5, 2, 2.5, 3]: 
+                            TPR, FPR, AUC,a, b = ROC_AUC(results, fold_change)
+                            auc_cut_dict[str(cut)].append(AUC)
+                            
+                            
+                    # load the auc_cut_dict to auc_dict
+                    auc_dict[sufix] = copy.deepcopy(auc_cut_dict)
+                    res_dict[sufix] = copy.deepcopy(results_dict)
+                    
+    # Save the results              
+    affinity_results = {}
+    affinity_results['results_dict'] = res_dict
+    affinity_results['auc_dict'] = auc_dict
+    affinity_results
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    with open('affinity_results_one_to_one', 'w') as f:
+        json.dump(affinity_results, f)
+         
 ###############################################################################
+'''
+*******************Explanation of the Predict parameters****************
+mode:
+    a string, it takes the value of 'single' or 'all', 'single' means if there are multiple 
+    opposite amino acids with equal length, the one with the largest contact is selected, while
+    'all' means all of them are considered
+cutoff:
+    the relaxed cutoff distance, it only works when the moving takes the value of False
+free_type:
+    takes the value of either 0 or 1
+single:
+    it takes the value of either True or False. True, means the mutations are considered
+    as single amino acid mutations, and combine all those mutations together. 
+    False means the mutations are condidered together.
+    For example, if the mutaion positions are [1,2,5], in the case when single is true,
+    they are considered as mutations [1], [2], [5]. If the single takes the value False, 
+    the mutations will be considered as [1,2] and [5]
+moving:
+    it takes the value of either True or False
+    If it takes the value of True, means when finding the opposite amino acids of the mutation,
+    we start with the cutoff moving_start, and gradually increase the cuoff by the moving_step, until 
+    we find the opposite amino acids or the cutoff reaches the moving_end
+one_to_one:
+    one_to_one, takes the value of True or False, if it is true, means we will use
+    the match-type (1,1) to make predictions only. In this case, the single should take 
+    the value of True
+'''
+with open('affinity_results_one_to_one', 'r') as f:
+    affinity_results = json.load(f)
+#############################################################################
+'''
+The following code is to analyse the affinity_results
+'''
+affinity_results.keys()
+affinity_results['results_dict'].keys()
+#affinity_results['results_dict']['single_False_mode_single_moving_True_binary_False'].keys()
+# Calculate the AUC at different DDG
+DDG = [0, 0.5, 1, 1.5, 2]
+fold_cut = []
+for i in DDG:
+    fold_cut.append(np.exp(i*1000/(8.31*298)))
+fold_cut   
 
+affinity_results['fpr_tpr_dict'] = {}
+affinity_results['total_prediction'] = {}
+for key, value in affinity_results['results_dict'].items():
+    affinity_results['fpr_tpr_dict'][key]={}
+    affinity_results['total_prediction'][key] = {}
+    for k, v in value.items():
+        auc = []; fpr_tpr = []; total_prediction = []
+        for f_c in fold_cut:
+            TPR, FPR, AUC, a, b = ROC_AUC(v, f_c)
+            auc.append(AUC);fpr_tpr.append(copy.deepcopy([FPR,TPR]))
+            total_prediction.append(len(copy.deepcopy(TPR)))
+            
+        affinity_results['auc_dict'][key][k] = copy.deepcopy(auc)
+        affinity_results['fpr_tpr_dict'][key][k] = copy.deepcopy(fpr_tpr)
+        affinity_results['total_prediction'][key][k] = copy.deepcopy(total_prediction)
+            
+
+affinity_results.keys()
+affinity_results['auc_dict'].keys()
+affinity_results['auc_dict']
+#affinity_results['total_prediction']
+#len(affinity_results['results_dict']['single_True_mode_single_moving_True_binary_True']['0'])
+
+res = affinity_results['results_dict']['single_True_mode_single_moving_True_binary_True']['0']
+TPR, FPR, AUC, Dscore, Dfold= ROC_AUC(res, 1)
+AUC
+len(TPR)
+log_fold = -np.log(np.array(Dfold))
+log_fold = log_fold.tolist()
+plt.scatter(Dscore, log_fold)
+pearsonr(Dscore, log_fold)
+help(pearsonr)
+type(res)
+res[3]
+for result in res:
+    if result[-1][0] != 'Empty Match':
+        if abs(result[-1][0]-result[-1][1]) >5:
+            print (result)
+# Take a look at the score change and the fold change
 
