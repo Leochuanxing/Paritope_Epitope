@@ -1,6 +1,7 @@
 import os
 import json
 import copy
+import numpy as np
 ##########################################################################
 '''
 To_seq:
@@ -124,7 +125,7 @@ def Hcluster(seqCDRH, seqCDRL):
         toydata = CDR[idx]
         distmatrix = np.zeros((len(toydata), len(toydata)))
         for i in range(len(toydata)):
-            for j in range(len(toydata)):
+            for j in range(i,len(toydata)):
                 distmatrix[i,j] += aligner.score(toydata[i][1], toydata[j][1])
                 distmatrix[i,j] += aligner.score(toydata[i][2], toydata[j][2])
                 distmatrix[i,j] += aligner.score(toydata[i][3], toydata[j][3])
@@ -132,6 +133,7 @@ def Hcluster(seqCDRH, seqCDRL):
                 l2 = len(toydata[j][1]) + len(toydata[j][2]) + len(toydata[j][3])
                 l = min(l1, l2)
                 distmatrix[i,j] =  1 - distmatrix[i,j]/l
+                distmatrix[j,i] = distmatrix[i,j]
                 
         if idx == 0:
             dm_CDRH = squareform(distmatrix)
@@ -338,49 +340,62 @@ def Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts):
         
     return ac_contact
 ###########################################################################
-
-def main(): 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+#######################################################################
+#def main(): 
     # wd is the working directory, where you can find the returned results from AAC_2
     # sd is the saving directory               
-    wd= "/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A"
-    sd = '/home/leo/Documents/Database/Pipeline_New/Results'
+wd= "/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A"
+sd = '/home/leo/Documents/Database/Pipeline_New/Results'
 
-    os.chdir(wd)
-    # We have to process the training and the testing data separetely
-    train_test = ['training', 'testing']
-    for header in train_test:
-        with open(header+'_sequence', 'r') as f:
-            sequence = json.load(f)
-        with open(header+'_matched_ids', 'r') as f:
-            matched_ids = json.load(f)
-        with open(header+'_contact', 'r') as f:
-            contact = json.load(f)  
-        # Do the alignment and selection   
-        seqCDRH, seqCDRL = SeqCDR(sequence, matched_ids)
-        
-        hcluster_CDRH, hcluster_CDRL = Hcluster(seqCDRH, seqCDRL)
-        
-        clusters_CDRL = Cluster_by_cut_dist(hcluster_CDRL, 0.1)
-        clusters_CDRH = Cluster_by_cut_dist(hcluster_CDRH, 0.1)
-        
-        CDRL_rpts = Select_representatives(contact, seqCDRL, clusters_CDRL)
-        CDRH_rpts = Select_representatives(contact, seqCDRH, clusters_CDRH)
-        
-        ac_contact = Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts)
-        
-        heights_nCDRH_nCDRL = Cut_distance_n_cluster( hcluster_CDRH, hcluster_CDRL)
-        
-        # Save the results
-        os.chdir(sd)
-        Draw_elbow(sd, heights_nCDRH_nCDRL)
-        with open(header+'_heights_nCDRH_nCDRL', 'w') as f:
-            json.dump(heights_nCDRH_nCDRL, f)
-        with open(header + 'ac_contact', 'w') as f:
-            json.dump(ac_contact, f)
+os.chdir(wd)
+# We have to process the training and the testing data separetely
+train_test = ['training']
+for header in train_test:
+    with open(header+'_sequence', 'r') as f:
+        sequence = json.load(f)
+    with open(header+'_matched_ids', 'r') as f:
+        matched_ids = json.load(f)
+    with open(header+'_contact', 'r') as f:
+        contact = json.load(f)  
+    # Do the alignment and selection   
+    seqCDRH, seqCDRL = SeqCDR(sequence, matched_ids)
+    
+    hcluster_CDRH, hcluster_CDRL = Hcluster(seqCDRH, seqCDRL)
+    
+#    clusters_CDRL = Cluster_by_cut_dist(hcluster_CDRL, 0.1)
+#    clusters_CDRH = Cluster_by_cut_dist(hcluster_CDRH, 0.1)
+    
+#    CDRL_rpts = Select_representatives(contact, seqCDRL, clusters_CDRL)
+#    CDRH_rpts = Select_representatives(contact, seqCDRH, clusters_CDRH)
+    
+#        ac_contact = Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts)
+    
+    heights_nCDRH_nCDRL = Cut_distance_n_cluster( hcluster_CDRH, hcluster_CDRL)  
+#    # Save the results
+os.chdir(sd)
+#Draw_elbow(sd, heights_nCDRH_nCDRL)
+for li in heights_nCDRH_nCDRL:
+    for i in range(len(li)):
+        li[i] = int(li[i])
+with open(header+'heights_nCDRH_nCDRL', 'w') as f:
+    json.dump(heights_nCDRH_nCDRL, f)
+#heights_nCDRH_nCDRL
+
+##        with open(header + 'ac_contact', 'w') as f:
+##            json.dump(ac_contact, f)
+#    with open(header+'CDRL_rpts', 'w') as f:
+#        json.dump(CDRL_rpts, f)
+#    with open(header+'CDRH_rpts', 'w') as f:
+#        json.dump(CDRH_rpts, f)
 ############################################################################
     
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()
 
 
 #working_directory = ["/home/leo/Documents/Database/Pipeline/All with peptide 5+ resolution 4A",\
