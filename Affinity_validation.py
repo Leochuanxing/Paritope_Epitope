@@ -73,18 +73,18 @@ def Coordinates(file, combined_chain_id, Ab_Ag, mutations_pos, mutation_chain):
     for i in combined_chain_id[2]:
         chain_type[i] = 'A'
         
-#    l_range = list(range(1000))
-    l_range = []
-    l_range.extend(list(range(23, 41)))
-    l_range.extend(list(range(49, 64)))
-    l_range.extend(list(range(89, 111)))
+    l_range = list(range(1000))
+#    l_range = []
+#    l_range.extend(list(range(23, 41)))
+#    l_range.extend(list(range(49, 64)))
+#    l_range.extend(list(range(89, 111)))
 #        l_range = [[23, 40], [49, 63], [89, 110]]
 #        h_range = [[25, 37], [50, 71], [99, 129]]
-#    h_range = list(range(1000))
-    h_range = []
-    h_range.extend(list(range(25, 38)))
-    h_range.extend(list(range(50, 72)))
-    h_range.extend(list(range(99,130)))
+    h_range = list(range(1000))
+#    h_range = []
+#    h_range.extend(list(range(25, 38)))
+#    h_range.extend(list(range(50, 72)))
+#    h_range.extend(list(range(99,130)))
     '''Set the l_range, h_range, and a_range'''
     if mutation_chain in combined_chain_id[0]:
         for pos in mutations_pos:
@@ -283,15 +283,15 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff,\
                         equal_mutations.append(i[aa_pos])
             moving_cutoff += moving_step
                 
-    # We have to make sure the selected_contact contains all the mutations, otherwise our
-    # prediction doesn't make sense
-    '''*********************************'''
-    for mut in mutations_pos:
-        if mut not in equal_mutations:
-            selected_contact = []; possible_opposite = []            
-            break        
-       
-    '''*******************************'''                      
+#    # We have to make sure the selected_contact contains all the mutations, otherwise our
+#    # prediction doesn't make sense
+#    '''*********************************'''
+#    for mut in mutations_pos:
+#        if mut not in equal_mutations:
+#            selected_contact = []; possible_opposite = []            
+#            break        
+#       
+#    '''*******************************'''                      
     return selected_contact, possible_opposite, pdbid_sequence
 
 
@@ -360,7 +360,7 @@ def Sub_paire_select(mutations_pos, choosen_opposite_pos, selected_contact,\
     # Creat the empty container
     paires = []
     # If the length mutaions position is out of range, then the prediction is out of domain
-    if len(mutations_pos) > 3:
+    if len(mutations_pos) > 4:
         return paires
     
     choosen_opposite_pos.sort()
@@ -427,8 +427,7 @@ def Original_mutation_sets(mutation_match_parameter):
         mutation_match_parameter['original_mutation_sets'] = original_mutation_sets
     else:
         mutation_match_parameter['original_mutation_sets'] = []
-    
-           
+ 
 #######################################################################
 '''
 Prediction_RBFN_coverage:
@@ -607,7 +606,7 @@ Output:
     unit_list:
         a list of mutation_match_parameters, and this list is a basic prediction unit
 '''
-
+#math.exp(1*1000/(8.31*298))
 def Initiate_mutation_match_parameter(matched_ids, combined_ids, one_mutation):
     # Take out the values from the one_mutations
     pdbid = one_mutation[0]    
@@ -623,7 +622,7 @@ def Initiate_mutation_match_parameter(matched_ids, combined_ids, one_mutation):
         if one_mutation[-1][2] == 0:
             fold_change = 1
         else:
-            fold_change = np.exp(one_mutation[-1][2]/(8.31*298))
+            fold_change = math.exp(one_mutation[-1][2]*1000/(8.31*298))
     else:
         print(affinity_type, pdbid)
     # Find the combined ids
@@ -890,15 +889,15 @@ if __name__ == '__main__':
         
 
         
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    data_raw = get_data('Affinities.ods')
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    data_raw = get_data('Mutations.ods')
     keys = data_raw.keys()
     
     auc_dict = {}
     res_dict = {}
-    single_list = [True]
+    single_list = [False]
     mode_list = ['single']
-    moving_list = [True]
+    moving_list = [False]
     binary_list = [True]
     
     
@@ -922,15 +921,17 @@ if __name__ == '__main__':
                     # if it is moving, the cut is uesless, let the cut be 0
                     # auc_cut_dict is a dictionary to store the auc under differnt cut and different fold_change and different sufix
                     auc_cut_dict = {}
+                    fpr_tpr_dict = {}
                     # Store the results
                     results_dict = {}
                     if not mov:
-                        cut_range = np.arange(4, 8.5, 0.5)
+                        cut_range = [5.5]
                     if mov:
                         cut_range = [0]
                     # For different cut   
                     for cut in cut_range:
                         auc_cut_dict[str(cut)] = []
+                        fpr_tpr_dict[str(cut)] = []
                         results = []
                         for key in keys:
                             print('working on:  ' + key)
@@ -943,13 +944,18 @@ if __name__ == '__main__':
                             
                             results.extend(Predict(data, matched_ids, combined_ids, sequence,\
                                               test_coverage_RBFN_results, mode = mod, cutoff=cut, free_type = 0, single=sing,\
-                                              moving=mov, moving_step=0.5, moving_start=3, moving_end=8, one_to_one = True))
+                                              moving=mov, moving_step=0.25, moving_start=3, moving_end=8, one_to_one = False))
                         # Load the results
                         results_dict[str(cut)] = copy.deepcopy(results)
                         # for different fold_change
-                        for fold_change in [1, 1.5, 2, 2.5, 3]: 
+                        DDG = [0, 0.5, 1, 1.5, 2]
+                        fold_cut = []
+                        for i in DDG:
+                            fold_cut.append(np.exp(i*1000/(8.31*298)))
+                        for fold_change in fold_cut: 
                             TPR, FPR, AUC,a, b = ROC_AUC(results, fold_change)
                             auc_cut_dict[str(cut)].append(AUC)
+                            fpr_tpr_dict[str(cut)].append(copy.deepcopy([TPR, FPR]))
                             
                             
                     # load the auc_cut_dict to auc_dict
@@ -960,10 +966,12 @@ if __name__ == '__main__':
     affinity_results = {}
     affinity_results['results_dict'] = res_dict
     affinity_results['auc_dict'] = auc_dict
+    affinity_results['fpr_tpr_dict'] = fpr_tpr_dict
+    affinity_results['DDG_cut'] = DDG
     affinity_results
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('affinity_results_one_to_one', 'w') as f:
-        json.dump(affinity_results, f)
+#    with open('affinity_results_many_to_many_OutCDR_5.5', 'w') as f:
+#        json.dump(affinity_results, f)
          
 ###############################################################################
 '''
@@ -993,59 +1001,58 @@ one_to_one:
     the match-type (1,1) to make predictions only. In this case, the single should take 
     the value of True
 '''
-with open('affinity_results_one_to_one', 'r') as f:
-    affinity_results = json.load(f)
-#############################################################################
+#with open('affinity_results_one_to_one', 'r') as f:
+#    affinity_results = json.load(f)
+##############################################################################
 '''
 The following code is to analyse the affinity_results
 '''
-affinity_results.keys()
+#with open('affinity_results_one_to_one_OutCDR', 'r') as f:
+#    affinity_results = json.load(f)
+#affinity_results.keys()
 affinity_results['results_dict'].keys()
-#affinity_results['results_dict']['single_False_mode_single_moving_True_binary_False'].keys()
-# Calculate the AUC at different DDG
-DDG = [0, 0.5, 1, 1.5, 2]
-fold_cut = []
-for i in DDG:
-    fold_cut.append(np.exp(i*1000/(8.31*298)))
-fold_cut   
+#affinity_results['auc_dict']['single_True_mode_single_moving_True_binary_True']['0']
+auc_list = affinity_results['auc_dict']['single_False_mode_single_moving_False_binary_True']['5.5']
+affinity_results['fpr_tpr_dict'].keys()
+fpr_tpr = affinity_results['fpr_tpr_dict']['5.5']
+# Plot the results
+DDG = [0.0, 0.5, 1.0, 1.5, 2.0]
+plt.figure(figsize = (6, 6))
+for i in range(len(fpr_tpr)):
+    f_t = fpr_tpr[i]
+    dg = DDG[i]
+    auc = auc_list[i]
+    x = f_t[1]; y = f_t[0]
+#    n.append(len(x))
+    plt.plot(x,y, label = '|DDG|>'+ str(dg)+':  '+'%.2f' % auc+',     n = '+str(len(x)))
+plt.plot([0,1], [0,1])
+plt.ylim([0, 1])
+plt.xlim([0,1])
+plt.legend(loc=4)
+#plt.title('ROC under differerent delta G:many to many, cut=5.5, OutCDR')
+#plt.savefig('ROC_delta_G_many_to_many_5.5_OutCDR.png')
+plt.show()
 
-affinity_results['fpr_tpr_dict'] = {}
-affinity_results['total_prediction'] = {}
-for key, value in affinity_results['results_dict'].items():
-    affinity_results['fpr_tpr_dict'][key]={}
-    affinity_results['total_prediction'][key] = {}
-    for k, v in value.items():
-        auc = []; fpr_tpr = []; total_prediction = []
-        for f_c in fold_cut:
-            TPR, FPR, AUC, a, b = ROC_AUC(v, f_c)
-            auc.append(AUC);fpr_tpr.append(copy.deepcopy([FPR,TPR]))
-            total_prediction.append(len(copy.deepcopy(TPR)))
-            
-        affinity_results['auc_dict'][key][k] = copy.deepcopy(auc)
-        affinity_results['fpr_tpr_dict'][key][k] = copy.deepcopy(fpr_tpr)
-        affinity_results['total_prediction'][key][k] = copy.deepcopy(total_prediction)
-            
 
-affinity_results.keys()
-affinity_results['auc_dict'].keys()
-affinity_results['auc_dict']
-#affinity_results['total_prediction']
-#len(affinity_results['results_dict']['single_True_mode_single_moving_True_binary_True']['0'])
-
-res = affinity_results['results_dict']['single_True_mode_single_moving_True_binary_True']['0']
-TPR, FPR, AUC, Dscore, Dfold= ROC_AUC(res, 1)
-AUC
-len(TPR)
-log_fold = -np.log(np.array(Dfold))
-log_fold = log_fold.tolist()
-plt.scatter(Dscore, log_fold)
-pearsonr(Dscore, log_fold)
-help(pearsonr)
-type(res)
-res[3]
-for result in res:
-    if result[-1][0] != 'Empty Match':
-        if abs(result[-1][0]-result[-1][1]) >5:
-            print (result)
-# Take a look at the score change and the fold change
+#res = affinity_results['results_dict']['single_True_mode_all_moving_True_binary_True']['0']
+#len(res)
+##res
+#TPR, FPR, AUC, Dscore, Dfold= ROC_AUC(res, 1.84)
+#AUC
+#len(TPR)
+#log_fold = -np.log(np.array(Dfold))
+#log_fold = log_fold.tolist()
+#plt.scatter(Dscore, log_fold)
+#pearsonr(Dscore, log_fold)
+#
+#for r in res:
+#    if r[-1][0] != 'Empty Match' and r[-1][2]>1.4 and r[-1][2] < 1.5:
+#        print (r)
+#help(pearsonr)
+#type(res)
+#res[3]
+#for result in res:
+#    if result[-1][0] != 'Empty Match':
+#        if abs(result[-1][0]-result[-1][1]) >5:
+#            print (result)
 
