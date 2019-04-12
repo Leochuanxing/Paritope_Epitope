@@ -116,7 +116,6 @@ def Hcluster(seqCDRH, seqCDRL):
     
     from scipy.cluster.hierarchy import linkage, optimal_leaf_ordering
     from scipy.spatial.distance import squareform
-    import numpy as np
     
     CDR = [seqCDRH, seqCDRL]
     
@@ -124,16 +123,23 @@ def Hcluster(seqCDRH, seqCDRL):
         
         toydata = CDR[idx]
         distmatrix = np.zeros((len(toydata), len(toydata)))
+        # Pay special attention to the calculation of the distance matrix
         for i in range(len(toydata)):
             for j in range(i,len(toydata)):
-                distmatrix[i,j] += aligner.score(toydata[i][1], toydata[j][1])
-                distmatrix[i,j] += aligner.score(toydata[i][2], toydata[j][2])
-                distmatrix[i,j] += aligner.score(toydata[i][3], toydata[j][3])
+                if len(toydata[i][1])*len(toydata[j][1])* len(toydata[i][2])*len(toydata[j][2])\
+                *len(toydata[i][3])*len(toydata[j][3])== 0:
+                    distmatrix[i,j] = 0
+                else:
+                    distmatrix[i,j] += aligner.score(toydata[i][1], toydata[j][1])
+                    distmatrix[i,j] += aligner.score(toydata[i][2], toydata[j][2])
+                    distmatrix[i,j] += aligner.score(toydata[i][3], toydata[j][3])
                 l1 = len(toydata[i][1]) + len(toydata[i][2]) + len(toydata[i][3])
                 l2 = len(toydata[j][1]) + len(toydata[j][2]) + len(toydata[j][3])
                 l = min(l1, l2)
                 distmatrix[i,j] =  1 - distmatrix[i,j]/l
                 distmatrix[j,i] = distmatrix[i,j]
+                if i == j:
+                    distmatrix[i,j] = 0
                 
         if idx == 0:
             dm_CDRH = squareform(distmatrix)
@@ -347,78 +353,98 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 #######################################################################
 #def main(): 
-    # wd is the working directory, where you can find the returned results from AAC_2
-    # sd is the saving directory               
-wd= "/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A"
-sd = '/home/leo/Documents/Database/Pipeline_New/Results'
+##     wd is the working directory, where you can find the returned results from AAC_2
+##     sd is the saving directory               
+#    wd= "/home/leo/Documents/Database/Pipeline_New/Latest"
+#    sd = '/home/leo/Documents/Database/Pipeline_New/Latest'
+#    
+#    os.chdir(wd)
+#    # We have to process the training and the testing data separetely
+#    train_test = ['training']
+#    for header in train_test:
+#        with open(header+'_sequence', 'r') as f:
+#            sequence = json.load(f)
+#        with open(header+'_matched_ids', 'r') as f:
+#            matched_ids = json.load(f)
+#        with open(header+'_contact', 'r') as f:
+#            contact = json.load(f)  
+#        # Do the alignment and selection   
+#        seqCDRH, seqCDRL = SeqCDR(sequence, matched_ids)
+#        
+#        hcluster_CDRH, hcluster_CDRL = Hcluster(seqCDRH, seqCDRL)
+#        
+#    #    clusters_CDRL = Cluster_by_cut_dist(hcluster_CDRL, 0.1)
+#    #    clusters_CDRH = Cluster_by_cut_dist(hcluster_CDRH, 0.1)
+#        
+#    #    CDRL_rpts = Select_representatives(contact, seqCDRL, clusters_CDRL)
+#    #    CDRH_rpts = Select_representatives(contact, seqCDRH, clusters_CDRH)
+#        
+#    #        ac_contact = Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts)
+#        
+#        heights_nCDRH_nCDRL = Cut_distance_n_cluster( hcluster_CDRH, hcluster_CDRL)  
+#    #    # Save the results
+#    os.chdir(sd)
+#    #Draw_elbow(sd, heights_nCDRH_nCDRL)
+#    for li in heights_nCDRH_nCDRL:
+#        for i in range(len(li)):
+#            li[i] = int(li[i])
+#    with open(header+'heights_nCDRH_nCDRL', 'w') as f:
+#        json.dump(heights_nCDRH_nCDRL, f)
 
-os.chdir(wd)
-# We have to process the training and the testing data separetely
-train_test = ['training']
-for header in train_test:
-    with open(header+'_sequence', 'r') as f:
-        sequence = json.load(f)
-    with open(header+'_matched_ids', 'r') as f:
-        matched_ids = json.load(f)
-    with open(header+'_contact', 'r') as f:
-        contact = json.load(f)  
-    # Do the alignment and selection   
-    seqCDRH, seqCDRL = SeqCDR(sequence, matched_ids)
-    
-    hcluster_CDRH, hcluster_CDRL = Hcluster(seqCDRH, seqCDRL)
-    
-#    clusters_CDRL = Cluster_by_cut_dist(hcluster_CDRL, 0.1)
-#    clusters_CDRH = Cluster_by_cut_dist(hcluster_CDRH, 0.1)
-    
-#    CDRL_rpts = Select_representatives(contact, seqCDRL, clusters_CDRL)
-#    CDRH_rpts = Select_representatives(contact, seqCDRH, clusters_CDRH)
-    
-#        ac_contact = Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts)
-    
-    heights_nCDRH_nCDRL = Cut_distance_n_cluster( hcluster_CDRH, hcluster_CDRL)  
-#    # Save the results
-os.chdir(sd)
-#Draw_elbow(sd, heights_nCDRH_nCDRL)
-for li in heights_nCDRH_nCDRL:
-    for i in range(len(li)):
-        li[i] = int(li[i])
-with open(header+'heights_nCDRH_nCDRL', 'w') as f:
-    json.dump(heights_nCDRH_nCDRL, f)
-#heights_nCDRH_nCDRL
-
-##        with open(header + 'ac_contact', 'w') as f:
-##            json.dump(ac_contact, f)
-#    with open(header+'CDRL_rpts', 'w') as f:
-#        json.dump(CDRL_rpts, f)
-#    with open(header+'CDRH_rpts', 'w') as f:
-#        json.dump(CDRH_rpts, f)
 ############################################################################
     
 #if __name__ == '__main__':
 #    main()
 
 
-#working_directory = ["/home/leo/Documents/Database/Pipeline/All with peptide 5+ resolution 4A",\
-#                     '/home/leo/Documents/Database/Pipeline/Complexes with Affinity']
-#os.chdir(working_directory[1])
+'''
+Do the following step by step, you will get the latest data
+'''
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest')
 #
-#with open('sequence', 'r') as f:
+#with open('sequence_latest', 'r') as f:
 #    sequence = json.load(f)
-#with open('good_matched_ids', 'r') as f:
+#with open('matched_ids_latest', 'r') as f:
 #    matched_ids = json.load(f)
-#with open('contact', 'r') as f:
-#    contact = json.load(f)        
+#with open('contact_latest', 'r') as f:
+#    contact = json.load(f)  
+#with open('combined_ids_latest', 'r') as f:
+#    combined_ids = json.load(f)
+#      
 #
 #seqCDRH, seqCDRL = SeqCDR(sequence, matched_ids)
-#
+##len(sequence)
+##len(matched_ids)
+##len(contact)
+##len(combined_ids)
+#'''
+#************************************************
+#The elbow method for the latest data
+#'''
+#sd = '/home/leo/Documents/Database/Pipeline_New/Latest'
 #hcluster_CDRH, hcluster_CDRL = Hcluster(seqCDRH, seqCDRL)
-#
+#heights_nCDRH_nCDRL = Cut_distance_n_cluster( hcluster_CDRH, hcluster_CDRL) 
+#Draw_elbow(sd, heights_nCDRH_nCDRL)
 #clusters_CDRL = Cluster_by_cut_dist(hcluster_CDRL, 0.1)
 #clusters_CDRH = Cluster_by_cut_dist(hcluster_CDRH, 0.1)
 #CDRL_rpts = Select_representatives(contact, seqCDRL, clusters_CDRL)
 #CDRH_rpts = Select_representatives(contact, seqCDRH, clusters_CDRH)
 #ac_contact = Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts)
 #heights_nCDRH_nCDRL = Cut_distance_n_cluster( hcluster_CDRH, hcluster_CDRL)
-#sd = '/home/leo/Documents/Database/Pipeline_New/Results'
+#heights_nCDRH_nCDRL
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest')
 #Draw_elbow(sd, heights_nCDRH_nCDRL)
-
+#len(CDRH_rpts)
+#len(CDRL_rpts)
+#for li in heights_nCDRH_nCDRL:
+#    for i in range(len(li)):
+#        li[i] = int(li[i])
+#with open('ac_contact_latest', 'w') as f:
+#    json.dump(ac_contact, f)
+#with open('heights_nCDRH_nCDRL_latest', 'w') as f:
+#    json.dump(heights_nCDRH_nCDRL, f)
+#len(ac_contact)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+#with open('testing_ac_contact', 'r') as f:
+#    ac_contact = json.load(f)
+#len(ac_contact)

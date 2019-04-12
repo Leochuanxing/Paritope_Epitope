@@ -253,6 +253,9 @@ Adjust_the_order:
     to the number of contact at the two ends of the matched up paires
 Output:
     The order of the matched_up_indices are adjusted
+    
+********************Here the Ab amino acid order is adjusted, while the********** 
+********************Ag maino acids order from small to large.          ************
 '''
 
 def Adjust_the_order(FC_parameter):
@@ -542,14 +545,14 @@ def Main():
         with open(train_test+'_middle_Ag_aa', 'w') as f:
             json.dump(FC_parameter['middle_Ag_aa'], f)
         # Select the cores by assigning different number of cores per chain
-        for i in range(1, 5):
-            for j in range(1, 5):                
-                Ag_length =i
-                Ab_length = j
+        for i in range(1,7):
+            for j in range(1, 7):    
+                Ab_length = i
+                Ag_length =j
                 FC_parameter['Ag_length'] = Ag_length
                 FC_parameter['Ab_length'] = Ab_length
                 
-                for k in [1, 0]:
+                for k in [0]:
                     Ag_free_type = k
                     Ab_free_type = k
                     FC_parameter['Ag_free_type'] = Ag_free_type
@@ -597,23 +600,26 @@ def Main():
 #if __name__ == '__main__':
 #    Main()
 
-                            
+                         
 #############################################################################
 '''
-# Set the working directory and the saving directory
-wd = '/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A'
-sd = '/home/leo/Documents/Database/Pipeline_New/Cores'
-
-
-training_testing = ['training', 'testing']
-for train_test in training_testing:
-    # Go to the working directory
+Tailor the process
+'''
+def The_latest_data():
+    # Set the working directory and the saving directory
+    wd = '/home/leo/Documents/Database/Pipeline_New/Latest'
+    sd = '/home/leo/Documents/Database/Pipeline_New/Latest/cores'
+    #
+    
+    #training_testing = ['training', 'testing']
+    #for train_test in training_testing:
+        # Go to the working directory
     os.chdir(wd)
-    with open(train_test+'_ac_contact', 'r') as f:
+    with open('ac_contact_latest', 'r') as f:
         ac_contact = json.load(f)
-    with open(train_test+'_sequence', 'r') as f:
+    with open('sequence_latest', 'r') as f:
         sequence = json.load(f)
-    with open('contact', 'r') as f:
+    with open('contact_latest', 'r') as f:
         contact = json.load(f)
         
     FC_parameter={}
@@ -627,21 +633,21 @@ for train_test in training_testing:
     CN_gated(FC_parameter) 
     Ab_Ag_Contact(FC_parameter)
     # Calculate the middle aa
-#    The_middle_aa(FC_parameter)
-#    # Save the results
-#    with open(train_test+'_middle_Ab_aa', 'w') as f:
-#        json.dump(FC_parameter['middle_Ab_aa'], f)
-#    with open(train_test+'_middle_Ag_aa', 'w') as f:
-#        json.dump(FC_parameter['middle_Ag_aa'], f)
+    #    The_middle_aa(FC_parameter)
+    #    # Save the results
+    #    with open(train_test+'_middle_Ab_aa', 'w') as f:
+    #        json.dump(FC_parameter['middle_Ab_aa'], f)
+    #    with open(train_test+'_middle_Ag_aa', 'w') as f:
+    #        json.dump(FC_parameter['middle_Ag_aa'], f)
     # Select the cores by assigning different number of cores per chain
     for i in range(1, 5):
         for j in range(1, 5):                
-            Ag_length =i
-            Ab_length = j
+            Ab_length =i
+            Ag_length = j
             FC_parameter['Ag_length'] = Ag_length
             FC_parameter['Ab_length'] = Ab_length
             
-            for k in [1, 0]:
+            for k in [0]:
                 Ag_free_type = k
                 Ab_free_type = k
                 FC_parameter['Ag_free_type'] = Ag_free_type
@@ -655,7 +661,7 @@ for train_test in training_testing:
                 Match_up_indices(FC_parameter)
                 Adjust_the_order(FC_parameter)
                     
-                for h in [1, 2, 3]:
+                for h in [1]:
                     core_number_per_chain = h
                     core_separation = 2                       
                     FC_parameter['core_number_per_chain'] = core_number_per_chain
@@ -665,17 +671,17 @@ for train_test in training_testing:
                     Change_to_aa(FC_parameter)
                                                                
                     # Save the results
-#                        os.chdir(wd)
+    #                        os.chdir(wd)
                     name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
-#                    print('working on '+ name)
+    #                    print('working on '+ name)
                     
-
-                    print (train_test+'_'+name, len(FC_parameter['core_aa']))
-
-#                    # Save the core aa
-#                    os.chdir(sd)
-#                    with open(train_test+'_'+name, 'w') as f:
-#                        json.dump(FC_parameter['core_aa'], f)
+    
+                    print ('testing_'+name, len(FC_parameter['core_aa']))
+    
+                        # Save the core aa
+                    os.chdir(sd)
+                    with open('testing'+'_'+name, 'w') as f:
+                        json.dump(FC_parameter['core_aa'], f)
                         
                 Each_CDR_get_one(FC_parameter)
                 FC_parameter['selected_match_up_indices'] = FC_parameter['each_CDR_get_one']
@@ -683,12 +689,17 @@ for train_test in training_testing:
                 # save the results
                 os.chdir(sd)
                 name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
-#                print('working on '+ name)
-                print(train_test+'_'+name, len(FC_parameter['core_aa'])) 
-
-#                with open(train_test+'_'+name, 'w') as f:
-#                    json.dump(FC_parameter['core_aa'], f)
-############################################################################
+    #                print('working on '+ name)
+                print('testing'+'_'+name, len(FC_parameter['core_aa'])) 
+    
+                with open('testing'+'_'+name, 'w') as f:
+                    json.dump(FC_parameter['core_aa'], f)
+############################################################################T
+#The_latest_data()
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest/cores')
+#with open('testing_1_2_0_0_1_2_1perchain', 'r') as f:
+#    testing = json.load(f)
+#len(testing)
 #'''
 #The following comments is for testing the above function with a small artifical data set.
 #'''

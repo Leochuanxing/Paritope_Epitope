@@ -492,7 +492,7 @@ testing_set:
     the testing set, it contains both the positive testing set and the negative testing set and the positive 
     testing set is ahead of the negative testing set in the list.
     
-list_area_under_rp_curve:
+list_AUC:
     a list of areas under different recall precisions curves corresponding to list_centers
 
 best_recall_precision_list:
@@ -523,7 +523,7 @@ def Cross_validation(parameter):
     percentages = parameter['percentages']
     
     # Initiate list_area_under_rp_curve 
-    list_area_under_rp_curve = [0*i for i in range(len(percentages))]
+    list_AUC = [0*i for i in range(len(percentages))]
         
     # Generate the cross indices
     cross_train_indices, cross_test_indices = \
@@ -585,94 +585,70 @@ def Cross_validation(parameter):
                                              parameter_inheritance = True, parameter=parameter)
             
             coeff = parameter['coeff']
+
             # Make prediction
             pred = design_matrix.dot(coeff)
-            # Match up the observed values with the pred
-            match_up = []
-            for j in range(len(observed_values)):
-                match_up.append([pred[j], observed_values[j]])
-            match_up.sort(key = lambda x:x[0], reverse = True)
             
-            area = 0
-            n_positive = 0
-            n_negative = 0
-            for match in match_up:
-                if match[1] > 0:
-                    '''Here we use >0 to make sure it works for both binary and non binary'''
-                    n_positive += 1
-                elif match[1] == -1:
-                    n_negative += 1
-                area += n_positive/(n_positive+n_negative)
+            # Calculate the AUC
+            AUC, TPR, FPR = Calculate_AUC(pred, observed_values)
+            AUC /= cross_number
+
+            list_AUC[i] += AUC
             
-            # Take the average
-            area/=(len(row_indices) * cross_number)
-            # load to the list area under rp curve
-            list_area_under_rp_curve[i] += area
-            
-    parameter['list_area_under_rp_curve'] = list_area_under_rp_curve  
+    parameter['list_AUC'] = list_AUC  
 #################################################################################
+'''
+pred: a list of predicted values
+observed_values: a list of observed values
+Those elements in those two list should correspond with each other
+'''
+def Calculate_AUC(pred, observed_values):
+    # Calculate the number of positive observations
+    p_s = 0 ; n_s = 0
+    for ob in observed_values:
+        if ob < 0 :
+            n_s += 1
+        elif ob > 0:
+            p_s += 1
+            
+    # Match_up the pred with the observed_values   
+    match_up = []
+    for j in range(len(observed_values)):
+        match_up.append([pred[j], observed_values[j]])
+    match_up.sort(key = lambda x:x[0], reverse = True)
+
+    # Calculate the FPR and TPR 
+    FPR = []; TPR = []
+    n_positive = 0
+    n_negative = 0
+    for match in match_up:
+        if match[1] > 0:
+            '''Here we use >0 to make sure it works for both binary and non binary'''
+            n_positive += 1
+        elif match[1] == -1:
+            n_negative += 1
+            
+        TPR.append(n_positive/p_s)
+        FPR.append(n_negative/n_s)
+    
+    # Calculate the AUC
+    AUC = 0
+    for i in range(1, len(TPR)):
+        AUC += TPR[i] * (FPR[i] - FPR[i-1])
+    
+    return AUC, TPR, FPR
 
 ################################################################################
-#'''
-#Try the cross validation on one set of data
-#'''
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')  
-#with open('training_2_2_1_1_1_2_1perchain', 'r') as f:
-#    positive_training_set = json.load(f)
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0')
-#with open('training_2_2_1_1_1_2_1perchain_negative', 'r') as f:
-#    negative_training_set = json.load(f)
-#
-## Calculate 
-#training_set = copy.deepcopy(positive_training_set)
-#training_set.extend(negative_training_set)
-#
-#all_training_observed_values = []
-#for train in training_set:
-#    if train[2] >0:
-#        all_training_observed_values.append(1)
-#    else:
-#        all_training_observed_values.append(train[2])
-#all_training_observed_values = np.array(all_training_observed_values)
-#
-#print('Calculating the distance matrix')
-#all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)
-#
-#all_training_design_matrix = Design_matrix(all_training_distance_matrix)
-#
-#cross_number = 6
-#
-#percentages = [1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
-## Load up the parameter
-#parameter = {}
-#parameter['all_training_distance_matrix '] = all_training_distance_matrix 
-#parameter['all_training_design_matrix'] = all_training_design_matrix
-#parameter['all_training_observed_values'] = all_training_observed_values 
-#parameter['positive_training_set'] = positive_training_set 
-#parameter['negative_training_set'] = negative_training_set 
-#parameter['training_set'] = training_set 
-#parameter['cross_number'] = cross_number 
-#parameter['percentages'] = percentages 
-#
-## Cross_validate
-#Cross_validation(parameter)
-#
-#parameter['list_area_under_rp_curve']
-#
-#with open('/home/leo/Documents/Database/Pipeline_New/Results/cross_result_RBFN', 'r') as f:
-#    cross_RBFN = json.load(f)
-#cross_RBFN['2_2_1_1_1_2_1perchain']
-####################################################################
 def Observed_values(training_set, binary):
-    all_training_observed_values = []
+    observed_values = []
     if binary:
         for train in training_set:
             if train[2] >0:
-                all_training_observed_values.append(1)
+                observed_values.append(1)
             else:
-                all_training_observed_values.append(train[2])
+                observed_values.append(train[2])
         
-        all_training_observed_values = np.array(all_training_observed_values)
+        observed_values = np.array(observed_values)
     
     if not binary:
         # we compress the values by the range of the observed values
@@ -687,13 +663,13 @@ def Observed_values(training_set, binary):
         # scale the observed values
         for train in training_set:
             if train[2] >0:
-                all_training_observed_values.append(train[2]/rang)
+                observed_values.append(train[2]/rang)
             else:
-                all_training_observed_values.append(train[2])
+                observed_values.append(train[2])
         
-        all_training_observed_values = np.array(all_training_observed_values)
+        observed_values = np.array(observed_values)
         
-        return all_training_observed_values
+    return observed_values
     
 ###################################################################################
 def Batch_cross_validation(binary = True):
@@ -720,7 +696,7 @@ def Batch_cross_validation(binary = True):
             # Get the observed values
             all_training_observed_values = Observed_values(training_set, binary)
             
-            print('Calculating the distance matrix')
+            print('Working on: ' +str(i)+'_'+str(j)+'_0_0_1_2_1perchain')
             all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)
             
             all_training_design_matrix = Design_matrix(all_training_distance_matrix)
@@ -744,11 +720,67 @@ def Batch_cross_validation(binary = True):
             
             # Load the results to cross_coverage_RBFN
             key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            cross_coverage_RBFN[key] = parameter['list_area_under_rp_curve']
+            cross_coverage_RBFN[key] = parameter['list_AUC']
         
     return cross_coverage_RBFN
         
 ######################################################################################
+def Batch_cross_validation_the_latest(binary = True):
+    # The final result will be stored in cross_coverage_RBFN
+    cross_coverage_RBFN = {}
+    negative_d = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores/sample_0'
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    for i in range(1, 5):
+        for j in range(1,5):
+            p_name_train = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            p_name_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            os.chdir(positive_d)
+            with open(p_name_train, 'r') as f:
+                positive_training_set = json.load(f)
+            with open(p_name_test, 'r') as f:
+                positive_testing_set = json.load(f)
+            n_name = p_name_train+'_negative'
+            os.chdir(negative_d)
+            with open(n_name, 'r') as f:
+                negative_training_set = json.load(f)
+            
+            '''*******The following block is to calculate the observed values 
+            ***********according whether the observed should be binary or not'''
+            # Calculate 
+            training_set = copy.deepcopy(positive_training_set)
+            training_set.extend(positive_testing_set)
+            training_set.extend(negative_training_set)   
+            # Get the observed values
+            all_training_observed_values = Observed_values(training_set, binary)
+            
+            print('Working on: ' +str(i)+'_'+str(j)+'_0_0_1_2_1perchain')
+            all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)
+            
+            all_training_design_matrix = Design_matrix(all_training_distance_matrix)
+            
+            cross_number = 6
+            
+            percentages = [1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001]
+            # Load up the parameter
+            parameter = {}
+            parameter['all_training_distance_matrix '] = all_training_distance_matrix 
+            parameter['all_training_design_matrix'] = all_training_design_matrix
+            parameter['all_training_observed_values'] = all_training_observed_values 
+            parameter['positive_training_set'] = positive_training_set 
+            parameter['negative_training_set'] = negative_training_set 
+            parameter['training_set'] = training_set 
+            parameter['cross_number'] = cross_number 
+            parameter['percentages'] = percentages 
+            
+            # Cross_validate
+            Cross_validation(parameter)
+            
+            # Load the results to cross_coverage_RBFN
+            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            cross_coverage_RBFN[key] = parameter['list_AUC']
+        
+    return cross_coverage_RBFN
+################################################################################
 '''
 Run the main and Save the results
 '''
@@ -758,12 +790,21 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 ###################################################################################
-#cross_coverage_RBFN_0_0 = Batch_cross_validation()
-
-# Save the results
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-#with open('cross_coverage_RBFN_0_0', 'w') as f:
-#    json.dump(cross_coverage_RBFN_0_0, f)
+def Cross_validation_in_one_function():
+    cross_coverage_RBFN_binary = Batch_cross_validation(binary = True)
+    cross_coverage_RBFN_numerical = Batch_cross_validation(binary = False)
+    cross_coverage_RBFN_the_latest_binary = Batch_cross_validation_the_latest(binary=True)
+    cross_coverage_RBFN_the_latest_numerical = Batch_cross_validation_the_latest(binary=False)
+    # Save the results
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('cross_coverage_RBFN_binary', 'w') as f:
+        json.dump(cross_coverage_RBFN_binary, f)
+    with open('cross_coverage_RBFN_numerical', 'w') as f:
+        json.dump(cross_coverage_RBFN_numerical, f)
+    with open('cross_coverage_RBFN_the_latest_binary', 'w') as f:
+        json.dump(cross_coverage_RBFN_the_latest_binary, f)
+    with open('cross_coverage_RBFN_the_latest_numerical', 'w') as f:
+        json.dump(cross_coverage_RBFN_the_latest_numerical, f)
 
 #########################################################################
 '''
@@ -793,11 +834,12 @@ Output:
             a list of precisions, each precision is a list, corresponding to one
             set of negative_testing_set.
 '''
-def Calculate_recall_precision(binary = True):
+def Test_AUC(binary = True):
     test_coverage_RBFN_results={}
     # Read the training_data and the testing data
     negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
     positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    n_directory = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_'
     for i in range(1, 5):
         for j in range(1, 5):
             # set the empty container
@@ -811,115 +853,179 @@ def Calculate_recall_precision(binary = True):
                 positive_training_set = json.load(f)
             with open(p_test, 'r') as f:
                 positive_testing_set = json.load(f)
+                               
+            n_traing = p_train+'_negative'
+            n_test = p_test + '_negative'
+            os.chdir(negative_d)
+            with open(n_traing, 'r') as f:
+                negative_training_set = json.load(f)
+            print('Working on '+ key)    
+            AUC_list, FPR_list, TPR_list, non_redundent_training_set, coeff = \
+            Sub_test_AUC(positive_training_set, negative_training_set,positive_testing_set,n_test,n_directory, binary)
                 
+            test_coverage_RBFN_results[key]['non_redundent_training_set'] = \
+                                                    non_redundent_training_set
+            test_coverage_RBFN_results[key]['coeff'] = coeff
+            test_coverage_RBFN_results[key]['AUC_list'] = AUC_list
+            test_coverage_RBFN_results[key]['FPR_list'] = FPR_list
+            test_coverage_RBFN_results[key]['TPR_list'] = TPR_list
+            
+    return test_coverage_RBFN_results
+########################################################################
+def Sub_test_AUC(positive_training_set, negative_training_set,positive_testing_set,n_test,n_directory, binary):
+    # Train the model
+    training_set = copy.deepcopy(positive_training_set)
+    training_set.extend(negative_training_set)
+    # Get the observed values
+    all_training_observed_values = Observed_values(training_set, binary)
+    all_training_observed_values = np.reshape(all_training_observed_values, (-1,1))
+
+    all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)            
+    all_training_design_matrix = Design_matrix(all_training_distance_matrix)
+    
+    # Remove the duplicates
+    centers, non_redundent_training_set = Remove_duplicates(training_set)
+    
+    # Extract the design matrix
+    centers.append(-1)
+    design_matrix = all_training_design_matrix[:,:][:, centers]
+    centers.remove(-1)
+    
+    # Train the model
+    # Pay attention to the termination condition
+#            print(all_training_observed_values)
+    parameter, loss = Train_RBFN_BFGS(design_matrix, all_training_observed_values,\
+                                      rho=0.9, c = 1e-3, termination = 1e-2,\
+                                     parameter_inheritance = False) 
+    # Take out the coeff
+    coeff = parameter['coeff']
+
+    
+    # Pedict on different testing set
+    AUC_list = []
+    FPR_list = []
+    TPR_list = []
+    for n in range(10):
+        negative_test_d = n_directory + str(n)
+        os.chdir(negative_test_d)
+        with open(n_test, 'r') as f:
+            negative_testing_set = json.load(f)
+        # Reverse the negative testing set
+        
+        testing_set = copy.deepcopy(positive_testing_set)
+        testing_set.extend(negative_testing_set)
+        
+        # Calculate the observed_values
+        observed_values = []
+        for test in testing_set:
+            if test[2] > 0:
+                observed_values.append(1)
+            else:
+                observed_values.append(test[2])
+                
+        # Calculate the testing_design_matrix
+        print('Length of the testing set:  ', len(testing_set))
+        print('Length of the observed values:  ' , len(observed_values))
+        print('Calculating the testing design matrix: ', n)
+        testing_distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
+        testing_design_matrix = Design_matrix(testing_distance_matrix)
+        
+        # Do the prediction
+        pred = testing_design_matrix.dot(coeff)
+        
+        # Calculate the AUC
+        AUC, TPR, FPR = Calculate_AUC(pred, observed_values)
+#                
+#                # Load
+        AUC_list.append(AUC)
+        FPR_list.append(FPR)
+        TPR_list.append(TPR)
+    
+    return AUC_list, FPR_list, TPR_list, non_redundent_training_set, coeff
+#test_coverage_RBFN_results_new = Test_AUC(binary = True)
+#test_coverage_RBFN_results_new['4_4_0_0_1_2_1perchain']['coeff'][:6]
+#test_coverage_RBFN_results['4_4_0_0_1_2_1perchain']['coeff'][:6]
+############################################################################
+def Test_AUC_the_latest(binary = True):
+    test_coverage_RBFN_results={}
+    # Read the training_data and the testing data
+    negative_d = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores/sample_0'
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    positive_d_latest = '/home/leo/Documents/Database/Pipeline_New/Latest/cores'
+    n_directory = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores/sample_'
+    for i in range(1, 5):
+        for j in range(1, 5):
+            # set the empty container
+            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            test_coverage_RBFN_results[key] = {}
+            
+            p_train = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            os.chdir(positive_d)
+            with open(p_train, 'r') as f:
+                positive_training = json.load(f)
+            with open(p_test, 'r') as f:
+                positive_testing = json.load(f)
+            positive_training_set = copy.deepcopy(positive_training)
+            positive_training_set.extend(positive_testing)
+                               
             n_traing = p_train+'_negative'
             n_test = p_test + '_negative'
             os.chdir(negative_d)
             with open(n_traing, 'r') as f:
                 negative_training_set = json.load(f)
                 
-            # Train the model
-            training_set = copy.deepcopy(positive_training_set)
-            training_set.extend(negative_training_set)
-            # Get the observed values
-            all_training_observed_values = Observed_values(training_set, binary)
-            all_training_observed_values = np.reshape(all_training_observed_values, (-1,1))
-
-            print('Calculating the design matrix')
-            all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)            
-            all_training_design_matrix = Design_matrix(all_training_distance_matrix)
-            
-            # Remove the duplicates
-            centers, non_redundent_training_set = Remove_duplicates(training_set)
-            # Load
-            test_coverage_RBFN_results[key]['non_redundent_training_set'] = non_redundent_training_set
-            
-            # Extract the design matrix
-            centers.append(-1)
-            design_matrix = all_training_design_matrix[:,:][:, centers]
-            centers.remove(-1)
-            
-            # Train the model
-            # Pay attention to the termination condition
-            parameter, loss = Train_RBFN_BFGS(design_matrix, all_training_observed_values,\
-                                              rho=0.9, c = 1e-3, termination = 1e-2,\
-                                             parameter_inheritance = False) 
-            # Take out the coeff
-            coeff = parameter['coeff']
-            # Load
+            os.chdir(positive_d_latest)
+            with open(p_test, 'r') as f:
+                positive_testing_set = json.load(f)
+                
+            print('Working on '+ key)    
+            AUC_list, FPR_list, TPR_list, non_redundent_training_set, coeff = \
+            Sub_test_AUC(positive_training_set, negative_training_set,positive_testing_set,n_test,n_directory, binary)
+                
+            test_coverage_RBFN_results[key]['non_redundent_training_set'] = \
+                                                    non_redundent_training_set
             test_coverage_RBFN_results[key]['coeff'] = coeff
-            
-            # Pedict on different testing set
-            area_list = []
-            precisions_list = []
-            recalls_list = []
-            for n in range(10):
-                negative_test_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_' + str(n)
-                os.chdir(negative_test_d)
-                with open(n_test, 'r') as f:
-                    negative_testing_set = json.load(f)
-                # Reverse the negative testing set
-                
-                testing_set = copy.deepcopy(positive_testing_set)
-                testing_set.extend(negative_testing_set)
-                
-                # Calculate the observed_values
-                observed_values = []
-                for test in testing_set:
-                    if test[2] > 0:
-                        observed_values.append(1)
-                    else:
-                        observed_values.append(test[2])
-                        
-                # Calculate the testing_design_matrix
-                print('Length of the testing set:  ', len(testing_set))
-                print('Length of the observed values:  ' , len(observed_values))
-                print('Calculating the testing design matrix: ', n)
-                testing_distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
-                testing_design_matrix = Design_matrix(testing_distance_matrix)
-                
-                # Do the prediction
-                pred = testing_design_matrix.dot(coeff)
-
-                # Match up the observed values with the pred
-                match_up = []
-                for j in range(len(observed_values)):
-                    match_up.append([pred[j], observed_values[j]])
-                match_up.sort(key = lambda x:x[0], reverse = True)
-                
-                # Calculate the area, precision, recall and precision
-                area = 0
-                n_positive = 0
-                n_negative = 0
-                denominator = len(positive_testing_set)
-                recalls = []
-                precisions = []
-                for match in match_up:
-                    if match[1] > 0:
-                        n_positive += 1
-                    elif match[1] == -1:
-                        n_negative += 1
-                    precision = n_positive/(n_positive+n_negative)
-                    area += precision
-                    recall = n_positive/denominator
-                    
-                    recalls.append(recall)
-                    precisions.append(precision)                    
-                
-                # Take the average
-                area/=(len(testing_set))
-                
-                # Load
-                area_list.append(area)
-                recalls_list.append(recalls)
-                precisions_list.append(precisions)
-                
-            test_coverage_RBFN_results[key]['area_list'] = area_list
-            test_coverage_RBFN_results[key]['recalls_list'] = recalls_list
-            test_coverage_RBFN_results[key]['precisions_list'] = precisions_list
+            test_coverage_RBFN_results[key]['AUC_list'] = AUC_list
+            test_coverage_RBFN_results[key]['FPR_list'] = FPR_list
+            test_coverage_RBFN_results[key]['TPR_list'] = TPR_list
             
     return test_coverage_RBFN_results
+
+'''
+Run the above function
+'''
+#test_coverage_RBFN_results = Calculate_recall_precision(binary = True)
+
 #######################################################################
+def Test_AUC_in_one_function():
+    test_coverage_RBFN_results_binary = Test_AUC(binary = True)
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('test_coverage_RBFN_results_binary', 'w') as f:
+        json.dump(test_coverage_RBFN_results_binary , f, cls=NumpyEncoder)
+        
+    test_coverage_RBFN_results_numerical = Test_AUC(binary = False)
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('test_coverage_RBFN_results_numerical', 'w') as f:
+        json.dump(test_coverage_RBFN_results_numerical, f, cls=NumpyEncoder)
+        
+    test_coverage_RBFN_results_latest_binary = Test_AUC_the_latest(binary = True)
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('test_coverage_RBFN_results_latest_binary', 'w') as f:
+        json.dump(test_coverage_RBFN_results_latest_binary, f, cls=NumpyEncoder)
+        
+    test_coverage_RBFN_results_latest_numerical = Test_AUC_the_latest(binary = False)
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('test_coverage_RBFN_results_latest_numerical', 'w') as f:
+        json.dump(test_coverage_RBFN_results_latest_numerical, f, cls=NumpyEncoder)
+    # Save the results
+
+
+
+
+    
+#####################################################################
+
 '''
 Reverse_test:
     A function to test the testing set with the Ab and Ag sequences switched
@@ -931,7 +1037,7 @@ Output:
     [precidions_list]
     [area_list]
 '''
-def Reverse_test(test_coverage_RBFN_results):
+def Discrimation_test(test_coverage_RBFN_results):
     reverse_test_coverage_RBFN_results={}
     # Read the training_data and the testing data
     positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
@@ -944,119 +1050,100 @@ def Reverse_test(test_coverage_RBFN_results):
             coeff = test_coverage_RBFN_results[key]['coeff']
             
 
-            p_test = 'testing_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
+            p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             os.chdir(positive_d)
             with open(p_test, 'r') as f:
-                positive_testing = json.load(f)            
-            # Reverse the testing set
-            positive_testing_set = []
-            for parepi in positive_testing:
-                positive_testing_set.append([parepi[1], parepi[0], parepi[2],parepi[3]])
+                positive_testing_set = json.load(f)            
+#            # Reverse the testing set
+#            positive_testing_set = []
+#            for parepi in positive_testing:
+#                positive_testing_set.append([parepi[1], parepi[0], parepi[2],parepi[3]])
                             
             # Pedict on different testing set
             area_list = []
             precisions_list = []
             recalls_list = []
-            for n in range(10):
-                negative_test_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_' + str(n)
-                os.chdir(negative_test_d)
-                n_test = p_test + '_negative'
-                with open(n_test, 'r') as f:
-                    negative_testing = json.load(f)
-                # Reverse the negative testing set
-                negative_testing_set = []
-                for parepi_negative in negative_testing:
-                    negative_testing_set.append([parepi_negative[1], parepi_negative[0],\
-                                                 parepi_negative[2], parepi_negative[3]])                    
-                
-                testing_set = copy.deepcopy(positive_testing_set)
-                testing_set.extend(negative_testing_set)
-                
-                # Calculate the observed_values
-                observed_values = []
-                for test in testing_set:
-                    if test[2] > 0:
-                        observed_values.append(1)
-                    else:
-                        observed_values.append(test[2])
-                        
-                # Calculate the testing_design_matrix
-                print('Length of the testing set:  ', len(testing_set))
-                print('Length of the observed values:  ' , len(observed_values))
-                print('Calculating the testing design matrix: ', n)
-                testing_distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
-                testing_design_matrix = Design_matrix(testing_distance_matrix)
-                
-                # Do the prediction
-                pred = testing_design_matrix.dot(coeff)
 
-                # Match up the observed values with the pred
-                match_up = []
-                for j in range(len(observed_values)):
-                    match_up.append([pred[j], observed_values[j]])
-                match_up.sort(key = lambda x:x[0], reverse = True)
-                
-                # Calculate the area, recall and precision
-                area = 0
-                n_positive = 0
-                n_negative = 0
-                denominator = len(positive_testing_set)
-                recalls = []
-                precisions = []
-                for match in match_up:
-                    if match[1] > 0:
-                        n_positive += 1
-                    elif match[1] == -1:
-                        n_negative += 1
-                    precision = n_positive/(n_positive+n_negative)
-                    area += precision
-                    recall = n_positive/denominator
+            
+            n_test = 'testing_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
+            with open(n_test, 'r') as f:
+                negative_testing = json.load(f)
+            # Reverse the negative testing set
+            negative_testing_set = []
+            for parepi_negative in negative_testing:
+                negative_testing_set.append([parepi_negative[1], parepi_negative[0],\
+                                             -1, parepi_negative[3]])                    
+            
+            testing_set = copy.deepcopy(positive_testing_set)
+            testing_set.extend(negative_testing_set)
+            
+            # Calculate the observed_values
+            observed_values = []
+            for test in testing_set:
+                if test[2] > 0:
+                    observed_values.append(1)
+                else:
+                    observed_values.append(test[2])
                     
-                    recalls.append(recall)
-                    precisions.append(precision)                    
+            # Calculate the testing_design_matrix
+            print('Length of the testing set:  ', len(testing_set))
+            print('Length of the observed values:  ' , len(observed_values))
+            print('Calculating the testing design matrix: ')
+            testing_distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
+            testing_design_matrix = Design_matrix(testing_distance_matrix)
+            
+            # Do the prediction
+            pred = testing_design_matrix.dot(coeff)
+
+            # Match up the observed values with the pred
+            match_up = []
+            for j in range(len(observed_values)):
+                match_up.append([pred[j], observed_values[j]])
+            match_up.sort(key = lambda x:x[0], reverse = True)
+            
+            # Calculate the area, recall and precision
+            area = 0
+            n_positive = 0
+            n_negative = 0
+            denominator = len(positive_testing_set)
+            recalls = []
+            precisions = []
+            for match in match_up:
+                if match[1] > 0:
+                    n_positive += 1
+                elif match[1] == -1:
+                    n_negative += 1
+                precision = n_positive/(n_positive+n_negative)
+                area += precision
+                recall = n_positive/denominator
                 
-                # Take the average
-                area/=(len(testing_set))
-                
-                # Load
-                area_list.append(area)
-                recalls_list.append(recalls)
-                precisions_list.append(precisions)
+                recalls.append(recall)
+                precisions.append(precision)                    
+            
+            # Take the average
+            area/=(len(testing_set))
+            
+            # Load
+            area_list.append(area)
+            recalls_list.append(recalls)
+            precisions_list.append(precisions)
                 
             reverse_test_coverage_RBFN_results[key]['area_list'] = area_list
             reverse_test_coverage_RBFN_results[key]['recalls_list'] = recalls_list
             reverse_test_coverage_RBFN_results[key]['precisions_list'] = precisions_list
             
     return reverse_test_coverage_RBFN_results
-    
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#with open('test_coverage_RBFN_results', 'r') as f:
+#    test_coverage_RBFN_results = json.load(f)
+#discrimination_RBFN_test_results = Discrimation_test(test_coverage_RBFN_results)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+##with open('discrimination_RBFN_test_results', 'w') as f:
+##    json.dump(discrimination_RBFN_test_results, f)
+#test_coverage_RBFN_results.keys()
+#test_coverage_RBFN_results['1_4_0_0_1_2_1perchain']['AUC_list']
 #######################################################################
           
-              
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')    
-#        
-#    with open('test_coverage_RBFN_0_0_results', 'w') as f:
-#        json.dump(test_coverage_RBFN_0_0_results, f, cls = NumpyEncoder)
-#    with open('reverse_test_coverage_RBFN_0_0_results', 'w') as f:
-#        json.dump(reverse_test_coverage_RBFN_0_0_results , f, cls = NumpyEncoder)
- 
-
-
-#with open('reverse_test_coverage_RBFN_0_0_results', 'r') as f:
-#    res_00 = json.load(f)
-#    
-#average1=[]
-#for key, value in res_00.items():
-#    average1.append(np.average(np.array(value['area_list'])))
-##
-#with open('test_coverage_RBFN_results', 'r') as f:
-#    res = json.load(f)
-#    
-#average2=[]    
-#for key, value in res.items():
-#    average2.append(np.average(np.array(value['area_list'])))
-#np.average(np.array(average1)-np.array(average2))
-
-#test_coverage_RBFN_results['1_1_1_1_1_2_1perchain']['recalls_list'][0][-50:]
 ##########################################################################
 '''
 Recall_to_ROC_AUC:
@@ -1123,60 +1210,71 @@ def Add_ROC_AUC_to_results(test_coverage_RBFN_results):
         value['TPR_list'] = TPR_list
         value['AUC_list'] = AUC_list
 #########################################################################3
-#if __name__ == '__main__':                
-#                    
-#    test_coverage_RBFN_numerical_results = Calculate_recall_precision(binary = False)  
-#
-#    reverse_test_coverage_RBFN_numerical_results = Reverse_test(test_coverage_RBFN_numerical_results)  
-#    
-#    Add_ROC_AUC_to_results(test_coverage_RBFN_numerical_results)
-#    Add_ROC_AUC_to_results(reverse_test_coverage_RBFN_numerical_results)
-#    # Save the results
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#    with open('test_coverage_RBFN_numerical_results' , 'w') as f:
-#        json.dump(test_coverage_RBFN_numerical_results, f, cls = NumpyEncoder)
-#    with open('reverse_test_coverage_RBFN_numerical_results', 'w') as f:
-#        json.dump(reverse_test_coverage_RBFN_numerical_results, f, cls=NumpyEncoder)
+#Add_ROC_AUC_to_results(discrimination_RBFN_test_results)
+#discrimination_RBFN_test_results.keys()
+#discrimination_RBFN_test_results['2_4_0_0_1_2_1perchain'].keys()
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#with open('discrimination_RBFN_test_results', 'w') as f:
+#    json.dump(discrimination_RBFN_test_results, f, cls=NumpyEncoder)
 ##########################################################################################
 '''***********Compare the numerical and binary*************'''
 def Draw_ROC():
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
     with open('test_coverage_RBFN_numerical_results', 'r') as f:
-        test_coverage_RBFN_numerical_results = json.load(f)
-    with open('test_coverage_RBFN_results', 'r') as f:
         test_coverage_RBFN_results = json.load(f)
+#    with open('discrimination_RBFN_test_results', 'r') as f:
+#        test_coverage_RBFN_results = json.load(f)
     for i in range(1, 4):
         for j in range(1,4):            
             match_type = '('+str(i)+','+str(j)+')'
-            save_name ='Numerical'+str(i)+'_'+str(j)
+            save_name =str(i)+'_'+str(j)+'_10'
             key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            FPR = test_coverage_RBFN_results[key]['FPR_list'][0]
-            TPR = test_coverage_RBFN_results[key]['TPR_list'][0]
-            auc = test_coverage_RBFN_results[key]['AUC_list'][0]
-            FPR_reverse = test_coverage_RBFN_numerical_results[key]['FPR_list'][0]
-            TPR_reverse = test_coverage_RBFN_numerical_results[key]['TPR_list'][0]
-            auc_reverse = test_coverage_RBFN_numerical_results[key]['AUC_list'][0]
-            plt.figure(figsize = (6, 6))
+            plt.figure(figsize = (10, 10))
             plt.plot([0,1], [0,1])
             plt.ylabel('True Positive Rate')
             plt.ylim([0, 1])
             plt.xlabel('False Positive Rate')
             plt.xlim([0,1])
-            plt.plot(FPR, TPR, label='Binary:   '+'%.2f'% auc)
-            plt.plot(FPR_reverse, TPR_reverse, label='Numerical:   '+'%.2f'% auc_reverse)
-            plt.legend(loc=4)
-            plt.title('match-type'+match_type+', sample_size =  '+ str(len(FPR)))
-#            plt.savefig(save_name+'.png')
-            plt.show()
+            auc = np.average(np.array(test_coverage_RBFN_results[key]['AUC_list']))
+#            auc_reverse = np.average(np.array(reverse_test_coverage_RBFN_results[key]['AUC_list']))
+            for s in range(10):
+                FPR = test_coverage_RBFN_results[key]['FPR_list'][s]
+                TPR = test_coverage_RBFN_results[key]['TPR_list'][s]
+#                auc = test_coverage_RBFN_results[key]['AUC_list'][s]
+#                FPR_reverse = reverse_test_coverage_RBFN_results[key]['FPR_list'][s]
+#                TPR_reverse = reverse_test_coverage_RBFN_results[key]['TPR_list'][s]
+#                auc_reverse = reverse_test_coverage_RBFN_results[key]['AUC_list'][s]
 
-#Draw_ROC()
-#Add_ROC_AUC_to_results(test_coverage_RBFN_numerical_results)
-#Add_ROC_AUC_to_results(test_coverage_RBFN_results)
+#                plt.plot(FPR, TPR, label = 'Discrimination Test, AUC= '+'%.2f'%auc)
+                plt.plot(FPR, TPR, label='Binary:   '+'%.2f'% auc)
+#                plt.plot(FPR_reverse, TPR_reverse)
+    #            plt.plot(FPR_reverse, TPR_reverse, label='Numerical:   AUC= '+'%.2f'% auc_reverse)
+#            plt.legend(loc=4)
+            plt.title('match-type'+match_type+', sample_size =  '+ str(len(FPR)))
+#            plt.text(x=0.8, y=0.2, s='AUC= '+'%.2f'%auc)
+            plt.text(x=0.5, y=0.15, s='Average AUC of binary Test= '+'%.2f'% auc)
+            os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+            plt.savefig(save_name+'.png')
+            plt.show()
+###############################################################################
+#if __name__ == '__main__':
+#    Cross_validation_in_one_function()
+#Test_AUC_in_one_function()
 #
-#for key, value in test_coverage_RBFN_numerical_results.items():
-#    print(key, np.average(np.array(value['AUC_list'])))
-#
-#for key, value in test_coverage_RBFN_results.items():
-#    print(key, np.average(np.array(value['AUC_list'])))
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+#with open('test_coverage_RBFN_results_binary ', 'r') as f:
+#    test_coverage_RBFN_results_binary = json.load(f)
+#with open('test_coverage_RBFN_results_latest_binary', 'r') as f:
+#    test_coverage_RBFN_results_latest_binary =  json.load(f)
+#with open('test_coverage_RBFN_results_numerical', 'r') as f:
+#    test_coverage_RBFN_results_numerical = json.load(f)
+#with open('test_coverage_RBFN_results_latest_numerical', 'r') as f:
+#    test_coverage_RBFN_results_latest_numerical =  json.load(f)
+#    
+#test_coverage_RBFN_results_binary['2_2_0_0_1_2_1perchain']['AUC_list']
+#test_coverage_RBFN_results_latest_binary['2_2_0_0_1_2_1perchain']['AUC_list']
+#test_coverage_RBFN_results_numerical['2_2_0_0_1_2_1perchain']['AUC_list']
+#test_coverage_RBFN_results_latest_numerical['2_2_0_0_1_2_1perchain']['AUC_list']
+
 
 

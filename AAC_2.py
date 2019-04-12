@@ -392,7 +392,7 @@ def main(wd, percent):
         with open(i + '.pdb', 'r') as file:
             coordinates[i] = Coordinates(file, combined_ids[i])
     
-    #Fine the contact between the antigens and the CDRs
+    #Find the contact between the antigens and the CDRs
     import time
     start =time.clock()
     contact = {}
@@ -422,94 +422,175 @@ def main(wd, percent):
     
    
 ######################################################################
-if __name__ == '__main__':
-    # wd is the working directory, sd is the saving directory
-    wd = "/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure"
-    sd = '/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A'
-    
-    sequence, contact, matched_ids, combined_ids, training_ids, testing_ids =  main(wd, 0.1)
-    
-    # Separete the combined_ids and the matched_ids into the training and testing subsets
-    training_combined_ids ={}
-    training_matched_ids ={}
-    testing_combined_ids = {}
-    testing_matched_ids = {}
-    
-    for key, value in combined_ids.items():
-        if key in training_ids:
-            training_combined_ids[key] = value
-        elif key in testing_ids:
-            testing_combined_ids[key] = value
-            
-    for key, value in matched_ids.items():
-        if key in training_ids:
-            training_matched_ids[key] = value
-        elif key in testing_ids:
-            testing_matched_ids[key] = value
-    
-    # Separate the extracted sequences into training and testing subsets
-    training_sequence = {}
-    testing_sequence = {}
-    for key, value in sequence.items():
-        if key in training_ids:
-            training_sequence[key] = value
-        elif key in testing_ids:
-            testing_sequence[key] = value
-            
-    # Separate the contact into training and testing subsets
-    training_contact = {}
-    testing_contact = {}
-    for key, value in contact.items():
-        if key in training_ids:
-            training_contact[key] = value
-        elif key in testing_ids:
-            testing_contact[key] = value
-            
-    # Save the above results    
-    os.chdir(sd)
-    with open('sequence', 'w') as f:
-        json.dump(sequence, f)
-    with open('contact', 'w') as f:
-        json.dump(contact, f)
-    with open('matched_ids', 'w') as f:
-        json.dump(matched_ids, f)
-    with open('combined_ids', 'w') as f:
-        json.dump(combined_ids, f)
-    with open('training_ids', 'w') as f:
-        json.dump(training_ids, f)
-    with open('testing_ids', 'w') as f:
-        json.dump(testing_ids, f)    
-        
-    with open('training_combined_ids', 'w') as f:
-        json.dump(training_combined_ids, f)
-    with open('testing_combined_ids', 'w') as f:
-        json.dump(testing_combined_ids, f)
-    with open('training_matched_ids', 'w') as f:
-        json.dump(training_matched_ids, f)
-    with open('testing_matched_ids', 'w') as f:
-        json.dump(testing_matched_ids, f)
-    with open('training_sequence', 'w') as f:
-        json.dump(training_sequence, f)
-    with open('testing_sequence', 'w') as f:
-        json.dump(testing_sequence, f)
-    with open('training_contact', 'w') as f:
-        json.dump(training_contact, f)
-    with open('testing_contact', 'w') as f:
-        json.dump(testing_contact, f)
+'''
+Run the main function
+'''
+#if __name__ == '__main__':
+#    # wd is the working directory, sd is the saving directory
+#    wd = "/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure"
+#    sd = '/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A'
+#    
+#    sequence, contact, matched_ids, combined_ids, training_ids, testing_ids =  main(wd, 0.1)
+#    
+#    # Separete the combined_ids and the matched_ids into the training and testing subsets
+#    training_combined_ids ={}
+#    training_matched_ids ={}
+#    testing_combined_ids = {}
+#    testing_matched_ids = {}
+#    
+#    for key, value in combined_ids.items():
+#        if key in training_ids:
+#            training_combined_ids[key] = value
+#        elif key in testing_ids:
+#            testing_combined_ids[key] = value
+#            
+#    for key, value in matched_ids.items():
+#        if key in training_ids:
+#            training_matched_ids[key] = value
+#        elif key in testing_ids:
+#            testing_matched_ids[key] = value
+#    
+#    # Separate the extracted sequences into training and testing subsets
+#    training_sequence = {}
+#    testing_sequence = {}
+#    for key, value in sequence.items():
+#        if key in training_ids:
+#            training_sequence[key] = value
+#        elif key in testing_ids:
+#            testing_sequence[key] = value
+#            
+#    # Separate the contact into training and testing subsets
+#    training_contact = {}
+#    testing_contact = {}
+#    for key, value in contact.items():
+#        if key in training_ids:
+#            training_contact[key] = value
+#        elif key in testing_ids:
+#            testing_contact[key] = value
+#            
+#    # Save the above results    
+#    os.chdir(sd)
+#    with open('sequence', 'w') as f:
+#        json.dump(sequence, f)
+#    with open('contact', 'w') as f:
+#        json.dump(contact, f)
+#    with open('matched_ids', 'w') as f:
+#        json.dump(matched_ids, f)
+#    with open('combined_ids', 'w') as f:
+#        json.dump(combined_ids, f)
+#    with open('training_ids', 'w') as f:
+#        json.dump(training_ids, f)
+#    with open('testing_ids', 'w') as f:
+#        json.dump(testing_ids, f)    
+#        
+#    with open('training_combined_ids', 'w') as f:
+#        json.dump(training_combined_ids, f)
+#    with open('testing_combined_ids', 'w') as f:
+#        json.dump(testing_combined_ids, f)
+#    with open('training_matched_ids', 'w') as f:
+#        json.dump(training_matched_ids, f)
+#    with open('testing_matched_ids', 'w') as f:
+#        json.dump(testing_matched_ids, f)
+#    with open('training_sequence', 'w') as f:
+#        json.dump(training_sequence, f)
+#    with open('testing_sequence', 'w') as f:
+#        json.dump(testing_sequence, f)
+#    with open('training_contact', 'w') as f:
+#        json.dump(training_contact, f)
+#    with open('testing_contact', 'w') as f:
+#        json.dump(testing_contact, f)
 
-#len(sequence)       
-#len(matched_ids)    
-#len(combined_ids)
-#len(training_ids)
-#len(testing_ids)
-#len(training_combined_ids)
-#len(testing_combined_ids)
-#len(training_sequence)
-#len(testing_sequence)
-#len(training_contact)
-#len(testing_contact)
-#len(training_matched_ids)
-#len(testing_matched_ids)
+############################################################################
+'''
+The following code is to extract data from the complexes submitted from 1804-1904
+'''
+def The_1804_1904(combined_ids, matched_ids):
+    # Extract the sequence
+    sequence = {}
+    for i in combined_ids:
+        with open(i + '.pdb', 'r') as file:
+            sequence[i] = Chain_seq(file, combined_ids[i]) 
+            
+    # Extract the coordinates
+    coordinates = {}
+    for i in combined_ids:
+        with open(i + '.pdb', 'r') as file:
+            coordinates[i] = Coordinates(file, combined_ids[i])
+            
+    #Find the contact between the antigens and the CDRs
+    import time
+    start =time.clock()
+    contact = {}
+    n = 0
+    for i in matched_ids:
+        n += 1
+        print('Calculating   ' + i + '     ' + str(n))
+        contact[i] = Get_contact(coordinates[i], matched_ids[i], cutoff = 4)
+    end = time.clock()
+    print('Running time: %s Seconds'%(end-start))
+       
+    # remove the dud before saving
+    dud_AAC = []
+    for pdbid in contact:
+        if contact[pdbid] == []:
+            dud_AAC.append(pdbid)
+    dud_AAC
+    for dud in dud_AAC:
+        del contact[dud]
+        del combined_ids[dud]
+        del matched_ids[dud]
+        del sequence[dud]
+    
+    return sequence, contact
+
+# Take a look at the ids of the data 1804-1904
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest')
+with open('matched_ids_latest', 'r') as f:
+    matched_ids_latest = json.load(f)
+with open('combined_ids_latest', 'r') as f:
+    combined_ids_latest = json.load(f)
+len(matched_ids_latest)
+len(combined_ids_latest)
+#for key in matched_ids_latest:
+#    if key=='6db8':
+#        print(key)
+#del matched_ids_latest['6h7k']
+#del combined_ids_latest['6h7k']
+
+    
+#with open('combined_ids_latest', 'w') as f:
+#    json.dump(combined_ids_latest, f)
+#with open('matched_ids_latest', 'w') as f:
+#    json.dump(matched_ids_latest, f)
+
+sequence, contact = The_1804_1904(combined_ids_latest, matched_ids_latest)
 #
-#training_contact.keys()
-#training_contact['1fsk']
+#len(matched_ids)
+#len(combined_ids)
+
+#with open('sequence_latest', 'w') as f:
+#    json.dump(sequence, f)
+#with open('contact_latest', 'w') as f:
+#    json.dump(contact, f)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

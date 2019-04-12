@@ -16,7 +16,7 @@ as the training and testing data
 import os
 import json
 import random
-#import copy
+import copy
 ########################################################################### 
 '''
 Generate_random_negative: 
@@ -76,59 +76,88 @@ def With_replacement_sample(population, size):
 def main():
     # Set the working directory and the saving directory
     wd = '/home/leo/Documents/Database/Pipeline_New/Cores'
-    training_testing = ['testing']
     # we want to generate 10 negative samples
     for n in range(10):
         sd = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/'+'Sample_'+str(n)        
-        for train_test in training_testing:
-            for i in range(1, 5):
-                for j in range(1, 5):                
-                    for k in [1, 0]:                        
-                        for h in [1, 2, 3]:                                                                   
 
-                            name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
-                            print('working on '+ name)
-    
-                            # Save the core aa
-                            os.chdir(wd)
-                            with open('training_'+name, 'r') as f:
-                                data = json.load(f)
-                            with open('testing_'+name, 'r') as f:
-                                testing_data = json.load(f)
-                            
-                            
-                            # Generate the negative samples
-                            negative_samples = Generate_random_negative(data, len(testing_data))
-                            
-                            # Save the negative samples
-                            os.chdir(sd)
-                            save_name = train_test + '_' + name + '_negative'
-                            with open(save_name, 'w') as f:
-                                json.dump(negative_samples, f)
-    
+        for i in range(1, 7):
+            for j in range(1,7):                
+                for k in [0]:                        
+                    for h in [1]:                                                                   
+
+                        train_name ='training_' + str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+                        test_name = 'testing_' + str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
+                        print('working on '+ train_name + '\n' + test_name)
+
+                        # Save the core aa
                         os.chdir(wd)
-                        name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
-                        print('working on '+ name)
-                        
-                        with open('training_'+name, 'r') as f:
+                        with open(train_name, 'r') as f:
                             data = json.load(f)
-                            
-                        with open('testing_'+name, 'r') as f:
-                            testing_data = json.load(f)                            
-                            
-                        negative_samples = Generate_random_negative(data, len(testing_data))
+                        with open(test_name, 'r') as f:
+                            testing_data = json.load(f)
                         
-                        # Save the results
+                        
+                        # Generate the negative samples
+                        negative_testing_samples = Generate_random_negative(data, len(testing_data))
+                        negative_training_samples = Generate_random_negative(data, len(data))
+                        
+                        # Save the negative samples
                         os.chdir(sd)
-                        save_name = train_test+'_'+name+'_negative'
-                        with open(save_name, 'w') as f:
-                            json.dump(negative_samples, f)
+                        with open(test_name+'_negative', 'w') as f:
+                            json.dump(negative_testing_samples, f)
+                        with open(train_name + '_negative', 'w') as f:
+                            json.dump(negative_training_samples, f)
+
    
 ####################################################################
 #if __name__ == '__main__':
 #    main()
-
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0')
+with open('testing_1_1_0_0_1_2_1perchain_negative', 'r') as f:
+    training_1_1 = json.load(f)
+#len(training_1_1)
 ####################################################################
+'''
+sd: the saving directory
+'''
+sd = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores'
+def Negative_the_latest(sd):
+    # Get the training set by combining all the previous    
+    for i in range(1,5):
+        for j in range(1, 5):
+            train_name = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            test_name = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
+            with open(train_name, 'r') as f:
+                train_old = json.load(f)
+            with open(test_name, 'r') as f:
+                test_old = json.load(f)
+            train = copy.deepcopy(train_old)
+            train.extend(test_old)
+            
+            os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest/cores')
+            with open(test_name, 'r') as f:
+                test_new = json.load(f)
+            # Generate the negative samples
+            for n in range(10):            
+                save_directory =  sd + '/sample_'+str(n)
+                print('Generating '+ test_name)
+                negative_test =  Generate_random_negative(train, len(test_new))
+                print('Generating '+ train_name)
+                negative_train = Generate_random_negative(train, len(train))
+                # Same the negative samples
+                os.chdir(save_directory)
+                save_name_test = test_name + '_negative'
+                save_name_train = train_name + '_negative'
+                with open(save_name_test, 'w') as f:
+                    json.dump(negative_test, f)
+                with open(save_name_train, 'w') as f:
+                    json.dump(negative_train, f)
+#Negative_the_latest(sd)  
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0')  
+#with open('training_1_1_0_0_1_2_1perchain_negative', 'r') as f: 
+#    train = json.load(f)   
+#len(train)                      
 '''
 Need to take a look at the negative samples, make sure they have nothing in common with the real cores
 '''
