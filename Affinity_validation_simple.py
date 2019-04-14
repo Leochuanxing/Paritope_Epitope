@@ -607,8 +607,7 @@ Input:
     good_combined_ids:
         As above
     one_mutation:
-        a dictionary, with keys 'mutations', 'affinities'. This dictionay is one of
-        the element of the recorded mutaions from the literatures
+        [pdbid, mutations_by_free_type_chain,affinities, mutation_id]
 Output:
     unit_list:
         a list of mutation_match_parameters, and this list is a basic prediction unit
@@ -624,9 +623,9 @@ def Initiate_mutation_match_parameter(matched_ids, combined_ids, one_mutation):
     # Calculate the fold change
     '''Here we would like to transform all the fold change to Kd '''
     if affinity_type == 'Kd':
-        fold_change = one_mutation[2][2]/one_mutation[-1][1]
+        fold_change = one_mutation[2][2]/one_mutation[2][1]
     elif affinity_type == 'Ka':
-        fold_change = one_mutation[2][1]/one_mutation[-1][2]
+        fold_change = one_mutation[2][1]/one_mutation[2][2]
     elif affinity_type == 'DDG':
         if one_mutation[2][2] == 0:
             fold_change = 1
@@ -876,7 +875,7 @@ def My_pred(single_mutation = True, binary = True, one_to_one = False):
         sequence = json.load(f)
                 
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    data_raw = get_data('Keating.ods')
+    data_raw = get_data('Affinities.ods')
     keys = data_raw.keys()
     
     res_dict = {}
@@ -884,7 +883,7 @@ def My_pred(single_mutation = True, binary = True, one_to_one = False):
     
     # Use different coverage model, binary or numerical
     if binary:
-        os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
         with open('test_coverage_RBFN_results_latest_binary', 'r') as f:
             test_coverage_RBFN_results = json.load(f)
     if not binary:
@@ -1265,24 +1264,66 @@ def Bootstrap_other_AUC(other_pred_dict):
         other_CI_95 = [other_auc_list[250], other_auc_list[9750]]
         value['CI_95'] = copy.deepcopy(other_CI_95)
             
-##############################################################################            
-if __name__=='__main__': 
-    all_pred_dict = {}
-    affinity_results = My_pred(single_mutation = False, binary = True, one_to_one=False)
-    all_pred_dict['affinity_results'] = affinity_results
+##############################################################################
+def Prediction_on_my_data():
+    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=True) 
+    prediction_on_my_data ={}
+    results = affinity_results['results_dict']\
+                    ['single_True_mode_single_moving_True_binary_True']['0']
+    clean_results = [res[-1] for res in results]
+    cleaner_results = []
+    for c in clean_results:
+        if c[0] != 'Empty Match':
+            cleaner_results.append(c)
+    cleaner_results
+    cleanest_ressults = []
+    for cl in cleaner_results:
+        cleanest_ressults.append(copy.deepcopy(['',math.log(cl[2])*(298*8.31)/1000, cl[1]-cl[0]]))
     boundaries = [[0,1000], [0,0.5],[0.5, 1000], [1, 1000]]
-    for bound in boundaries:                 
-        other_pred_dict, my_pred_dict, auc_all = \
-                                Analyze_results(affinity_results,\
-                                                cut_lower = bound[0], cut_upper = bound[1])
-        print('Boorstraping my AUC')
-        Bootstrap_my_AUC(my_pred_dict)
+    for bound in boundaries:
+        auc, fpr, tpr, selected = AUC_under_cut(cleanest_ressults, cut_lower=bound[0], cut_upper=bound[1])
+        # Bootstrap
+        boot_auc = []
+        for i in range(10_000):
+            bootstrap_samples = random.choices(selected, k=len(selected))
+            auc, _, _, _ = AUC_under_cut(bootstrap_samples, cut_lower = 0, cut_upper = 1000)
+            boot_auc.append(auc)
+        boot_auc.sort()
+        CI_95 = [boot_auc[250], boot_auc[9750]]
+        prediction_on_my_data[str(bound[0])+'_'+str(bound[1])]={}
+        prediction_on_my_data[str(bound[0])+'_'+str(bound[1])]['auc'] = auc
+        prediction_on_my_data[str(bound[0])+'_'+str(bound[1])]['CI_95'] = CI_95
+        prediction_on_my_data[str(bound[0])+'_'+str(bound[1])]['fpr'] = fpr
+        prediction_on_my_data[str(bound[0])+'_'+str(bound[1])]['tpr'] = tpr
+        
+    return prediction_on_my_data
+#prediction_on_my_data = Prediction_on_my_data()
+#for key, value in prediction_on_my_data.items():
+#    print(value['auc'], value['CI_95'], len(value['tpr']))
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#with open('prediction_on_my_data', 'w') as f:
+#    json.dump(prediction_on_my_data, f)
+##############################################################################
+ 
 
-        Bootstrap_other_AUC(other_pred_dict)
-        all_pred_dict[str(bound[0])+'_'+str(bound[1])] = {}
-        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['other_pred_dict'] = other_pred_dict
-        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['my_pred_dict'] = my_pred_dict
-        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['auc_all'] = auc_all
+         
+#if __name__=='__main__': 
+#    all_pred_dict = {}
+#    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=True)
+#    all_pred_dict['affinity_results'] = affinity_results
+#    boundaries = [[0,1000], [0,0.5],[0.5, 1000], [1, 1000]]
+#    for bound in boundaries:                 
+#        other_pred_dict, my_pred_dict, auc_all = \
+#                                Analyze_results(affinity_results,\
+#                                                cut_lower = bound[0], cut_upper = bound[1])
+#        print('Boorstraping my AUC')
+#        Bootstrap_my_AUC(my_pred_dict)
+#
+#        Bootstrap_other_AUC(other_pred_dict)
+#        all_pred_dict[str(bound[0])+'_'+str(bound[1])] = {}
+#        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['other_pred_dict'] = other_pred_dict
+#        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['my_pred_dict'] = my_pred_dict
+#        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['auc_all'] = auc_all
 
 #all_pred_dict['1_1000']['auc_all']   
 #all_pred_dict['0.5_1000']['my_pred_dict']['CI_95']
@@ -1290,7 +1331,7 @@ if __name__=='__main__':
 #    print(value['CI_95'])
 ### Save the results
 #os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#with open('many_to_many_affinity', 'w') as f:
+#with open('one_to_one_affinity_selected_centers', 'w') as f:
 #    json.dump(all_pred_dict, f, cls = NumpyEncoder)
 ##################################################################################
 '''
