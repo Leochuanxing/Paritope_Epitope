@@ -544,13 +544,13 @@ def The_1804_1904(combined_ids, matched_ids):
     return sequence, contact
 
 # Take a look at the ids of the data 1804-1904
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest')
-with open('matched_ids_latest', 'r') as f:
-    matched_ids_latest = json.load(f)
-with open('combined_ids_latest', 'r') as f:
-    combined_ids_latest = json.load(f)
-len(matched_ids_latest)
-len(combined_ids_latest)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest')
+#with open('matched_ids_latest', 'r') as f:
+#    matched_ids_latest = json.load(f)
+#with open('combined_ids_latest', 'r') as f:
+#    combined_ids_latest = json.load(f)
+#len(matched_ids_latest)
+#len(combined_ids_latest)
 #for key in matched_ids_latest:
 #    if key=='6db8':
 #        print(key)
@@ -563,7 +563,7 @@ len(combined_ids_latest)
 #with open('matched_ids_latest', 'w') as f:
 #    json.dump(matched_ids_latest, f)
 
-sequence, contact = The_1804_1904(combined_ids_latest, matched_ids_latest)
+#sequence, contact = The_1804_1904(combined_ids_latest, matched_ids_latest)
 #
 #len(matched_ids)
 #len(combined_ids)

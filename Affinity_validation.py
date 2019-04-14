@@ -73,18 +73,18 @@ def Coordinates(file, combined_chain_id, Ab_Ag, mutations_pos, mutation_chain):
     for i in combined_chain_id[2]:
         chain_type[i] = 'A'
         
-    l_range = list(range(1000))
-#    l_range = []
-#    l_range.extend(list(range(23, 41)))
-#    l_range.extend(list(range(49, 64)))
-#    l_range.extend(list(range(89, 111)))
+#    l_range = list(range(1000))
+    l_range = []
+    l_range.extend(list(range(23, 41)))
+    l_range.extend(list(range(49, 64)))
+    l_range.extend(list(range(89, 111)))
 #        l_range = [[23, 40], [49, 63], [89, 110]]
 #        h_range = [[25, 37], [50, 71], [99, 129]]
-    h_range = list(range(1000))
-#    h_range = []
-#    h_range.extend(list(range(25, 38)))
-#    h_range.extend(list(range(50, 72)))
-#    h_range.extend(list(range(99,130)))
+#    h_range = list(range(1000))
+    h_range = []
+    h_range.extend(list(range(25, 38)))
+    h_range.extend(list(range(50, 72)))
+    h_range.extend(list(range(99,130)))
     '''Set the l_range, h_range, and a_range'''
     if mutation_chain in combined_chain_id[0]:
         for pos in mutations_pos:
@@ -312,7 +312,7 @@ Output:
         #### sense, but not more than four amino acids
 '''
 def Paire_select(mutation_match_parameter, sequence, mode, cutoff,\
-                 moving, moving_step, moving_start, moving_end, one_to_one = False):
+                 moving, moving_step, moving_start, moving_end, one_to_one):
 
     # Extract the required information from the pdb file
     selected_contact, possible_opposite, pdbid_sequence =\
@@ -448,7 +448,9 @@ Output:
 '''
 def Predition_RBFN_coverage(test_coverage_RBFN_results, testing_set):
 #testing_set = testing5
-    key = str(len(testing_set[0][0]))+'_'+str(len(testing_set[0][1]))+'_0_0_1_2_1perchain'    
+    key = str(len(testing_set[0][0]))+'_'+str(len(testing_set[0][1]))+'_0_0_1_2_1perchain' 
+    '''********************Pay attention to this scale factor****************'''
+#    scale_factor = len(testing_set[0][0]) * len(testing_set[0][1])
 
     non_redundent_training_set = test_coverage_RBFN_results[key]['non_redundent_training_set']
     distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
@@ -458,6 +460,8 @@ def Predition_RBFN_coverage(test_coverage_RBFN_results, testing_set):
     coeff = np.array(coeff).reshape((-1,1))
     #Calculate the prediction results
     predictions = testing_design_matrix.dot(coeff)
+    '''******************************'''
+#    predictions *= scale_factor
     
     return predictions
   
@@ -492,6 +496,7 @@ def Compare(mutation_match_parameter, test_coverage_RBFN_results):
         original_pred = Predition_RBFN_coverage(test_coverage_RBFN_results,original_sets)
         mutated_pred = Predition_RBFN_coverage(test_coverage_RBFN_results, mutated_sets)
         # Put together
+        '''************Should we use sum or average********************'''
         original_mutation_score = [np.average(original_pred), np.average(mutated_pred)]
     else:
         return 'Empty Match'        
@@ -719,6 +724,9 @@ def Mutation_list_prediction(one_list, sequence,  test_coverage_RBFN_results, mo
     scores_mutation = 0
     length = len(all_original_mutation_score)
     for original_mutaion in all_original_mutation_score:
+        '''*********Try not to devide the length***************'''
+#        scores_original += original_mutaion[0]
+#        scores_mutation += original_mutaion[1]
         scores_original += original_mutaion[0]/length
         scores_mutation += original_mutaion[1]/length
     
@@ -886,9 +894,7 @@ if __name__ == '__main__':
         combined_ids = json.load(f)
     with open('sequence', 'r') as f:
         sequence = json.load(f)
-        
-
-        
+                
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
     data_raw = get_data('Mutations.ods')
     keys = data_raw.keys()
@@ -897,9 +903,8 @@ if __name__ == '__main__':
     res_dict = {}
     single_list = [False]
     mode_list = ['single']
-    moving_list = [False]
-    binary_list = [True]
-    
+    moving_list = [True]
+    binary_list = [False]    
     
     for sing in single_list:
         for mod in mode_list:
@@ -925,7 +930,7 @@ if __name__ == '__main__':
                     # Store the results
                     results_dict = {}
                     if not mov:
-                        cut_range = [5.5]
+                        cut_range = [4, 4.5, 5, 5.5, 6]
                     if mov:
                         cut_range = [0]
                     # For different cut   
@@ -944,7 +949,7 @@ if __name__ == '__main__':
                             
                             results.extend(Predict(data, matched_ids, combined_ids, sequence,\
                                               test_coverage_RBFN_results, mode = mod, cutoff=cut, free_type = 0, single=sing,\
-                                              moving=mov, moving_step=0.25, moving_start=3, moving_end=8, one_to_one = False))
+                                              moving=mov, moving_step=0.25, moving_start=3, moving_end=8, one_to_one = True))
                         # Load the results
                         results_dict[str(cut)] = copy.deepcopy(results)
                         # for different fold_change
@@ -969,10 +974,14 @@ if __name__ == '__main__':
     affinity_results['fpr_tpr_dict'] = fpr_tpr_dict
     affinity_results['DDG_cut'] = DDG
     affinity_results
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#    with open('affinity_results_many_to_many_OutCDR_5.5', 'w') as f:
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#    with open('affinity_results_many_to_many_InCDR_4_7', 'w') as f:
 #        json.dump(affinity_results, f)
-         
+#affinity_results['auc_dict']
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#with open('affinity_results_one_to_one_InCDR', 'r') as f:
+#    old_res = json.load(f)
+#old_res['auc_dict']
 ###############################################################################
 '''
 *******************Explanation of the Predict parameters****************
@@ -1004,55 +1013,91 @@ one_to_one:
 #with open('affinity_results_one_to_one', 'r') as f:
 #    affinity_results = json.load(f)
 ##############################################################################
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#data_raw = get_data('Mutations.ods')
+#keys = data_raw.keys()
+#keys
+#data_raw['1bj1']
+#def Select_SPM(data_raw):
+#    spm = []
+#    for key, value in data_raw.items():
+#        for i in range(len(value)-1):
+#            if value[i] != []:
+#                if len(value[i][0])==4 and value[i+1][0] == 'affinities':
+#                    spm.extend([value[i], value[i+1]])
+#    return spm
+#spm = Select_SPM(data_raw) 
+#############################################################################
+'''
+Predict SPM
+'''
+def Predict_spm(spm):
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    with open('test_coverage_RBFN_results', 'r') as f:
+        test_coverage_RBFN_results = json.load(f)
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+    with open('matched_ids','r') as f:
+        matched_ids = json.load(f)
+    with open('combined_ids', 'r') as f:
+        combined_ids = json.load(f)
+    with open('sequence', 'r') as f:
+        sequence = json.load(f)
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')   
+    spm_results = Predict(spm, matched_ids, combined_ids, sequence,\
+            test_coverage_RBFN_results, mode = 'all', cutoff=5.5, free_type = 0, single='True',\
+            moving=True, moving_step=0.25, moving_start=3, moving_end=8, one_to_one = True) 
+    return spm_results
+
+#spm_results = Predict_spm(spm)
+
+#################################################################################
+#def Enrichment(spm_results, top_percentage, improve_cut):
+#    # Get rid of the empty match
+#    clean_spm = []
+#    for res in spm_results:
+#        if res[-1][0] != 'Empty Match':
+#            clean_spm.append([res[-1][2], res[-1][1]-res[-1][0]])
+#    
+#    clean_spm.sort(key = lambda x:x[1], reverse = True)
+#    # count the improved
+#    n_improved = 0
+#    for i in clean_spm:
+#        if i[0] < 1/improve_cut:
+#            n_improved += 1
+#    
+#    # calculate the improved in the top_percentage
+#    top_n = math.floor(top_percentage*len(clean_spm))
+#    enriched = 0
+#    for j in range(top_n):
+#        if clean_spm[j][0] < 1/improve_cut:
+#            enriched += 1
+#    
+#    # Total sample
+#    n_sample = len(clean_spm)
+#    return enriched, n_improved, n_sample
+#
+#enriched, n_improved, n_sample = Enrichment(spm_results, top_percentage=0.1, improve_cut=1.7) 
+#enriched     
+#n_improved  
+#n_sample
+############################################################################    
+        
 '''
 The following code is to analyse the affinity_results
 '''
 #with open('affinity_results_one_to_one_OutCDR', 'r') as f:
 #    affinity_results = json.load(f)
-#affinity_results.keys()
-affinity_results['results_dict'].keys()
-#affinity_results['auc_dict']['single_True_mode_single_moving_True_binary_True']['0']
-auc_list = affinity_results['auc_dict']['single_False_mode_single_moving_False_binary_True']['5.5']
-affinity_results['fpr_tpr_dict'].keys()
-fpr_tpr = affinity_results['fpr_tpr_dict']['5.5']
-# Plot the results
-DDG = [0.0, 0.5, 1.0, 1.5, 2.0]
-plt.figure(figsize = (6, 6))
-for i in range(len(fpr_tpr)):
-    f_t = fpr_tpr[i]
-    dg = DDG[i]
-    auc = auc_list[i]
-    x = f_t[1]; y = f_t[0]
-#    n.append(len(x))
-    plt.plot(x,y, label = '|DDG|>'+ str(dg)+':  '+'%.2f' % auc+',     n = '+str(len(x)))
-plt.plot([0,1], [0,1])
-plt.ylim([0, 1])
-plt.xlim([0,1])
-plt.legend(loc=4)
-#plt.title('ROC under differerent delta G:many to many, cut=5.5, OutCDR')
-#plt.savefig('ROC_delta_G_many_to_many_5.5_OutCDR.png')
-plt.show()
+def Average_AUC_under_different_cut(affinity_results):
+    affinity_results.keys()
+    affinity_results['results_dict'].keys()
+    #affinity_results['auc_dict']['single_True_mode_single_moving_True_binary_True']['0']
+    auc_list = affinity_results['auc_dict']['single_False_mode_single_moving_False_binary_True']
+    auc_list
+    average_AUC_under_different_cut = []
+    for key, value in auc_list.items():
+        average_AUC_under_different_cut.append(np.sum(np.array(value))/5)
+    return average_AUC_under_different_cut
+#Average_AUC_under_different_cut(affinity_results)
 
 
-#res = affinity_results['results_dict']['single_True_mode_all_moving_True_binary_True']['0']
-#len(res)
-##res
-#TPR, FPR, AUC, Dscore, Dfold= ROC_AUC(res, 1.84)
-#AUC
-#len(TPR)
-#log_fold = -np.log(np.array(Dfold))
-#log_fold = log_fold.tolist()
-#plt.scatter(Dscore, log_fold)
-#pearsonr(Dscore, log_fold)
-#
-#for r in res:
-#    if r[-1][0] != 'Empty Match' and r[-1][2]>1.4 and r[-1][2] < 1.5:
-#        print (r)
-#help(pearsonr)
-#type(res)
-#res[3]
-#for result in res:
-#    if result[-1][0] != 'Empty Match':
-#        if abs(result[-1][0]-result[-1][1]) >5:
-#            print (result)
 

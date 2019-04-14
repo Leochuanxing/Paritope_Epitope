@@ -24,15 +24,13 @@ def S_T(single):
         if TS[1] == single:
             return TS[0]
 ##################################################################################
-os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
-with open('matched_ids', 'r') as f:
-    matched_ids = json.load(f)
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-data_raw = get_data('Affinities.ods')['Sheet1']
-data = []
-for d in data_raw:
-    if d != []:
-        data.append(d)
+
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Mutations')
+#data_raw = get_data('Mutations.ods')
+#data = []
+#for d in data_raw:
+#    if d != []:
+#        data.append(d)
 #############################################################################33
 '''
 The mutations positions are give as the original pdb files, for example, some of the 
@@ -90,20 +88,22 @@ Output:
 
 
 '''
+loc = '/home/leo/Documents/Database/Pipeline_New/Mutations/Mutation.xlsx'
 wb = xlrd.open_workbook(loc) 
 sheet = wb.sheet_by_index(0) 
-def Parse(sheet):
+
+def Parse(sheet, matched_ids):
     parse_dictionary_list=[]
-    mutation_ids = []
     # Lets collect the mutation ids first
     for i in range(1,1015):
         pdbid = sheet.cell_value(i,0).lower()        
         mut_set = (sheet.cell_value(i,4)).split(',')
         dG = sheet.cell_value(i,5)
-        if pdbid in matched_ids and pdbid not in mutation_ids:
+        if pdbid in matched_ids:
             temp_dict = {} 
             temp_dict['pdbid'] = pdbid
             temp_dict['mutations'] = []
+            temp_dict['mutation_id'] = i
             for mut in mut_set:                
                 chain_aa_pos_aa = mut.split(':')
                 chain_id = chain_aa_pos_aa[0]        
@@ -152,7 +152,9 @@ def Check_indices(sequence,  matched_indices, onepdb_parsed_dictionary):
     return unmatch
 #############################################################################
 '''
-Direct match
+Direct match:
+    a function to use the indices directly from the mutation data without the 
+    converting by the matched_indices
 '''
 def Direct_match(sequence, onepdb_parsed_dictionary):
     unmatch = []
@@ -179,8 +181,7 @@ with open('sequence', 'r') as f:
 with open('combined_ids', 'r') as f:
     combined_ids = json.load(f)
 ##############################################################################
-def Match_Dic():
-    
+def Match_Dic(parse_dictionary_list):   
     # Get all the pdbids
     dic_all_mutations = {}
     
@@ -196,34 +197,34 @@ def Match_Dic():
         with open(key+'.pdb', 'r') as file:    
             combined_chain_id = combined_ids[key]    
             match_indices_all[key] = Match_index(file, combined_chain_id)
-    
+            
     return match_indices_all, dic_all_mutations
 ############################################################################
-def My_pdbid():
-    total_number_mutation = 0
-    pdbids = []
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    data = []
-    for i in [1,2,3]:
-        sheet = 'Sheet'+str(i)
-        data_raw = get_data('Affinities.ods')[sheet]    
-        for d in data_raw:
-            if d != []:
-                data.append(d)
-    for mu in data:
-        if mu[0] != '' and mu[0] != 'affinities':
-            total_number_mutation += 1
-            if mu[0] not in pdbids:
-                pdbids.append(mu[0])
-    
-    return total_number_mutation, pdbids
+#def My_pdbid():
+#    total_number_mutation = 0
+#    pdbids = []
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#    data = []
+#    for i in [1,2,3]:
+#        sheet = 'Sheet'+str(i)
+#        data_raw = get_data('Affinities.ods')[sheet]    
+#        for d in data_raw:
+#            if d != []:
+#                data.append(d)
+#    for mu in data:
+#        if mu[0] != '' and mu[0] != 'affinities':
+#            total_number_mutation += 1
+#            if mu[0] not in pdbids:
+#                pdbids.append(mu[0])
+#    
+#    return total_number_mutation, pdbids
 ######################################################################
-def Pdbid_in_other_data(my_ids, other_ids):
-    more_ids = []
-    for i in other_ids:
-        if i not in my_ids:
-            more_ids.append(i)
-    return more_ids
+#def Pdbid_in_other_data(my_ids, other_ids):
+#    more_ids = []
+#    for i in other_ids:
+#        if i not in my_ids:
+#            more_ids.append(i)
+#    return more_ids
 ########################################################################
 def Use_match(matched_indices, onepdb_parsed_dictionary):
 
@@ -243,7 +244,7 @@ def Use_unmatch(onepdb_parsed_dictionary):
     for single in onepdb_parsed_dictionary:
         mutations =  single['mutations']
         for mu in mutations:
-            mu[2] = int(mu[2])+1
+            mu[2] = int(mu[2])-1
 #####################################################################
 def Format(onepdb_parsed_dictionary):
     formated = []
@@ -251,16 +252,18 @@ def Format(onepdb_parsed_dictionary):
         pdbid = single['pdbid']
         mutations = single['mutations']
         affinities = single['affinities']
+        mutation_id = single['mutation_id']
         for i in range(len(mutations)):
             if i ==0:
                 mu = mutations[i]
                 mu[0] = pdbid
+                mu.append(mutation_id)
                 formated.append(mu)
             else:
                 mu = mutations[i]
                 mu[0] = ''
                 formated.append(mu)
-        formated.append(['affinities', affinities,1, 'DDG'])
+        formated.append(['affinities', affinities, 1, 'DDG'])
     return formated
 #    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')   
 #    data = get_data('Affinities.ods')['Sheet2']
@@ -271,68 +274,79 @@ def Change_chain_name(onepdb_parsed_dictionary):
     for single in onepdb_parsed_dictionary:
         mutations = single['mutations']
         for mu in mutations:
-#            if mu[1] == 'L':
-#                mu[1] = 'C'
+            if mu[1] == 'A':
+                mu[1] = 'C'
             if mu[1] == 'H':
-                mu[1] = 'D'
+                mu[1] = 'B'
         
 ###################################################################
-                
-parse_dictionary_list = Parse(sheet)
-parse_dictionary_list
+'''Run the following step by step can parse the mutation information'''
+'''
+Set up a index so that the mutaion data can be referred to the data in my research
 
-total_number_mutation, pdbids = My_pdbid()                
-total_number_mutation            
-pdbids        
-    
-    
-match_indices_dict, dic_all_mutations = Match_Dic()
+Do the following step by step
+'''  
+os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+with open('matched_ids', 'r') as f:
+    matched_ids = json.load(f)
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Mutations') 
+parse_dictionary_list = Parse(sheet, matched_ids)
+parse_dictionary_list[:6]             
+ 
+match_indices_dict, dic_all_mutations = Match_Dic(parse_dictionary_list)
 len(match_indices_dict)
 len(dic_all_mutations)
 keys = list(match_indices_dict.keys())
 keys
-
-more_ids = Pdbid_in_other_data(pdbids, keys)
-len(more_ids)
-more_ids
-
-len(match_indices_dict)
-len(dic_all_mutations)
-
-#pdb = more_ids[12]
+#
+#
+pdb = keys[3]
 pdb
 onepdb_parsed_dictionary = dic_all_mutations[pdb]
 matched_indices= match_indices_dict[pdb] 
 onepdb_parsed_dictionary
 #matched_indices
 #Change_chain_name(onepdb_parsed_dictionary)
+combined_ids[pdb]
 unmatch = Check_indices(sequence,  matched_indices, onepdb_parsed_dictionary)
 unmatch
 onepdb_parsed_dictionary = Use_match(matched_indices, onepdb_parsed_dictionary)
-
+#onepdb_parsed_dictionary = Use_unmatch(onepdb_parsed_dictionary)
+#
 direct_unmatch = Direct_match(sequence, onepdb_parsed_dictionary)
 direct_unmatch
-#Use_unmatch(onepdb_parsed_dictionary)
-
-onepdb_parsed_dictionary
-len(onepdb_parsed_dictionary)
+Use_unmatch(onepdb_parsed_dictionary)
+#
+#
 formated = Format(onepdb_parsed_dictionary)
-formated
+##formated
+#
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')   
+#data = get_data('Keating.ods')
+#len(data)
+#data.update({pdb: formated})
+#save_data('Keating.ods', data)
 
 
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')   
-data = get_data('Affinities.ods')
-data.update({pdb: formated})
-save_data('Affinities.ods', data)
+#onepdb_parsed_dictionary
+#sequence[pdb]['B'][97]
+#matched_indices['I']
+#matched_indices.keys()
 
 
-onepdb_parsed_dictionary
-sequence[pdb]['B'][97]
-matched_indices['I']
-matched_indices.keys()
-
-dic_all_mutations['1mhp']
-with open('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/combined_ids', 'r') as f:
-    combined_ids = json.load(f)
-combined_ids[pdb]
-       
+#########################################################################
+'''*****The following code is to Format the affinities*********'''
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#data = get_data('Keating.ods')
+#len(data)
+#data.keys()
+def Format_affinities(data):
+    for key, value in data.items():
+        for mu in value:
+            if mu != [] and mu[0] == 'affinities' and mu[3] == 'DDG':
+                dg = mu[1]
+                mu[1] = 0
+                mu[2] = dg
+#Format_affinities(data)   
+#data
+#save_data('Keating.ods', data)      

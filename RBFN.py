@@ -991,7 +991,7 @@ def Batch_recall_precision():
             with open('testing_'+name+'_negative', 'r') as f:
                 negative_testing_set = json.load(f)
             
-            best_percentage = 0.2
+            best_percentage = 0.5
             # Load the rp_parameter
             rp_parameter = {}
             rp_parameter['positive_training_set'] = positive_training_set
@@ -1015,13 +1015,15 @@ with open('recall_precision', 'w') as f:
 with open('recall_precision', 'r') as f:
     recall_precision = json.load(f)
 
-def Draw_rp_curves(recall_precision):
-    for key, value in recall_precision.items():
-        recall = value['recall'] 
-        precision = value['precision']
-        plt.plot(recall, precision)
-        plt.title(key)
-        plt.show()
+recall_precision.keys()
+recall_precision['2_2'].keys()
+#def Draw_rp_curves(recall_precision):
+#    for key, value in recall_precision.items():
+#        recall = value['recall'] 
+#        precision = value['precision']
+#        plt.plot(recall, precision)
+#        plt.title(key)
+#        plt.show()
 
 Draw_rp_curves(recall_precision)
         
