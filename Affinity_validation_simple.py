@@ -1266,7 +1266,7 @@ def Bootstrap_other_AUC(other_pred_dict):
             
 ##############################################################################
 def Prediction_on_my_data():
-    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=True) 
+    affinity_results = My_pred(single_mutation = True, binary = False, one_to_one=True) 
     prediction_on_my_data ={}
     results = affinity_results['results_dict']\
                     ['single_True_mode_single_moving_True_binary_True']['0']
@@ -1297,12 +1297,12 @@ def Prediction_on_my_data():
         prediction_on_my_data[str(bound[0])+'_'+str(bound[1])]['tpr'] = tpr
         
     return prediction_on_my_data
-#prediction_on_my_data = Prediction_on_my_data()
+prediction_on_my_data_numerical = Prediction_on_my_data()
 #for key, value in prediction_on_my_data.items():
 #    print(value['auc'], value['CI_95'], len(value['tpr']))
 #os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#with open('prediction_on_my_data', 'w') as f:
-#    json.dump(prediction_on_my_data, f)
+#with open('prediction_on_my_data_numerical', 'w') as f:
+#    json.dump(prediction_on_my_data_numerical, f)
 ##############################################################################
  
 

@@ -964,10 +964,10 @@ def Test_AUC_the_latest(binary = True):
             os.chdir(positive_d)
             with open(p_train, 'r') as f:
                 positive_training = json.load(f)
-            with open(p_test, 'r') as f:
-                positive_testing = json.load(f)
+#            with open(p_test, 'r') as f:
+#                positive_testing = json.load(f)
             positive_training_set = copy.deepcopy(positive_training)
-            positive_training_set.extend(positive_testing)
+#            positive_training_set.extend(positive_testing)
                                
             n_traing = p_train+'_negative'
             n_test = p_test + '_negative'
@@ -1057,6 +1057,10 @@ def Discrimation_test(test_coverage_RBFN_results):
             n_test = 'testing_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
             with open(n_test, 'r') as f:
                 negative_testing = json.load(f)
+#            n_train = 'training_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
+#            with open(n_train, 'r') as f:
+#                negative_training = json.load(f)
+#            negative_testing.extend(negative_training)
             # Reverse the negative testing set
             negative_testing_set = []
             for parepi_negative in negative_testing:
@@ -1110,11 +1114,20 @@ def Discrimation_test_the_latest(test_coverage_RBFN_results):
             os.chdir(positive_d)
             with open(p_test, 'r') as f:
                 positive_testing_set = json.load(f)            
-            
+            # Let the training set of the match-type(j, i) be the negative training set
             n_test = 'testing_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
+            n_train = 'training_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
             with open(n_test, 'r') as f:
                 negative_testing = json.load(f)
+            os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
+            with open(n_test, 'r') as f:
+                negative_testing_old = json.load(f)
+            with open(n_train, 'r') as f:
+                negative_training_old = json.load(f)
             # Reverse the negative testing set
+            # Combine all of them
+            negative_testing.extend(negative_testing_old)
+            negative_testing.extend(negative_training_old)
             negative_testing_set = []
             for parepi_negative in negative_testing:
                 negative_testing_set.append([parepi_negative[1], parepi_negative[0],\
@@ -1152,11 +1165,11 @@ def Discrimation_test_the_latest(test_coverage_RBFN_results):
           
 #########################################################################3
 def Reverse_test_in_one_function():
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('test_coverage_RBFN_results_binary', 'r') as f:
-        test_coverage_RBFN_results_binary = json.load(f)
-    reverse_test_binary = \
-                    Discrimation_test(test_coverage_RBFN_results_binary)
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#    with open('test_coverage_RBFN_results_binary', 'r') as f:
+#        test_coverage_RBFN_results_binary = json.load(f)
+#    reverse_test_binary = \
+#                    Discrimation_test(test_coverage_RBFN_results_binary)
     
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
     with open('test_coverage_RBFN_results_latest_binary', 'r') as f:
@@ -1164,49 +1177,72 @@ def Reverse_test_in_one_function():
     reverse_test_latest_binary = \
                     Discrimation_test_the_latest(test_coverage_RBFN_results_latest_binary)
                     
-    return reverse_test_binary, reverse_test_latest_binary
+#    return reverse_test_binary, reverse_test_latest_binary
+    return reverse_test_latest_binary
         
 ##########################################################################################
-'''***********Compare the numerical and binary*************'''
-def Draw_ROC():
+def Selected_centers(cut = 6):
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('test_coverage_RBFN_numerical_results', 'r') as f:
-        test_coverage_RBFN_results = json.load(f)
-#    with open('discrimination_RBFN_test_results', 'r') as f:
-#        test_coverage_RBFN_results = json.load(f)
-    for i in range(1, 4):
-        for j in range(1,4):            
-            match_type = '('+str(i)+','+str(j)+')'
-            save_name =str(i)+'_'+str(j)+'_10'
-            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            plt.figure(figsize = (10, 10))
-            plt.plot([0,1], [0,1])
-            plt.ylabel('True Positive Rate')
-            plt.ylim([0, 1])
-            plt.xlabel('False Positive Rate')
-            plt.xlim([0,1])
-            auc = np.average(np.array(test_coverage_RBFN_results[key]['AUC_list']))
-#            auc_reverse = np.average(np.array(reverse_test_coverage_RBFN_results[key]['AUC_list']))
-            for s in range(10):
-                FPR = test_coverage_RBFN_results[key]['FPR_list'][s]
-                TPR = test_coverage_RBFN_results[key]['TPR_list'][s]
-#                auc = test_coverage_RBFN_results[key]['AUC_list'][s]
-#                FPR_reverse = reverse_test_coverage_RBFN_results[key]['FPR_list'][s]
-#                TPR_reverse = reverse_test_coverage_RBFN_results[key]['TPR_list'][s]
-#                auc_reverse = reverse_test_coverage_RBFN_results[key]['AUC_list'][s]
+    with open('one_to_one_frequency', 'r') as f:
+        one_to_one_frequency = json.load(f)
 
-#                plt.plot(FPR, TPR, label = 'Discrimination Test, AUC= '+'%.2f'%auc)
-                plt.plot(FPR, TPR, label='Binary:   '+'%.2f'% auc)
-#                plt.plot(FPR_reverse, TPR_reverse)
-    #            plt.plot(FPR_reverse, TPR_reverse, label='Numerical:   AUC= '+'%.2f'% auc_reverse)
-#            plt.legend(loc=4)
-            plt.title('match-type'+match_type+', sample_size =  '+ str(len(FPR)))
-#            plt.text(x=0.8, y=0.2, s='AUC= '+'%.2f'%auc)
-            plt.text(x=0.5, y=0.15, s='Average AUC of binary Test= '+'%.2f'% auc)
-            os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-            plt.savefig(save_name+'.png')
-            plt.show()
+    selected_positive_cores = []
+    for one in one_to_one_frequency:
+        if one[2]>= 6:
+            selected_positive_cores.append([[one[0]],[ one[1]], 1])
+    return selected_positive_cores
+#selected_positive_cores = Selected_centers(cut = 6)
+#with open('selected_one_to_one', 'w') as f:
+#    json.dump(selected_positive_cores, f)
 ###############################################################################
+def Test_AUC_selected_centers(binary = True):
+    test_coverage_RBFN_results={}
+    # Read the training_data and the testing data
+    negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    n_directory = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_'
+    for i in range(1, 2):
+        for j in range(1, 2):
+            # set the empty container
+            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            test_coverage_RBFN_results[key] = {}
+            
+            p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            os.chdir(positive_d)
+            with open('selected_one_to_one', 'r') as f:
+                positive_training_set = json.load(f)
+            with open(p_test, 'r') as f:
+                positive_testing_set = json.load(f)
+                               
+            n_traing ='training_'+ key+'_negative'
+            n_test = p_test + '_negative'
+            os.chdir(negative_d)
+            with open(n_traing, 'r') as f:
+                negative_training_set = json.load(f)
+            print('Working on '+ key)    
+            AUC_list, FPR_list, TPR_list, non_redundent_training_set, coeff = \
+            Sub_test_AUC(positive_training_set, negative_training_set,positive_testing_set,n_test,n_directory, binary)
+                
+            test_coverage_RBFN_results[key]['non_redundent_training_set'] = \
+                                                    non_redundent_training_set
+            test_coverage_RBFN_results[key]['coeff'] = coeff
+            test_coverage_RBFN_results[key]['AUC_list'] = AUC_list
+            test_coverage_RBFN_results[key]['FPR_list'] = FPR_list
+            test_coverage_RBFN_results[key]['TPR_list'] = TPR_list
+            
+    return test_coverage_RBFN_results
+##################################################################################
+#reverse_test_latest_binary_all_reverse_negative = Reverse_test_in_one_function()
+#reverse_test_latest_binary_all_reverse_negative['4_1_0_0_1_2_1perchain'].keys()
+
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#with open('reverse_test_latest_binary_all_negative', 'w') as f:
+#    json.dump(reverse_test_latest_binary_all_reverse_negative, f)
+
+#selected_test_results = Test_AUC_selected_centers(binary = True)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#with open('selected_test_results', 'w') as f:
+#    json.dump(selected_test_results, f, cls=NumpyEncoder)
 #if __name__ == '__main__':
 #    Cross_validation_in_one_function()
 #Test_AUC_in_one_function()
