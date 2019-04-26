@@ -90,7 +90,7 @@ def Gaussian(distance, radius):
     return math.exp(-(distance**2)*(radius**2))
     
 def Mrakov(distance, radius):
-    return math.exp(-distance/radius)
+    return math.exp(-distance*(radius**2))
 '''
 beta is a positive number
 '''
@@ -143,7 +143,7 @@ Output:
         A list of center indices with the length of each list corresponding to n_centers_list
 '''
 
-def Coverage_reduce_centers(training_training_distance_matrix, training_set,  n_centers_list):
+def Coverage_reduce_centers(training_training_distance_matrix, training_set,n_centers_list):
     # Change the main diagonal of the training_training_distance_matrix into 0s
     copy_matrix = copy.deepcopy(training_training_distance_matrix)
     for i in range(np.shape(copy_matrix)[0]):
@@ -179,24 +179,6 @@ def Coverage_reduce_centers(training_training_distance_matrix, training_set,  n_
     return centers_list
 
 #####################################################################################
-'''
-Use a small distance matrix to check the above function, which is very important.
-'''
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
-#with open('training_2_2_1_1_1_2_1perchain', 'r') as f:
-#    training_set = json.load(f)
-#len(training_set)
-#small_data = training_set[6:12]
-#small_distance_matrix = Distance_matrix(small_data, small_data, square = True)
-#small_distance_matrix = np.round(small_distance_matrix, 3)
-#small_distance_matrix
-#n_centers_list = [1,2,3,4,5,6]
-#small_training_set = ['a', 'b', 'c', 'd', 'e', 'f']
-#centers_list= Coverage_reduce_centers(small_distance_matrix,small_training_set, n_centers_list)
-#centers_list
-
-            
-##############################################################################
 '''
 Remove the duplicates before removing the centers
 '''
@@ -234,24 +216,27 @@ Output:
         a dictionary
         gradient['coeff'] is the gradient of the parameter['coeff']
 '''
-def Loss(distance_matrix, observed_values, parameter):
+def Loss(distance_matrix, observed_values, parameter, basis_function):
     # Unpack the dictionary 
     reg = parameter['reg']
     n_row, n_col = distance_matrix.shape
     linear_coeff = parameter['coeff'][:n_col+1, 0]
     linear_coeff = np.reshape(linear_coeff, (-1,1))
     radius_coeff = parameter['coeff'][n_col+1:,0]
-
-    radius_coeff_mat = np.tile(np.reshape(radius_coeff,(1, -1)), (n_row, 1))
-    D_square = distance_matrix * distance_matrix
     
+    radius_coeff_mat = np.tile(np.reshape(radius_coeff,(1, -1)), (n_row, 1))
+    if basis_function == 'Gaussian':
+        D_square = distance_matrix * distance_matrix
+    elif basis_function == 'Markov':
+        D_square = distance_matrix
+     
+#    radius_coeff = np.ones((n_col, 1))   
     radius_coeff = np.reshape(radius_coeff, (-1,1))
-    design_matrix_pure = Design_matrix(distance_matrix,radius_coeff, basis_function = 'Gaussian')
+    design_matrix_pure = Design_matrix(distance_matrix,radius_coeff, basis_function )
     design_matrix = np.hstack((design_matrix_pure, np.ones((n_row,1))))    
 
     # Calculate the loss
     linear_coeff = np.reshape(linear_coeff, (-1,1))
-#    loss = np.sum(linear_coeff*linear_coeff*reg) + np.sum(radius_coeff * radius_coeff*reg)
     loss = np.sum(linear_coeff*linear_coeff*reg)
     diff = design_matrix.dot(linear_coeff) - observed_values
     loss += (diff.T).dot(diff) /n_row
@@ -262,21 +247,22 @@ def Loss(distance_matrix, observed_values, parameter):
     grad_linear_coeff /= n_row
     grad_linear_coeff += 2 * linear_coeff * reg
     # Calculate the grad of the radius_coeff
-
+    
     pure_l_c = np.reshape(linear_coeff[:-1,0], (-1,1))
     grad_radius_coeff = np.sum(2*(diff.dot(pure_l_c.T))*design_matrix_pure*D_square*(-2)*radius_coeff_mat, axis=0)
     grad_radius_coeff = np.reshape(grad_radius_coeff, (-1, 1))
     grad_radius_coeff /= n_row
-#    grad_radius_coeff += 2*radius_coeff*reg
-    # Pack up the results
+    
     gradient = {}
 #    gradient['linear_coeff'] = grad_linear_coeff
 #    gradient['radius_coeff'] =grad_radius_coeff
     gradient['coeff'] = np.vstack((grad_linear_coeff, grad_radius_coeff))
+#    gradient['coeff'] = grad_linear_coeff
 #    print('Design matrix pure', design_matrix_pure)
 #    print('pure_l_c', pure_l_c)
     
     return loss, gradient
+
 ####################################################################################
 
 '''
@@ -304,29 +290,25 @@ Output:
 #c = np.vstack((a, b))
 #c.shape
 def Train_RBFN_BFGS(distance_matrix, observed_values, rho=0.8, c = 1e-3, termination = 1e-2,\
-                    parameter_inheritance = False, parameter=None):
+                    parameter_inheritance = False, parameter=None, basis_function = 'Gaussian'):
     
     nrow = np.shape(distance_matrix)[0]
     ncol = np.shape(distance_matrix)[1]
         
     # Give the initial Hessian H. The variables are the coeff and reg
     H = np.eye(2*ncol+1)/(10*nrow)
+#    H = np.eye(ncol+1)/(10*nrow)
     # Check if it inherit the parameter from somewhere else.
     if not parameter_inheritance :
         # Set the starting point
         parameter = {}
-#        parameter['linear_coeff'] = np.zeros((ncol+1,1))
-#        parameter['radius_coeff'] = np.ones((ncol,1))
+#        parameter['coeff'] = np.ones((2*ncol+1,1))
         parameter['coeff'] = np.ones((2*ncol+1,1))
         #The reg should not be negative. It is better that reg > delta, a small positive number
 #        parameter['reg'] = reg
 
     # BFGS algorithm
-    loss, gradient = Loss(distance_matrix, observed_values, parameter)
-#    grad_linear_coeff = gradient['linear_coeff']
-#    grad_linear_coeff = np.reshape(grad_linear_coeff, (-1, 1))
-#    grad_radius_coeff = gradient['radius_coeff']
-#    grad_radius_coeff = np.reshape(grad_radius_coeff, (-1,1))
+    loss, gradient = Loss(distance_matrix, observed_values, parameter, basis_function)
     grad_coeff = gradient['coeff']
     ternination_square = termination**2
     grad_square = ternination_square + 1
@@ -338,12 +320,12 @@ def Train_RBFN_BFGS(distance_matrix, observed_values, rho=0.8, c = 1e-3, termina
         parameter_new['coeff'] = p + parameter['coeff']
         parameter_new['reg'] = parameter['reg']
         
-        new_loss, new_gradient = Loss(distance_matrix, observed_values, parameter_new)
+        new_loss, new_gradient = Loss(distance_matrix, observed_values, parameter_new, basis_function)
         # Ramijo Back-tracking
         while new_loss > loss + c * (grad_coeff.T).dot(p):
             p *= rho
             parameter_new['coeff'] = p + parameter['coeff']            
-            new_loss, new_gradient = Loss(distance_matrix, observed_values, parameter_new)
+            new_loss, new_gradient = Loss(distance_matrix, observed_values, parameter_new, basis_function)
         
         # update H
         s = p
@@ -351,6 +333,7 @@ def Train_RBFN_BFGS(distance_matrix, observed_values, rho=0.8, c = 1e-3, termina
         y = new_grad - grad_coeff
         r = (y.T).dot(s)
         I = np.eye(2*ncol+1)
+#        I = np.eye(ncol+1)
         if r != 0:
             r = 1/r            
             H = (I - r*s.dot(y.T)).dot(H).dot(I - r*y.dot(s.T)) + r*s.dot(s.T)# Can be accelerate
@@ -365,25 +348,6 @@ def Train_RBFN_BFGS(distance_matrix, observed_values, rho=0.8, c = 1e-3, termina
         
     return parameter, loss
 ###############################################################################
-def Train_RBFN_BP(distance_matrix, observed_values,step_size = 1E-8,
-                    parameter_inheritance = False, parameter=None):
-    
-    nrow, ncol = np.shape(distance_matrix)
-    # Check if it inherit the parameter from somewhere else.
-    if not parameter_inheritance :
-        # Set the starting coefficient
-        parameter = {}
-        parameter['coeff'] = np.ones((2*ncol+1,1))
-
-    n = 0
-    while n <1E7:
-        n+=1
-        loss, gradient = Loss(distance_matrix, observed_values, parameter)
-        parameter['coeff'] -= step_size*gradient['coeff']
-        print(loss)
-        
-        
-    return parameter, loss
 
 '''
 '''
@@ -485,13 +449,8 @@ parameter contains
     parameter['all_training_distance_matrix']
     parameter['all_training_design_matrix']
     parameter['all_training_observed_values']
-    parameter['best_coeff']
-    parameter['best_reg']
-    parameter['best_centers']
     parameter['list_centers']
     parameter['list_n_centers']
-    parameter['list_coeff']
-    parameter['list_reg']
     parameter['training_set']
     parameter['testing_set']
     parameter['positive_training_set']
@@ -499,10 +458,6 @@ parameter contains
     parameter['positive_testing_set']
     parameter['negative_testing_set']
     parameter['cross_number']
-    parameter['list_area_under_rp_curve']
-    parameter['best_recall_precision_list']
-    parameter['design_matrix']
-    parameter['observed_values']
     parameter['coeff']
     parameter['reg']
     
@@ -516,20 +471,6 @@ all_training_design_matrix:
 all_training_observed_values:
     the obseved values of the training_set, which is the concatenation of the positive training set 
     and the negative training training set.
-    
-observed_values:
-    a list of observed values used to train the model and do center selection. They are corresponding 
-    to the rows of the design matrix
-    
-best_coeff:
-    After the best parameter is selected, the model is trained again to ge this best_coeff
-    
-best_reg:
-    the best regularization coefficienct, in this model, the reg is constant 1s.
-    
-best_centers:
-    gives the best centers selected. Those centers are concrete instead of the position indices.
-
 list_centers:
     a list of selected centers corresponding to the list of percentages. The element of this list
     are integers, which give the position indices in the training set.
@@ -537,9 +478,6 @@ list_centers:
 list_coeff:
     a list of coefficients of the centers, corresponding to the list_centers
 
-list_reg:
-    a list of regulariztion coefficients, corresponding to the list_centers
-    
 training_set:
     the training set, it contains both the positive training set and the negative training set. The positive
     training set is ahead of the negative training set in the list.
@@ -550,12 +488,7 @@ testing_set:
     
 list_AUC:
     a list of areas under different recall precisions curves corresponding to list_centers
-
-best_recall_precision_list:
-    a list contains two lists, one list are the recall rates, the other list are the precisions
-    those two lists correspond to each other, and they are calculated from the best_coeff
-design_matrix:
-    this design matrix is changing as the selection of the centers progresses. 
+    
 centers:
     are the centers in a state of constant changing as the selection of the centers progresses.
     It begins with the non_redundant_training set
@@ -566,7 +499,7 @@ reg:
     
 '''
 #########################################################################
-def Cross_validation(parameter, method):
+def Cross_validation(parameter, method,  basis_function = 'Gaussian'):
 
     # Take out the values
     all_training_distance_matrix = parameter['all_training_distance_matrix ']
@@ -600,16 +533,6 @@ def Cross_validation(parameter, method):
                 non_redundant.append([training_set[indx][0],training_set[indx][1]])
                 centers.append(indx)
             
-                
-        # Load the beginning centers
-#        centers_relative, non_redundent_training_set = Remove_duplicates(cross_training_set)
-        # the indices in the above center are corresponding to cross_training_set
-        # they should be mapped to the original indices
-#        centers = []
-#        for c in centers_relative:
-#            centers.append(train_indices[c])
-            
-#        parameter['centers']=centers
         
         # Load the list_n_centers
         parameter['list_n_centers'] = []
@@ -643,18 +566,18 @@ def Cross_validation(parameter, method):
             
             # initiate the coeff
             coeff = np.ones((2*len(centers)+1, 1))
+#            coeff = np.ones((len(centers)+1, 1))
             parameter['coeff'] = coeff
             
             # Pay attention to the termination condition
             '''*****************************************'''
+#            termination_grad_norm = 1E-4*len(centers)
             termination_grad_norm = 1E-4*len(centers)
             if method == 'BFGS':
-                parameter, loss = Train_RBFN_BFGS(distance_matrix_training, observed_values_train, rho=0.5, c = 1e-3,\
+                parameter, loss = Train_RBFN_BFGS(distance_matrix_training, observed_values_train, rho=0.7, c = 1e-3,\
                                                   termination = termination_grad_norm,\
-                                                 parameter_inheritance = True, parameter=parameter)
-#            elif method =='BP':
-#                parameter, loss = Train_RBFN_BP(distance_matrix_training, observed_values_train, step_size = 1E5,\
-#                                                parameter_inheritance=True, parameter=parameter)
+                                                 parameter_inheritance = True, parameter=parameter, \
+                                                 basis_function = basis_function)
             
             coeff = np.reshape(parameter['coeff'], (-1,1)) 
             print('length of coefficinets ', np.shape(coeff))
@@ -662,6 +585,7 @@ def Cross_validation(parameter, method):
             radius_coeff = parameter['coeff'][len(centers)+1:, 0]
 
             # Make prediction
+#            radius_coeff = np.ones((len(centers), 1))
             radius_coeff = np.reshape(radius_coeff, (-1,1))
             design_matrix_test_pure = Design_matrix(distance_matrix_testing, radius_coeff, basis_function='Gaussian')
             row_n = np.shape(design_matrix_test_pure)[0]
@@ -751,13 +675,13 @@ def Observed_values(training_set, binary):
     return observed_values
     
 ###################################################################################
-def Batch_cross_validation(binary, method):
+def Batch_cross_validation(binary, method, basis_function):
     # The final result will be stored in cross_coverage_RBFN
     cross_coverage_RBFN = {}
     negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
     positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
-    for i in range(1, 5):
-        for j in range(1,5):
+    for i in range(1, 4):
+        for j in range(1,4):
             p_name = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             os.chdir(positive_d)
             with open(p_name, 'r') as f:
@@ -780,9 +704,9 @@ def Batch_cross_validation(binary, method):
             
 #            all_training_design_matrix = Design_matrix(all_training_distance_matrix)
             
-            cross_number = 5            
-            percentages = [1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005]
-            for reg in [0]:
+            cross_number = 4         
+            percentages = [ 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005]
+            for reg in [1]:
     #            percentages = [0.005]
                 # Load up the parameter
                 parameter = {}
@@ -797,7 +721,7 @@ def Batch_cross_validation(binary, method):
                 parameter['reg'] = reg
                 
                 # Cross_validate
-                Cross_validation(parameter, method)               
+                Cross_validation(parameter, method, basis_function)               
                 # Load the results to cross_coverage_RBFN
                 key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain_'+str(reg)
                 cross_coverage_RBFN[key] = parameter['list_AUC']
@@ -806,13 +730,13 @@ def Batch_cross_validation(binary, method):
      
 ######################################################################################
     
-def Batch_cross_validation_the_latest(binary, method):
+def Batch_cross_validation_the_latest(binary, method, basis_function):
     # The final result will be stored in cross_coverage_RBFN
     cross_coverage_RBFN = {}
     negative_d = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores/sample_0'
     positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
-    for i in range(1, 5):
-        for j in range(1,5):
+    for i in range(1, 4):
+        for j in range(1,4):
             p_name_train = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             p_name_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             os.chdir(positive_d)
@@ -839,10 +763,10 @@ def Batch_cross_validation_the_latest(binary, method):
             
 #            all_training_design_matrix = Design_matrix(all_training_distance_matrix)
             
-            cross_number = 5
+            cross_number = 4
             
-            percentages = [1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005]
-            for reg in [0]:
+            percentages = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005]
+            for reg in [1]:
                 # Load up the parameter
                 parameter = {}
                 parameter['all_training_distance_matrix '] = all_training_distance_matrix 
@@ -855,7 +779,7 @@ def Batch_cross_validation_the_latest(binary, method):
                 parameter['percentages'] = percentages 
                 parameter['reg'] = reg
                 # Cross_validate
-                Cross_validation(parameter, method)
+                Cross_validation(parameter, method, basis_function)
                 
                 
                 # Load the results to cross_coverage_RBFN
@@ -874,31 +798,118 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 ###################################################################################
 def Cross_validation_in_one_function(method):
-    cross_coverage_RBFN_binary = Batch_cross_validation(binary = True, method=method)
+    cross_coverage_RBFN_binary = Batch_cross_validation(binary = True,\
+                                        method=method, basis_function = 'Gaussian')
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('cross_binary', 'w') as f:
+    with open('cross_binary_1', 'w') as f:
         json.dump(cross_coverage_RBFN_binary, f, cls=NumpyEncoder)
         
-    cross_coverage_RBFN_numerical = Batch_cross_validation(binary = False, method=method)
+    cross_coverage_RBFN_numerical = Batch_cross_validation(binary = False,\
+                                                          method=method, basis_function = 'Gaussian')
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('cross_numerical', 'w') as f:
+    with open('cross_numerical_1', 'w') as f:
+        json.dump(cross_coverage_RBFN_numerical, f, cls=NumpyEncoder)
+        
+    cross_coverage_RBFN_binary = Batch_cross_validation(binary = True,\
+                                        method=method, basis_function = 'Markov')
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('cross_binary_Markov_1', 'w') as f:
+        json.dump(cross_coverage_RBFN_binary, f, cls=NumpyEncoder)
+        
+    cross_coverage_RBFN_numerical = Batch_cross_validation(binary = False,\
+                                                          method=method, basis_function = 'Markov')
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('cross_numerical_Markov_1', 'w') as f:
         json.dump(cross_coverage_RBFN_numerical, f, cls=NumpyEncoder)
     
-    cross_coverage_RBFN_the_latest_binary = Batch_cross_validation_the_latest(binary=True, method=method)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('cross_latest_binary', 'w') as f:
-        json.dump(cross_coverage_RBFN_the_latest_binary, f, cls=NumpyEncoder)
-        
-    cross_coverage_RBFN_the_latest_numerical = Batch_cross_validation_the_latest(binary=False, method=method)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('cross_latest_numerical', 'w') as f:
-        json.dump(cross_coverage_RBFN_the_latest_numerical, f, cls=NumpyEncoder)
 '''***************************************************************************'''
 '''***************************************************************************'''
 '''***************************************************************************'''
 '''***************************************************************************'''
 '''Lets run'''
-Cross_validation_in_one_function(method='BFGS')
+#Cross_validation_in_one_function(method='BFGS')
+#########################################################################
+'''
+Best_parameter
+    This function is to find the best hyperparameter
+'''
+def Best_parameter(): 
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')    
+    with open('cross_results', 'r') as f:
+        cross_results = json.load(f)
+    # Split the results into different match_types
+    results_match_type = {}
+    for res in cross_results:
+        if res[0] not in results_match_type:
+            results_match_type[res[0]]=[res]
+        else:
+            results_match_type[res[0]].append(res)
+    len(results_match_type)
+    best = []        
+    for k, value in results_match_type.items():
+        value.sort(key=lambda x:x[-1], reverse= True)
+        value.sort(key=lambda x:x[1])
+        value.sort(key=lambda x:x[2])
+        best.extend(value[:1])
+        
+    return best
+
+#############################################################################
+def Train_use_best_hyperparameter(training_set, percentage,reg, binary, basis_function):
+    training_observed_values = Observed_values(training_set, binary)
+    training_observed_values = np.reshape(training_observed_values, (-1,1))
+    training_distance_matrix = Distance_matrix(training_set, training_set, square = True)                
+    # Get the beginning center indices
+    centers = []; non_redundant = []
+    for indx in range(len(training_set)):
+        if [training_set[indx][0],training_set[indx][1]] not in non_redundant:
+            non_redundant.append([training_set[indx][0],training_set[indx][1]])
+            centers.append(indx)   
+    # Get the centers
+    distance_matrix_center = training_distance_matrix[centers,:][:, centers]
+    n_centers = math.floor(len(non_redundant)*percentage)
+    centers_selected_indices_list = Coverage_reduce_centers(distance_matrix_center,centers,[n_centers])
+    centers_selected_indices = centers_selected_indices_list[0]
+    centers_selected_list = Coverage_reduce_centers(distance_matrix_center,non_redundant,[n_centers])
+    centers_selected = centers_selected_list[0]
+    # Get the training distance matrix
+    distance_matrix = training_distance_matrix[:,centers_selected_indices]
+    
+    # Train the model
+    termination_grad_norm = 1E-4*len(centers_selected_indices)
+#    termination_grad_norm = 1E-2
+    # initiate the parameter
+    parameter ={}
+    parameter['coeff'] = np.ones((2*len(centers_selected )+1, 1))
+    parameter['reg'] = reg
+    parameter, loss = Train_RBFN_BFGS(distance_matrix, training_observed_values, rho=0.7, c = 1e-3,\
+                                      termination = termination_grad_norm,\
+                                     parameter_inheritance = True, parameter=parameter, \
+                                     basis_function = basis_function)  
+    return parameter, centers_selected
+#############################################################################
+
+def Sub_test_AUC(testing_set, centers_selected, coeff, binary, basis_function):
+    
+    linear_coeff = coeff[:len(centers_selected)+1, 0]
+    radius_coeff = coeff[len(centers_selected)+1:, 0]
+    
+    linear_coeff = np.reshape(linear_coeff, (-1, 1))
+    radius_coeff = np.reshape(radius_coeff, (-1, 1))
+    
+    testing_distance_matrix = Distance_matrix(testing_set, centers_selected, square = False)
+    testing_design_matrix = Design_matrix(testing_distance_matrix, radius_coeff, basis_function)
+    row_n = np.shape(testing_design_matrix)[0]
+    testing_design_matrix = np.hstack((testing_design_matrix, np.ones((row_n, 1))))
+    
+    pred = testing_design_matrix.dot(linear_coeff)     
+
+    testing_observed_values = Observed_values(testing_set, binary)     
+    # Calculate the AUC
+    AUC, TPR, FPR = Calculate_AUC(pred, testing_observed_values)
+    print('AUC:  ',AUC)         
+    
+    return AUC, TPR, FPR
 #########################################################################
 '''
 From the cross_coverage_RBFN, we see that more the number of the centers, the better
@@ -927,198 +938,131 @@ Output:
             a list of precisions, each precision is a list, corresponding to one
             set of negative_testing_set.
 '''
-def Test_AUC(binary = True):
-    test_coverage_RBFN_results={}
+def Test_AUC( best_hyperparameter,binary = True,basis_function='Gaussian'):
+    test_results={}
     # Read the training_data and the testing data
+   
     negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
     positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
     n_directory = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_'
-    for i in range(1, 5):
-        for j in range(1, 5):
+      
+    for i in range(1, 4):
+        for j in range(1, 4):
             # set the empty container
             key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            test_coverage_RBFN_results[key] = {}
+            test_results[key] = {}
+            test_results[key]['AUC_average'] = 0 
+            test_results[key]['TPR_list'] = []
+            test_results[key]['FPR_list'] = []
             
             p_train = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             os.chdir(positive_d)
             with open(p_train, 'r') as f:
                 positive_training_set = json.load(f)
-            with open(p_test, 'r') as f:
-                positive_testing_set = json.load(f)
-                               
+                
             n_traing = p_train+'_negative'
-            n_test = p_test + '_negative'
             os.chdir(negative_d)
             with open(n_traing, 'r') as f:
                 negative_training_set = json.load(f)
-            print('Working on '+ key)    
-            AUC_list, FPR_list, TPR_list, non_redundent_training_set, coeff = \
-            Sub_test_AUC(positive_training_set, negative_training_set,positive_testing_set,n_test,n_directory, binary)
                 
-            test_coverage_RBFN_results[key]['non_redundent_training_set'] = \
-                                                    non_redundent_training_set
-            test_coverage_RBFN_results[key]['coeff'] = coeff
-            test_coverage_RBFN_results[key]['AUC_list'] = AUC_list
-            test_coverage_RBFN_results[key]['FPR_list'] = FPR_list
-            test_coverage_RBFN_results[key]['TPR_list'] = TPR_list
+            training_set = copy.deepcopy(positive_training_set)
+            training_set.extend(negative_training_set)
+            for best in best_hyperparameter:
+                if best[0] == str(i)+'_'+str(j):
+                    percentage = best[4]
+                    reg = best[3]
             
-    return test_coverage_RBFN_results
-########################################################################
-def Sub_test_AUC(positive_training_set, negative_training_set,positive_testing_set,n_test,n_directory, binary):
-    # Train the model
-    training_set = copy.deepcopy(positive_training_set)
-    training_set.extend(negative_training_set)
-    # Get the observed values
-    all_training_observed_values = Observed_values(training_set, binary)
-    all_training_observed_values = np.reshape(all_training_observed_values, (-1,1))
-
-    all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)            
-    all_training_design_matrix = Design_matrix(all_training_distance_matrix)
-    
-    # Remove the duplicates
-    centers, non_redundent_training_set = Remove_duplicates(training_set)
-    
-    # Extract the design matrix
-    centers.append(-1)
-    design_matrix = all_training_design_matrix[:,:][:, centers]
-    centers.remove(-1)
-    
-    # Train the model
-    # Pay attention to the termination condition
-#            print(all_training_observed_values)
-    parameter, loss = Train_RBFN_BFGS(design_matrix, all_training_observed_values,\
-                                      rho=0.9, c = 1e-3, termination = 1e-2,\
-                                     parameter_inheritance = False) 
-    # Take out the coeff
-    coeff = parameter['coeff']
-
-    
-    # Pedict on different testing set
-    AUC_list = []
-    FPR_list = []
-    TPR_list = []
-    for n in range(10):
-        negative_test_d = n_directory + str(n)
-        os.chdir(negative_test_d)
-        with open(n_test, 'r') as f:
-            negative_testing_set = json.load(f)
-        # Reverse the negative testing set
-        
-        testing_set = copy.deepcopy(positive_testing_set)
-        testing_set.extend(negative_testing_set)
-        
-        # Calculate the observed_values
-        observed_values = []
-        for test in testing_set:
-            if test[2] > 0:
-                observed_values.append(1)
-            else:
-                observed_values.append(test[2])
+            
+            print('Working on '+ key)  
+            parameter, centers_selected =\
+                Train_use_best_hyperparameter(training_set,percentage, reg,binary, basis_function)
                 
-        # Calculate the testing_design_matrix
-        print('Length of the testing set:  ', len(testing_set))
-        print('Length of the observed values:  ' , len(observed_values))
-        print('Calculating the testing design matrix: ', n)
-        testing_distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
-        testing_design_matrix = Design_matrix(testing_distance_matrix)
-        
-        # Do the prediction
-        pred = testing_design_matrix.dot(coeff)
-        
-        # Calculate the AUC
-        AUC, TPR, FPR = Calculate_AUC(pred, observed_values)
-#                
-#                # Load
-        AUC_list.append(AUC)
-        FPR_list.append(FPR)
-        TPR_list.append(TPR)
+            coeff = np.reshape(parameter['coeff'], (-1,1)) 
+            test_results[key]['coeff'] = coeff
+            test_results[key]['centers_selected']=centers_selected
+            print('length of coefficinets ', np.shape(coeff))
+            
+            # Load the positive testing set
+            os.chdir(positive_d)
+            with open(p_test, 'r') as f:
+                positive_testing_set = json.load(f)
+            for n in range(10):
+                testing_set = copy.deepcopy(positive_testing_set)
+                os.chdir(n_directory+str(n))
+                with open(p_test+'_negative', 'r') as f:
+                    negative_testing_set = json.load(f)
+                testing_set.extend(negative_testing_set)
+                AUC, TPR, FPR = Sub_test_AUC(testing_set, \
+                                             centers_selected, coeff, binary, basis_function)
+                test_results[key]['AUC_average'] += AUC/10
+                test_results[key]['TPR_list'].append(TPR)
+                test_results[key]['FPR_list'].append(FPR)
+            
+    return test_results
+
+
+#test_results.keys()
+#test_results['1_1_0_0_1_2_1perchain']['AUC_average']
+#test_results['1_1_0_0_1_2_1perchain']['TPR_list']
+#len(test_results['1_1_0_0_1_2_1perchain']['coeff'])
+#len(test_results['1_1_0_0_1_2_1perchain']['centers_selected'])
+###############################################################################
+ 
+def Test_AUC_latest(binary = True,basis_function='Gaussian'):
+    test_results_latest={}
     
-    return AUC_list, FPR_list, TPR_list, non_redundent_training_set, coeff
-#test_coverage_RBFN_results_new = Test_AUC(binary = True)
-#test_coverage_RBFN_results_new['4_4_0_0_1_2_1perchain']['coeff'][:6]
-#test_coverage_RBFN_results['4_4_0_0_1_2_1perchain']['coeff'][:6]
-############################################################################
-def Test_AUC_the_latest(binary = True):
-    test_coverage_RBFN_results={}
-    # Read the training_data and the testing data
-    negative_d = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores/sample_0'
-    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
-    positive_d_latest = '/home/leo/Documents/Database/Pipeline_New/Latest/cores'
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Latest/cores'
+    positive_d1 = '/home/leo/Documents/Database/Pipeline_New/Cores'
     n_directory = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores/sample_'
-    for i in range(1, 5):
-        for j in range(1, 5):
+    n_directory1 = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_'
+      
+    for i in range(1, 4):
+        for j in range(1, 4):
             # set the empty container
             key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            test_coverage_RBFN_results[key] = {}
+            test_results_latest[key] = {}
+            test_results_latest[key]['AUC_average'] = 0 
+            test_results_latest[key]['TPR_list'] = []
+            test_results_latest[key]['FPR_list'] = []
+            #Take out the coefficient
+            os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+            with open('test_results', 'r') as f:
+                test_results = json.load(f)
+            coeff = test_results[key]['coeff']
+            coeff =np.reshape(np.array(coeff), (-1,1))            
+            centers_selected = test_results[key]['centers_selected']
             
-            p_train = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            # Load the positive testing set
             p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             os.chdir(positive_d)
-            with open(p_train, 'r') as f:
-                positive_training = json.load(f)
-#            with open(p_test, 'r') as f:
-#                positive_testing = json.load(f)
-            positive_training_set = copy.deepcopy(positive_training)
-#            positive_training_set.extend(positive_testing)
-                               
-            n_traing = p_train+'_negative'
-            n_test = p_test + '_negative'
-            os.chdir(negative_d)
-            with open(n_traing, 'r') as f:
-                negative_training_set = json.load(f)
-                
-            os.chdir(positive_d_latest)
             with open(p_test, 'r') as f:
                 positive_testing_set = json.load(f)
+            os.chdir(positive_d1)
+            with open(p_test, 'r') as f:
+                positive_testing_set1 = json.load(f)
+            positive_testing_set.extend(positive_testing_set1)
                 
-            print('Working on '+ key)    
-            AUC_list, FPR_list, TPR_list, non_redundent_training_set, coeff = \
-            Sub_test_AUC(positive_training_set, negative_training_set,positive_testing_set,n_test,n_directory, binary)
+            for n in range(10):
+                testing_set = copy.deepcopy(positive_testing_set)
+                os.chdir(n_directory+str(n))
+                with open(p_test+'_negative', 'r') as f:
+                    negative_testing_set = json.load(f)
+                os.chdir(n_directory1+str(n))
+                with open(p_test+'_negative', 'r') as f:
+                    negative_testing_set1 = json.load(f)
+                negative_testing_set.extend(negative_testing_set1)
                 
-            test_coverage_RBFN_results[key]['non_redundent_training_set'] = \
-                                                    non_redundent_training_set
-            test_coverage_RBFN_results[key]['coeff'] = coeff
-            test_coverage_RBFN_results[key]['AUC_list'] = AUC_list
-            test_coverage_RBFN_results[key]['FPR_list'] = FPR_list
-            test_coverage_RBFN_results[key]['TPR_list'] = TPR_list
+                testing_set.extend(negative_testing_set)
+                AUC, TPR, FPR = Sub_test_AUC(testing_set, \
+                                             centers_selected, coeff, binary, basis_function)
+                test_results_latest[key]['AUC_average'] += AUC/10
+                test_results_latest[key]['TPR_list'].append(TPR)
+                test_results_latest[key]['FPR_list'].append(FPR)
             
-    return test_coverage_RBFN_results
+    return test_results_latest
 
-'''
-Run the above function
-'''
-#test_coverage_RBFN_results = Calculate_recall_precision(binary = True)
-
-#######################################################################
-def Test_AUC_in_one_function():
-    test_coverage_RBFN_results_binary = Test_AUC(binary = True)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('test_coverage_RBFN_results_binary', 'w') as f:
-        json.dump(test_coverage_RBFN_results_binary , f, cls=NumpyEncoder)
-        
-    test_coverage_RBFN_results_numerical = Test_AUC(binary = False)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('test_coverage_RBFN_results_numerical', 'w') as f:
-        json.dump(test_coverage_RBFN_results_numerical, f, cls=NumpyEncoder)
-        
-    test_coverage_RBFN_results_latest_binary = Test_AUC_the_latest(binary = True)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('test_coverage_RBFN_results_latest_binary', 'w') as f:
-        json.dump(test_coverage_RBFN_results_latest_binary, f, cls=NumpyEncoder)
-        
-    test_coverage_RBFN_results_latest_numerical = Test_AUC_the_latest(binary = False)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-    with open('test_coverage_RBFN_results_latest_numerical', 'w') as f:
-        json.dump(test_coverage_RBFN_results_latest_numerical, f, cls=NumpyEncoder)
-    # Save the results
-
-
-
-
-    
-#####################################################################
-
+##############################################################################
 '''
 Reverse_test:
     A function to test the testing set with the Ab and Ag sequences switched
@@ -1130,31 +1074,39 @@ Output:
     [precidions_list]
     [area_list]
 '''
-def Discrimation_test(test_coverage_RBFN_results):
-    reverse_test_coverage_RBFN_results={}
+def Discrimation_test():
+    reverse_test_results={}
+    # Read the results
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('test_results', 'r') as f:
+        test_results = json.load(f)
     # Read the training_data and the testing data
     positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
-    for i in range(1, 5):
-        for j in range(1, 5):
+    positive_d_latest = '/home/leo/Documents/Database/Pipeline_New/Latest/cores'
+    for i in range(1, 4):
+        for j in range(1, 4):
             # set the empty container
-            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            reverse_test_coverage_RBFN_results[key] = {}
-            non_redundent_training_set = test_coverage_RBFN_results[key]['non_redundent_training_set']
-            coeff = test_coverage_RBFN_results[key]['coeff']            
+            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain' 
+            reverse_test_results[key] = {}
 
             p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             os.chdir(positive_d)
             with open(p_test, 'r') as f:
-                positive_testing_set = json.load(f)            
+                positive_testing_set = json.load(f)  
+            os.chdir(positive_d_latest)
+            with open(p_test, 'r') as f:
+                positive_testing_set_latest = json.load(f)
+            positive_testing_set.extend(positive_testing_set_latest)
             
+            os.chdir(positive_d)
             n_test = 'testing_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
             with open(n_test, 'r') as f:
                 negative_testing = json.load(f)
-#            n_train = 'training_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
-#            with open(n_train, 'r') as f:
-#                negative_training = json.load(f)
-#            negative_testing.extend(negative_training)
-            # Reverse the negative testing set
+            os.chdir(positive_d_latest)
+            with open(n_test, 'r') as f:
+                negative_testing_latest = json.load(f)
+            
+            negative_testing.extend(negative_testing_latest)
             negative_testing_set = []
             for parepi_negative in negative_testing:
                 negative_testing_set.append([parepi_negative[1], parepi_negative[0],\
@@ -1163,216 +1115,37 @@ def Discrimation_test(test_coverage_RBFN_results):
             testing_set = copy.deepcopy(positive_testing_set)
             testing_set.extend(negative_testing_set)
             
-            # Calculate the observed_values
-            observed_values = []
-            for test in testing_set:
-                if test[2] > 0:
-                    observed_values.append(1)
-                else:
-                    observed_values.append(test[2])
-                    
-            # Calculate the testing_design_matrix
-            print('Length of the testing set:  ', len(testing_set))
-            print('Length of the observed values:  ' , len(observed_values))
-            print('Calculating the testing design matrix: ')
-            testing_distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
-            testing_design_matrix = Design_matrix(testing_distance_matrix)
-            
-            # Do the prediction
-            pred = testing_design_matrix.dot(coeff)
-
-            AUC, TPR, FPR = Calculate_AUC(pred, observed_values)
-            
+            coeff = test_results[key]['coeff']
+            coeff = np.reshape(np.array(coeff), (-1,1))
+            centers_selected = test_results[key]['centers_selected']
+            AUC, TPR, FPR = Sub_test_AUC(testing_set,\
+                        centers_selected, coeff, binary=True, basis_function='Gaussian')
                 
-            reverse_test_coverage_RBFN_results[key]['AUC'] = AUC
-            reverse_test_coverage_RBFN_results[key]['TPR'] = TPR
-            reverse_test_coverage_RBFN_results[key]['FPR'] = FPR
+            reverse_test_results[key]['AUC'] = AUC
+            reverse_test_results[key]['TPR'] = TPR
+            reverse_test_results[key]['FPR'] = FPR
             
-    return reverse_test_coverage_RBFN_results
-
+    return reverse_test_results
 #######################################################################
-def Discrimation_test_the_latest(test_coverage_RBFN_results):
-    reverse_test_coverage_RBFN_results={}
-    # Read the training_data and the testing data
-    positive_d = '/home/leo/Documents/Database/Pipeline_New/Latest/cores'
-    for i in range(1, 5):
-        for j in range(1, 5):
-            # set the empty container
-            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            reverse_test_coverage_RBFN_results[key] = {}
-            non_redundent_training_set = test_coverage_RBFN_results[key]['non_redundent_training_set']
-            coeff = test_coverage_RBFN_results[key]['coeff']            
-
-            p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            os.chdir(positive_d)
-            with open(p_test, 'r') as f:
-                positive_testing_set = json.load(f)            
-            # Let the training set of the match-type(j, i) be the negative training set
-            n_test = 'testing_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
-            n_train = 'training_'+str(j)+'_'+str(i)+'_0_0_1_2_1perchain'
-            with open(n_test, 'r') as f:
-                negative_testing = json.load(f)
-            os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
-            with open(n_test, 'r') as f:
-                negative_testing_old = json.load(f)
-            with open(n_train, 'r') as f:
-                negative_training_old = json.load(f)
-            # Reverse the negative testing set
-            # Combine all of them
-            negative_testing.extend(negative_testing_old)
-            negative_testing.extend(negative_training_old)
-            negative_testing_set = []
-            for parepi_negative in negative_testing:
-                negative_testing_set.append([parepi_negative[1], parepi_negative[0],\
-                                             -1, parepi_negative[3]])                    
-            
-            testing_set = copy.deepcopy(positive_testing_set)
-            testing_set.extend(negative_testing_set)
-            
-            # Calculate the observed_values
-            observed_values = []
-            for test in testing_set:
-                if test[2] > 0:
-                    observed_values.append(1)
-                else:
-                    observed_values.append(test[2])
-                    
-            # Calculate the testing_design_matrix
-            print('Length of the testing set:  ', len(testing_set))
-            print('Length of the observed values:  ' , len(observed_values))
-            print('Calculating the testing design matrix: ')
-            testing_distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
-            testing_design_matrix = Design_matrix(testing_distance_matrix)
-            
-            # Do the prediction
-            pred = testing_design_matrix.dot(coeff)
-
-            AUC, TPR, FPR = Calculate_AUC(pred, observed_values)
-            
-                
-            reverse_test_coverage_RBFN_results[key]['AUC'] = AUC
-            reverse_test_coverage_RBFN_results[key]['TPR'] = TPR
-            reverse_test_coverage_RBFN_results[key]['FPR'] = FPR
-            
-    return reverse_test_coverage_RBFN_results
-          
-#########################################################################3
-def Reverse_test_in_one_function():
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#    with open('test_coverage_RBFN_results_binary', 'r') as f:
-#        test_coverage_RBFN_results_binary = json.load(f)
-#    reverse_test_binary = \
-#                    Discrimation_test(test_coverage_RBFN_results_binary)
-    
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('test_coverage_RBFN_results_latest_binary', 'r') as f:
-        test_coverage_RBFN_results_latest_binary = json.load(f)
-    reverse_test_latest_binary = \
-                    Discrimation_test_the_latest(test_coverage_RBFN_results_latest_binary)
-                    
-#    return reverse_test_binary, reverse_test_latest_binary
-    return reverse_test_latest_binary
+def All_tests():
+#    best = Best_parameter()
+#    test_results = Test_AUC(best,binary = True,basis_function='Gaussian')
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+#    with open('test_results', 'w') as f:
+#        json.dump(test_results, f, cls=NumpyEncoder)
         
-##########################################################################################
-def Selected_centers(cut = 6):
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('one_to_one_frequency', 'r') as f:
-        one_to_one_frequency = json.load(f)
+    test_results_latest = Test_AUC_latest(binary = True,basis_function='Gaussian')
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('test_results_combined', 'w') as f:
+        json.dump(test_results_latest, f)
+        
+#    reverse_test_results = Discrimation_test()
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+#    with open('reverse_test_results', 'w') as f:
+#        json.dump(reverse_test_results, f)
+#######################################################################
+#All_tests()
 
-    selected_positive_cores = []
-    for one in one_to_one_frequency:
-        if one[2]>= 6:
-            selected_positive_cores.append([[one[0]],[ one[1]], 1])
-    return selected_positive_cores
-#selected_positive_cores = Selected_centers(cut = 6)
-#with open('selected_one_to_one', 'w') as f:
-#    json.dump(selected_positive_cores, f)
-###############################################################################
-def Test_AUC_selected_centers(binary = True):
-    test_coverage_RBFN_results={}
-    # Read the training_data and the testing data
-    negative_d = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0'
-    positive_d = '/home/leo/Documents/Database/Pipeline_New/Cores'
-    n_directory = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_'
-    for i in range(1, 2):
-        for j in range(1, 2):
-            # set the empty container
-            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            test_coverage_RBFN_results[key] = {}
-            
-            p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            os.chdir(positive_d)
-            with open('selected_one_to_one', 'r') as f:
-                positive_training_set = json.load(f)
-            with open(p_test, 'r') as f:
-                positive_testing_set = json.load(f)
-                               
-            n_traing ='training_'+ key+'_negative'
-            n_test = p_test + '_negative'
-            os.chdir(negative_d)
-            with open(n_traing, 'r') as f:
-                negative_training_set = json.load(f)
-            print('Working on '+ key)    
-            AUC_list, FPR_list, TPR_list, non_redundent_training_set, coeff = \
-            Sub_test_AUC(positive_training_set, negative_training_set,positive_testing_set,n_test,n_directory, binary)
-                
-            test_coverage_RBFN_results[key]['non_redundent_training_set'] = \
-                                                    non_redundent_training_set
-            test_coverage_RBFN_results[key]['coeff'] = coeff
-            test_coverage_RBFN_results[key]['AUC_list'] = AUC_list
-            test_coverage_RBFN_results[key]['FPR_list'] = FPR_list
-            test_coverage_RBFN_results[key]['TPR_list'] = TPR_list
-            
-    return test_coverage_RBFN_results
-##################################################################################
-#reverse_test_latest_binary_all_reverse_negative = Reverse_test_in_one_function()
-#reverse_test_latest_binary_all_reverse_negative['4_1_0_0_1_2_1perchain'].keys()
-
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#with open('reverse_test_latest_binary_all_negative', 'w') as f:
-#    json.dump(reverse_test_latest_binary_all_reverse_negative, f)
-
-#selected_test_results = Test_AUC_selected_centers(binary = True)
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#with open('selected_test_results', 'w') as f:
-#    json.dump(selected_test_results, f, cls=NumpyEncoder)
-#if __name__ == '__main__':
-#    Cross_validation_in_one_function()
-#Test_AUC_in_one_function()
-#reverse_test_binary, reverse_test_latest_binary = Reverse_test_in_one_function()
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-#with open('test_coverage_RBFN_results_binary', 'r') as f:
-#    test_coverage_RBFN_results_binary = json.load(f)
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-#with open('reverse_test_binary', 'w') as f:
-#    json.dump(reverse_test_binary, f)
-#with open('reverse_test_latest_binary', 'w') as f:
-#    json.dump(reverse_test_latest_binary, f)
-
-#reverse_test_binary['2_1_0_0_1_2_1perchain']['AUC']
-#FPR = reverse_test_binary['2_1_0_0_1_2_1perchain']['FPR']
-#TPR = reverse_test_binary['2_1_0_0_1_2_1perchain']['TPR']
-#plt.plot(FPR, TPR)
-#plt.plot([0,1], [0,1])
-#with open('test_coverage_RBFN_results_latest_binary', 'r') as f:
-#    test_coverage_RBFN_results_latest_binary =  json.load(f)
-#with open('test_coverage_RBFN_results_numerical', 'r') as f:
-#    test_coverage_RBFN_results_numerical = json.load(f)
-#with open('test_coverage_RBFN_results_latest_numerical', 'r') as f:
-#    test_coverage_RBFN_results_latest_numerical =  json.load(f)
-##    
-#test_coverage_RBFN_results_latest_binary['2_2_0_0_1_2_1perchain'].keys()
-#FPR_list = test_coverage_RBFN_results_latest_binary['2_2_0_0_1_2_1perchain']['FPR_list']
-#TPR_list = test_coverage_RBFN_results_latest_binary['2_2_0_0_1_2_1perchain']['TPR_list']
-#for i in range(len(FPR_list)):
-#    FPR = FPR_list[i]
-#    TPR =TPR_list[i]
-#    plt.plot(FPR, TPR)
-#plt.plot([0,1], [0,1])
-#np.average(np.array(test_coverage_RBFN_results_latest_binary['2_2_0_0_1_2_1perchain']['AUC_list']))
-#test_coverage_RBFN_results_latest_binary['2_2_0_0_1_2_1perchain']['AUC_list']
-#test_coverage_RBFN_results_numerical['2_2_0_0_1_2_1perchain']['AUC_list']
-#test_coverage_RBFN_results_latest_numerical['2_2_0_0_1_2_1perchain']['AUC_list']
 
 
 

@@ -160,7 +160,7 @@ def Draw_aa_distribution(aa_distribution):
         plt.legend(loc = 1, prop={'size': 50})
         plt.title(key)
         plt.xlim([-0.5, 20])
-        plt.savefig('aa_distribution_'+key+'.png')
+        plt.savefig('aa_distribution_'+key+'.eps')
     
 #Draw_aa_distribution(aa_distribution)
 
@@ -255,7 +255,7 @@ def Cores_distribution_over_CDR():
     plt.xlabel('Length of antibody core amino acids', fontsize = 50)
     plt.ylabel('Relative frequency', fontsize = 50)
     plt.title('Distribution of cores over different CDRHs')
-    plt.savefig('distribution_over_CDRH.png')
+    plt.savefig('distribution_over_CDRH.eps')
     
     x = np.array([0, 1, 2, 3, 4, 5])
     plt.figure(figsize = (40, 24))
@@ -270,7 +270,7 @@ def Cores_distribution_over_CDR():
     plt.xlabel('Length of antibody core amino acids', fontsize = 40)
     plt.ylabel('Relative frequency', fontsize = 50)
     plt.title('Distribution of cores over different CDRLs')
-    plt.savefig('distribution_over_CDRL.png')
+    plt.savefig('distribution_over_CDRL.eps')
     
 #Cores_distribution_over_CDR()    
 
@@ -283,7 +283,8 @@ def Core_distribution_over_match_type():
     with open('core_distribution', 'r') as f:
         core_distribution = json.load(f)
     
-    fig = plt.figure(figsize= (40, 24))
+#    fig = plt.figure(figsize= (40, 24))
+    fig = plt.figure(figsize= (10, 6))
     ax1 = fig.add_subplot(111, projection='3d')
     
     
@@ -315,15 +316,15 @@ def Core_distribution_over_match_type():
     ax1.bar3d(x3, y3, z3, dx, dy, dz, color= 'c')
     
     
-    ax1.set_xlabel('Antibody Core Amino Acids Length', fontsize = 30)
-    ax1.set_ylabel('Antigen Core Amino Acids Length', fontsize = 30)
-    ax1.set_zlabel('Number of Cores', fontsize=30)
+    ax1.set_xlabel('Length of antibody amino acids')
+    ax1.set_ylabel('Length of antigen amino acids')
+    ax1.set_zlabel('Number of Cores')
     
-    ax1.set_xticks(ticks = [1, 2, 3,4,5,6], fontsize = 10)
-    ax1.set_yticks(ticks = [1,2,3,4,5,6], fontsize = 10)
+    ax1.set_xticks(ticks = [1, 2, 3,4,5,6])
+    ax1.set_yticks(ticks = [1,2,3,4,5,6])
     # Save
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    plt.savefig('Core_districution_over_Match_type.png')
+    plt.savefig('Core_districution_over_Match_type.eps')
     plt.show()
 #Core_distribution_over_match_type()
 ######################################################################
@@ -374,6 +375,39 @@ def The_latest_complex():
             real_latest.append(pdbid)
     return real_latest, pdbid_data
 #########################################################################
+#import csv
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+#pdbid_data = []
+#with open('summary.tsv', newline= '') as csvfile:
+#    total = csv.reader(csvfile, delimiter='\t', quotechar='|')
+#    for row in total:
+#        if len(row) >= 10:
+#            # Make sure the complex is either peptide or protein
+#            antigen_type = row[5].split('|')
+#            for at in antigen_type:
+#                at.strip()
+#            if len(row[0]) == 4:
+#                if 'protein' in antigen_type or 'peptide' in antigen_type:
+#                    pdbid_data.append([row[0], row[9], antigen_type])
+## Convert the date to numbers 
+#for com in pdbid_data:
+#    date = com[1]
+#    date_list = date.split('/')
+#    if int(date_list[2])>25:
+#        number_date = int('19'+date_list[2]+date_list[0]+date_list[1])
+#    else:
+#        number_date = int('20'+date_list[2]+date_list[0]+date_list[1])
+#    com[1] = number_date
+#pdbid_data.sort(key = lambda x:x[1])
+#pdbid_data[-6:-1]
+#with open('testing_ids', 'r') as f:
+#    testing_ids = json.load(f)
+#testing_id_date = []
+#for td in pdbid_data:
+#    if td[0] in testing_ids:
+#        testing_id_date.append(td)
+#testing_id_date
+#########################################################################
 
 with open('good_combined_ids', 'r') as f:
     good_combined_ids = json.load(f)
@@ -400,44 +434,76 @@ Draw graphs of the testing and the discrimination testing
 '''
 def Draw_binary_test_AUC():
     average_AUC={}
-    for mode in ['binary', 'numerical', 'latest_binary', 'latest_numerical']:
-        name = 'test_coverage_RBFN_results_'+mode
-        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-        with open(name, 'r') as f:
-            data = json.load(f)
-        for i in range(1, 4):
-            for j in range(1, 4):
-                os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')
-                key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-                fpr_list = data[key]['FPR_list']
-                tpr_list = data[key]['TPR_list']
-                auc_list = data[key]['AUC_list']
-                # Draw the plots
-                plt.figure(figsize = (30, 30))
-                plt.plot([0,1], [0,1])
-                plt.ylabel('True Positive Rate', fontsize = 60)
-                plt.ylim([0, 1])
-                plt.xlabel('False Positive Rate', fontsize = 60)
-                plt.xlim([0,1])
-                tic = [0.2, 0.4, 0.6, 0.8, 1]
-                lab = ['0.2', '0.4', '0.6', '0.8', '1']
-                plt.xticks(tic, labels = lab, fontsize = 40)
-                plt.yticks(tic, labels = lab, fontsize = 40)
-                plt.rcParams['ytick.labelsize']=40
-                plt.rcParams['xtick.labelsize']=40
-                for fpr, tpr in zip(fpr_list, tpr_list):
-                    plt.plot(fpr, tpr)
-                plt.title(key)
-                plt.savefig(str(i)+'_'+str(j)+'_'+mode+'.png')
-                average_auc = np.average(np.array(auc_list))
-                average_AUC[str(i)+'_'+str(j)+'_'+mode]= average_auc
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    with open('test_results_combined', 'r') as f:
+        data = json.load(f)
+    
+    for i in range(1, 4):
+        for j in range(1, 4):
+            os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')
+            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            fpr_list = data[key]['FPR_list']
+            tpr_list = data[key]['TPR_list']
+            average_auc = data[key]['AUC_average']
+    #        auc_list = data[key]['AUC_list']
+            # Draw the plots
+            plt.figure(figsize = (10, 10))
+            plt.plot([0,1], [0,1])
+            plt.ylabel('True Positive Rate', fontsize = 20)
+            plt.ylim([0, 1])
+            plt.xlabel('False Positive Rate', fontsize = 20)
+            plt.xlim([0,1])
+            tic = [0.2, 0.4, 0.6, 0.8, 1]
+            lab = ['0.2', '0.4', '0.6', '0.8', '1']
+            plt.xticks(tic, labels = lab, fontsize = 15)
+            plt.yticks(tic, labels = lab, fontsize = 15)
+            plt.rcParams['ytick.labelsize']=10
+            plt.rcParams['xtick.labelsize']=10
+            for fpr, tpr in zip(fpr_list, tpr_list):
+                plt.plot(fpr, tpr)
+            plt.title('Match-type('+str(i)+','+str(j)+')', fontsize = 20)
+            plt.text(0.6, 0.2, 'Average AUC: ' + str(round(average_auc, 2)), fontsize = 20)
+            plt.savefig(str(i)+'_'+str(j)+'.eps')
+            
+            average_AUC[str(i)+'_'+str(j)]= average_auc
     return average_AUC
 #average_AUC = Draw_binary_test_AUC()
-# Save the results
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction') 
+#average_AUC
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')
 #with open('average_AUC', 'w') as f:
-#    json.dump(average_AUC, f)            
+#    json.dump(average_AUC, f)
+         
 ###########################################################################
+def Calculate_FPR_by_TPR(TPR):
+    FPR = []
+    # The score for the positive is 1 and the score for the negative is 0
+    sample = []
+    if TPR[0]==0:
+        sample.append(0)
+    else:
+        sample.append(1)
+    
+    for i in range(1, len(TPR)):
+        if TPR[i]-TPR[i-1] == 0:
+            sample.append(0)
+        else:
+            sample.append(1)
+        
+    # Calculate the total number of positive samples and the total number of negative samples
+    total_positive = np.sum(np.array(sample))
+    total_negative = len(sample) - total_positive
+    # Calculate the FPR
+    n=0;p=0
+    for i in range(len(sample)):
+        if sample[i] == 1:
+            p += 1
+        if sample[i] == 0:
+            n += 1
+            
+        FPR.append(n/total_negative)
+    return FPR
+
+##############################################################################
 def Bootstrap_by_TPR(TPR):
     sample_score = []
     if TPR[0]==0:
@@ -493,7 +559,7 @@ def Draw_discrimination_AUC():
 #    for mode in ['binary', 'latest_binary']:
 #    name = 'reverse_test_'+mode
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('reverse_test_latest_binary_all_negative', 'r') as f:
+    with open('reverse_test_results', 'r') as f:
         data = json.load(f)
     for i in range(1, 4):
         for j in range(1, 4):
@@ -502,37 +568,38 @@ def Draw_discrimination_AUC():
             tpr = data[key]['TPR']
             fpr = data[key]['FPR']
             auc = data[key]['AUC']
+            CI95 = Bootstrap_by_TPR(tpr)
             # Plot
-            plt.figure(figsize = (30, 30))
-            plt.plot([0,1], [0,1], linewidth = 5)
-            plt.ylabel('True Positive Rate',fontsize = 60)
+            plt.figure(figsize = (10, 10))
+            plt.plot([0,1], [0,1], linewidth = 2)
+            plt.ylabel('True Positive Rate',fontsize = 20)
             plt.ylim([0, 1])
-            plt.xlabel('False Positive Rate',fontsize = 60)
+            plt.xlabel('False Positive Rate',fontsize = 20)
             plt.xlim([0,1])
-            plt.plot(fpr, tpr, linewidth = 6)
+            plt.plot(fpr, tpr, linewidth = 2)
             tic = [0.2, 0.4, 0.6, 0.8, 1]
             lab = ['0.2', '0.4', '0.6', '0.8', '1']
-            plt.xticks(tic, labels = lab, fontsize = 40)
-            plt.yticks(tic, labels = lab, fontsize = 40)
-            plt.rcParams['ytick.labelsize']=40
-            plt.rcParams['xtick.labelsize']=40
-            plt.title('reverse_'+key)
-            plt.savefig('reverse_'+str(i)+'_'+str(j)+'_all_negative'+'.png')
+            plt.xticks(tic, labels = lab, fontsize = 15)
+            plt.yticks(tic, labels = lab, fontsize = 15)
+            plt.rcParams['ytick.labelsize']=10
+            plt.rcParams['xtick.labelsize']=10
+            plt.title('Match-type('+str(i)+','+str(j)+')', fontsize = 20)
+            plt.text(0.4,0.15, 'AUC='+str(round(auc,2))\
+                     +'  CI95=['+str(round(CI95[0],2))+','+str(round(CI95[1],2))+']', fontsize = 20)
+            plt.savefig('reverse_'+str(i)+'_'+str(j)+'.eps')
             # Calculate the CI95
             print('bootstraping '+ key)
-            CI95 = Bootstrap_by_TPR(tpr)
-            # load the auc
-            reverse_auc_dict[str(i)+'_'+str(j)+'_all_negative']=[auc, CI95]
+            
+            reverse_auc_dict[str(i)+'_'+str(j)]=[auc, CI95]
     return reverse_auc_dict
 ###########################################################################
-#reverse_auc_dict_all_negative = Draw_discrimination_AUC() 
+
+reverse_auc_dict_all_negative = Draw_discrimination_AUC() 
+#reverse_auc_dict_all_negative
 #os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')   
-#with open('reverse_auc_dict_all_negative', 'w') as f:
-#    json.dump(reverse_auc_dict_all_negative, f)
-#reverse_auc_dict
 #with open('reverse_auc_dict', 'w') as f:
-#    json.dump(reverse_auc_dict, f)        
-            
+#    json.dump(reverse_auc_dict_all_negative, f)
+
 ############################################################################
 '''
 ****************************************************************************
@@ -542,70 +609,70 @@ Analyze the data from the affinity validation
 
 def Affinity_pred():   
     CI95 = {}
-    names = ['one_to_one_affinity', 'one_to_many_affinity',\
-             'one_to_one_affinity_numerical','one_to_many_affinity_numerical']
-    for name in names:
-        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-        with open(name, 'r') as f:
-            one_to_one_affinity = json.load(f)
-        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Affinity_prediction')    
-        keys = ['0_1000', '0_0.5', '0.5_1000', '1_1000']
-        lengends = [r'$|\Delta\Delta G|>0.0 $', r'$|\Delta\Delta G|<0.5 $',\
-                   r'$|\Delta\Delta G|>0.5 $', r'$|\Delta\Delta G|>1.0 $']
-        plt.figure(figsize = (30, 30))
-        plt.plot([0,1], [0,1])
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    with open('affinity_pred_results', 'r') as f:
+        one_to_one_affinity = json.load(f)
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Affinity_prediction')    
+    keys = ['0_1000', '0_0.5', '0.5_1000', '1_1000']
+    lengends = [r'$|\Delta\Delta G|>0.0 $', r'$|\Delta\Delta G|<0.5 $',\
+               r'$|\Delta\Delta G|>0.5 $', r'$|\Delta\Delta G|>1.0 $']
+    plt.figure(figsize = (10, 10))
+    plt.plot([0,1], [0,1])
+    plt.plot([0,1], [0,1], linewidth = 2)
+    plt.ylabel('True Positive Rate', fontsize = 20)
+    plt.ylim([0, 1])
+    plt.xlabel('False Positive Rate', fontsize = 20)
+    plt.xlim([0,1])
+    CI = []
+    for key, le in zip(keys, lengends):
+        fpr = one_to_one_affinity[key]['my_pred_dict']['fpr']
+        tpr = one_to_one_affinity[key]['my_pred_dict']['tpr']
+        auc = one_to_one_affinity[key]['my_pred_dict']['auc']
+        ci = one_to_one_affinity[key]['my_pred_dict']['CI_95']
+        CI.append(ci)
+        plt.plot(fpr, tpr, label = le+'   '+str(round(auc,2)), linewidth =2)
+    tic = [0.2, 0.4, 0.6, 0.8, 1]
+    lab = ['0.2', '0.4', '0.6', '0.8', '1']
+    plt.xticks(tic, labels = lab, fontsize = 15)
+    plt.yticks(tic, labels = lab, fontsize = 15)
+    plt.rcParams['ytick.labelsize']=15
+    plt.rcParams['xtick.labelsize']=15
+    plt.legend(loc = 4, prop={'size': 20})
+    plt.title('CM', fontsize = 15)
+    plt.savefig('Affinity_pred_'+'CM.eps') 
+    CI95['Affinity_pred_'+'CM'] = copy.deepcopy(CI)
+    
+    methods = ['bASA', 'dDFIRE', 'DFIRE', 'Design_studio', 'FoldX', 'Rosetta', 'Statium']
+    for method in methods:
+        plt.figure(figsize = (10, 10))
         plt.plot([0,1], [0,1], linewidth = 2)
-        plt.ylabel('True Positive Rate', fontsize = 60)
+        plt.ylabel('True Positive Rate', fontsize = 20)
         plt.ylim([0, 1])
-        plt.xlabel('False Positive Rate', fontsize = 60)
+        plt.xlabel('False Positive Rate', fontsize = 20)
         plt.xlim([0,1])
         CI = []
         for key, le in zip(keys, lengends):
-            fpr = one_to_one_affinity[key]['my_pred_dict']['fpr']
-            tpr = one_to_one_affinity[key]['my_pred_dict']['tpr']
-            auc = one_to_one_affinity[key]['my_pred_dict']['auc']
-            ci = one_to_one_affinity[key]['my_pred_dict']['CI_95']
+            fpr = one_to_one_affinity[key]['other_pred_dict'][method]['other_fpr']
+            tpr = one_to_one_affinity[key]['other_pred_dict'][method]['other_tpr']
+            auc = one_to_one_affinity[key]['other_pred_dict'][method]['other_auc']
+            ci = one_to_one_affinity[key]['other_pred_dict'][method]['CI_95']
             CI.append(ci)
-            plt.plot(fpr, tpr, label = le+'   '+str(round(auc,2)), linewidth =3)
+            plt.plot(fpr, tpr, label = le+'   '+str(round(auc,2)), linewidth = 2)
         tic = [0.2, 0.4, 0.6, 0.8, 1]
         lab = ['0.2', '0.4', '0.6', '0.8', '1']
-        plt.xticks(tic, labels = lab, fontsize = 40)
-        plt.yticks(tic, labels = lab, fontsize = 40)
-        plt.rcParams['ytick.labelsize']=40
-        plt.rcParams['xtick.labelsize']=40
-        plt.legend(loc = 4, prop={'size': 50})
-        plt.title('CM', fontsize = 30)
-        plt.savefig(name+'_'+'CM.png') 
-        CI95[name+'_'+'CM'] = copy.deepcopy(CI)
-        
-        methods = ['bASA', 'dDFIRE', 'DFIRE', 'Design_studio', 'FoldX', 'Rosetta', 'Statium']
-        for method in methods:
-            plt.figure(figsize = (30, 30))
-            plt.plot([0,1], [0,1], linewidth = 2)
-            plt.ylabel('True Positive Rate', fontsize = 60)
-            plt.ylim([0, 1])
-            plt.xlabel('False Positive Rate', fontsize = 60)
-            plt.xlim([0,1])
-            CI = []
-            for key, le in zip(keys, lengends):
-                fpr = one_to_one_affinity[key]['other_pred_dict'][method]['other_fpr']
-                tpr = one_to_one_affinity[key]['other_pred_dict'][method]['other_tpr']
-                auc = one_to_one_affinity[key]['other_pred_dict'][method]['other_auc']
-                ci = one_to_one_affinity[key]['other_pred_dict'][method]['CI_95']
-                CI.append(ci)
-                plt.plot(fpr, tpr, label = le+'   '+str(round(auc,2)), linewidth = 3)
-            tic = [0.2, 0.4, 0.6, 0.8, 1]
-            lab = ['0.2', '0.4', '0.6', '0.8', '1']
-            plt.xticks(tic, labels = lab, fontsize = 40)
-            plt.yticks(tic, labels = lab, fontsize = 40)
-            plt.rcParams['ytick.labelsize']=40
-            plt.rcParams['xtick.labelsize']=40
-            plt.legend(loc = 4, prop={'size': 50})
-            plt.title(method, fontsize = 30)
-            plt.savefig(name+'_'+method+'.png')
-            CI95[name+'_'+method] = copy.deepcopy(CI)
+        plt.xticks(tic, labels = lab, fontsize = 15)
+        plt.yticks(tic, labels = lab, fontsize = 15)
+        plt.rcParams['ytick.labelsize']=15
+        plt.rcParams['xtick.labelsize']=15
+        plt.legend(loc = 4, prop={'size': 20})
+        plt.title(method, fontsize = 15)
+        plt.savefig('Affinity_pred_'+method+'.eps')
+        CI95['Affinity_pred_'+method] = copy.deepcopy(CI)
     return CI95
-CI95 = Affinity_pred()
+#CI95 = Affinity_pred()
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Affinity_prediction') 
+#with open('CI95', 'w') as f:
+#    json.dump(CI95, f)
 ##################################################################################
 def Affinity_pred_on_my_data():
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
@@ -637,7 +704,7 @@ def Affinity_pred_on_my_data():
     plt.rcParams['xtick.labelsize']=40
     plt.legend(loc = 4, prop={'size': 50})
     plt.title('MC on my data', fontsize = 30)
-    plt.savefig('MC_on_my_data.png')
+    plt.savefig('MC_on_my_data.eps')
         
     return CI95_on_my_data
         

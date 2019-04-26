@@ -446,20 +446,27 @@ Output:
         an arrey in the shape of (len(testing_data), a), gives the predicted values
         of the paires.
 '''
-def Predition_RBFN_coverage(test_coverage_RBFN_results, testing_set):
+def Predition_RBFN_coverage(test_results, testing_set):
 #testing_set = testing5
     key = str(len(testing_set[0][0]))+'_'+str(len(testing_set[0][1]))+'_0_0_1_2_1perchain' 
     '''********************Pay attention to this scale factor****************'''
 #    scale_factor = len(testing_set[0][0]) * len(testing_set[0][1])
 
-    non_redundent_training_set = test_coverage_RBFN_results[key]['non_redundent_training_set']
-    distance_matrix = Distance_matrix(testing_set, non_redundent_training_set, square = False)
-    testing_design_matrix = Design_matrix(distance_matrix)
+    coeff = test_results[key]['coeff']
+    coeff = np.reshape(np.array(coeff), (-1,1))
+    centers_selected = test_results[key]['centers_selected']
+    # Calculate the distance matrix
+    distance_matrix = Distance_matrix(testing_set, centers_selected, square = False)
+    # Calculate the design matrix
+    linear_coeff = coeff[:len(centers_selected)+1, 0]
+    linear_coeff = np.reshape(linear_coeff, (-1,1))
+    radius_coeff = coeff[len(centers_selected)+1:, 0]
+    radius_coeff = np.reshape(radius_coeff, (-1, 1))
     
-    coeff = test_coverage_RBFN_results[key]['coeff']
-    coeff = np.array(coeff).reshape((-1,1))
-    #Calculate the prediction results
-    predictions = testing_design_matrix.dot(coeff)
+    testing_design_matrix = Design_matrix(distance_matrix, radius_coeff, basis_function = 'Gaussian')
+    testing_design_matrix = np.hstack((testing_design_matrix, np.ones((len(testing_set), 1))))
+    
+    predictions = testing_design_matrix.dot(linear_coeff)
     '''******************************'''
 #    predictions *= scale_factor
     
@@ -875,7 +882,7 @@ def My_pred(single_mutation = True, binary = True, one_to_one = False):
         sequence = json.load(f)
                 
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    data_raw = get_data('Affinities.ods')
+    data_raw = get_data('Keating.ods')
     keys = data_raw.keys()
     
     res_dict = {}
@@ -884,20 +891,11 @@ def My_pred(single_mutation = True, binary = True, one_to_one = False):
     # Use different coverage model, binary or numerical
     if binary:
         os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-        with open('test_coverage_RBFN_results_latest_binary', 'r') as f:
-            test_coverage_RBFN_results = json.load(f)
-    if not binary:
-        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-        with open('test_coverage_RBFN_results_latest_numerical', 'r') as f:
+        with open('test_results', 'r') as f:
             test_coverage_RBFN_results = json.load(f)
         
     sufix = 'single_'+str(single_mutation) +'_'+'mode_'+mod+'_moving_'+str(mov)+'_binary_'+str(binary)
-    
-    # Calculate the auc for different cut under differnt sufix
-    # if it is moving, the cut is uesless, let the cut be 0
-    # auc_cut_dict is a dictionary to store the auc under differnt cut and different fold_change and different sufix
-#    auc_cut_dict = {}
-#    fpr_tpr_dict = {}
+
     # Store the results
     results_dict = {}
     if not mov:
@@ -1010,54 +1008,7 @@ def Predict_spm(spm):
 #AUC
 #len(TPR)
 #np.exp(1000/(8.31*298))
-#################################################################################
-#def Enrichment(spm_results, top_percentage, improve_cut):
-#    # Get rid of the empty match
-#    clean_spm = []
-#    for res in spm_results:
-#        if res[-1][0] != 'Empty Match':
-#            clean_spm.append([res[-1][2], res[-1][1]-res[-1][0]])
-#    
-#    clean_spm.sort(key = lambda x:x[1], reverse = True)
-#    # count the improved
-#    n_improved = 0
-#    for i in clean_spm:
-#        if i[0] < 1/improve_cut:
-#            n_improved += 1
-#    
-#    # calculate the improved in the top_percentage
-#    top_n = math.floor(top_percentage*len(clean_spm))
-#    enriched = 0
-#    for j in range(top_n):
-#        if clean_spm[j][0] < 1/improve_cut:
-#            enriched += 1
-#    
-#    # Total sample
-#    n_sample = len(clean_spm)
-#    return enriched, n_improved, n_sample
-#
-#enriched, n_improved, n_sample = Enrichment(spm_results, top_percentage=0.1, improve_cut=1.2) 
-#enriched     
-#n_improved  
-#n_sample
-############################################################################    
-        
-#'''
-#The following code is to analyse the affinity_results
-#'''
-##with open('affinity_results_one_to_one_OutCDR', 'r') as f:
-##    affinity_results = json.load(f)
-#def Average_AUC_under_different_cut(affinity_results):
-#    affinity_results.keys()
-#    affinity_results['results_dict'].keys()
-#    #affinity_results['auc_dict']['single_True_mode_single_moving_True_binary_True']['0']
-#    auc_list = affinity_results['auc_dict']['single_False_mode_single_moving_False_binary_True']
-#    auc_list
-#    average_AUC_under_different_cut = []
-#    for key, value in auc_list.items():
-#        average_AUC_under_different_cut.append(np.sum(np.array(value))/5)
-#    return average_AUC_under_different_cut
-##Average_AUC_under_different_cut(affinity_results)
+
 ###############################################################################
 '''
 THis function is to select only the predicted results in the much simpler version
@@ -1112,6 +1063,9 @@ def AUC_under_cut(cleansed, cut_lower, cut_upper):
     return auc, fpr, tpr, selected
 
 ##############################################################################
+'''
+This function is to connect the name of the mutations with the ids of the mutations
+'''
 def Name_index(sheet, matched_ids):
     name_index =[]
     # Lets collect the mutation ids first
@@ -1266,7 +1220,7 @@ def Bootstrap_other_AUC(other_pred_dict):
             
 ##############################################################################
 def Prediction_on_my_data():
-    affinity_results = My_pred(single_mutation = True, binary = False, one_to_one=True) 
+    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=True) 
     prediction_on_my_data ={}
     results = affinity_results['results_dict']\
                     ['single_True_mode_single_moving_True_binary_True']['0']
@@ -1297,7 +1251,8 @@ def Prediction_on_my_data():
         prediction_on_my_data[str(bound[0])+'_'+str(bound[1])]['tpr'] = tpr
         
     return prediction_on_my_data
-prediction_on_my_data_numerical = Prediction_on_my_data()
+#prediction_on_my_data_numerical = Prediction_on_my_data()
+#prediction_on_my_data_numerical['0_1000']['auc']
 #for key, value in prediction_on_my_data.items():
 #    print(value['auc'], value['CI_95'], len(value['tpr']))
 #os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
@@ -1307,32 +1262,42 @@ prediction_on_my_data_numerical = Prediction_on_my_data()
  
 
          
-#if __name__=='__main__': 
-#    all_pred_dict = {}
-#    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=True)
-#    all_pred_dict['affinity_results'] = affinity_results
-#    boundaries = [[0,1000], [0,0.5],[0.5, 1000], [1, 1000]]
-#    for bound in boundaries:                 
-#        other_pred_dict, my_pred_dict, auc_all = \
-#                                Analyze_results(affinity_results,\
-#                                                cut_lower = bound[0], cut_upper = bound[1])
-#        print('Boorstraping my AUC')
-#        Bootstrap_my_AUC(my_pred_dict)
-#
-#        Bootstrap_other_AUC(other_pred_dict)
-#        all_pred_dict[str(bound[0])+'_'+str(bound[1])] = {}
-#        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['other_pred_dict'] = other_pred_dict
-#        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['my_pred_dict'] = my_pred_dict
-#        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['auc_all'] = auc_all
+if __name__=='__main__': 
+    all_pred_dict = {}
+    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=False)
+    all_pred_dict['affinity_results'] = affinity_results
+    boundaries = [[0,1000], [0,0.5],[0.5, 1000], [1, 1000]]
+    for bound in boundaries:                 
+        other_pred_dict, my_pred_dict, auc_all = \
+                                Analyze_results(affinity_results,\
+                                                cut_lower = bound[0], cut_upper = bound[1])
+        print('Boorstraping my AUC')
+        Bootstrap_my_AUC(my_pred_dict)
 
-#all_pred_dict['1_1000']['auc_all']   
-#all_pred_dict['0.5_1000']['my_pred_dict']['CI_95']
-#for key, value in all_pred_dict['0.5_1000']['other_pred_dict'].items():
-#    print(value['CI_95'])
-### Save the results
+        Bootstrap_other_AUC(other_pred_dict)
+        all_pred_dict[str(bound[0])+'_'+str(bound[1])] = {}
+        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['other_pred_dict'] = other_pred_dict
+        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['my_pred_dict'] = my_pred_dict
+        all_pred_dict[str(bound[0])+'_'+str(bound[1])]['auc_all'] = auc_all
+
 #os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#with open('one_to_one_affinity_selected_centers', 'w') as f:
-#    json.dump(all_pred_dict, f, cls = NumpyEncoder)
+#with open('affinity_pred_results', 'w') as f:
+#    json.dump(all_pred_dict, f)
+#all_pred_dict.keys()
+#all_pred_dict['0_1000'].keys()
+#all_pred_dict['1_1000']['auc_all']
+#affinity_results
+#clean_results = Cleanse_the_results(affinity_results)
+#clean_results
+#loc = '/home/leo/Documents/Database/Pipeline_New/Mutations/Mutation.xlsx'
+#wb = xlrd.open_workbook(loc) 
+#sheet = wb.sheet_by_index(0)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+#with open('matched_ids','r') as f:
+#    matched_ids = json.load(f)
+#name_index = Name_index(sheet, matched_ids)
+#auc, fpr, tpr, selected = AUC_under_cut(clean_results, cut_lower=0, cut_upper=1000)
+#selected
 ##################################################################################
 '''
 Explanation about the results:
