@@ -13,6 +13,7 @@ from pydoc import help
 os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes')
 from AAC_2 import  Get_contact
 from FrameConstraint import Get_consecutive
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes')
 from RBFN_coverage import Distance_matrix, Design_matrix
 from matplotlib import pyplot as plt
 
@@ -890,7 +891,7 @@ def My_pred(single_mutation = True, binary = True, one_to_one = False):
     
     # Use different coverage model, binary or numerical
     if binary:
-        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+        os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
         with open('test_results', 'r') as f:
             test_coverage_RBFN_results = json.load(f)
         
@@ -967,49 +968,7 @@ one_to_one:
 #with open('affinity_results_one_to_one', 'r') as f:
 #    affinity_results = json.load(f)
 ##############################################################################
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#data_raw = get_data('Mutations.ods')
-#keys = data_raw.keys()
-#keys
-#data_raw['1bj1']
-def Select_SPM(data_raw):
-    spm = []
-    for key, value in data_raw.items():
-        for i in range(len(value)-1):
-            if value[i] != []:
-                if len(value[i][0])==4 and value[i+1][0] == 'affinities':
-                    spm.extend([value[i], value[i+1]])
-    return spm
-#spm = Select_SPM(data_raw) 
-#############################################################################
-'''
-Predict SPM
-'''
-def Predict_spm(spm):
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('test_coverage_RBFN_results_latest_numerical', 'r') as f:
-        test_coverage_RBFN_results = json.load(f)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
-    with open('matched_ids','r') as f:
-        matched_ids = json.load(f)
-    with open('combined_ids', 'r') as f:
-        combined_ids = json.load(f)
-    with open('sequence', 'r') as f:
-        sequence = json.load(f)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')   
-    spm_results = Predict(spm, matched_ids, combined_ids, sequence,\
-            test_coverage_RBFN_results, mode = 'single', cutoff=5.5, free_type = 0, single='True',\
-            moving=True, moving_step=0.25, moving_start=3, moving_end=8, one_to_one = True) 
-    return spm_results
 
-#spm_results = Predict_spm(spm)
-#spm_results
-#TPR, FPR, AUC,a, b = ROC_AUC(spm_results, fold_cut = 1)
-#AUC
-#len(TPR)
-#np.exp(1000/(8.31*298))
-
-###############################################################################
 '''
 THis function is to select only the predicted results in the much simpler version
 The returned results contains the mutation id, DDG and predicted score change.
@@ -1023,6 +982,7 @@ def Cleanse_the_results(results):
                 one = [res[0][0], res[0][-2][2], res[-1][1]-res[-1][0] ,res[0][-1]]
                 cleansed_results.append(copy.deepcopy(one))
     return cleansed_results
+
 
 
 ###############################################################################
@@ -1264,7 +1224,7 @@ def Prediction_on_my_data():
          
 if __name__=='__main__': 
     all_pred_dict = {}
-    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=False)
+    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=True)
     all_pred_dict['affinity_results'] = affinity_results
     boundaries = [[0,1000], [0,0.5],[0.5, 1000], [1, 1000]]
     for bound in boundaries:                 
@@ -1279,26 +1239,116 @@ if __name__=='__main__':
         all_pred_dict[str(bound[0])+'_'+str(bound[1])]['other_pred_dict'] = other_pred_dict
         all_pred_dict[str(bound[0])+'_'+str(bound[1])]['my_pred_dict'] = my_pred_dict
         all_pred_dict[str(bound[0])+'_'+str(bound[1])]['auc_all'] = auc_all
+# Save the results
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
+#with open('one_to_one_affinity', 'w') as f:
+#    json.dump(all_pred_dict, f, cls=NumpyEncoder)
+#def Clean_spm():
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+#    with open('one_to_one_affinity', 'r') as f:
+#        one_to_one_affinity = json.load(f)
+#    
+#    one_to_one_affinity.keys()
+#    one_to_one_affinity['affinity_results']
+#    
+#    clean_results = Cleanse_the_results(one_to_one_affinity['affinity_results'])
+#    
+#    # Select the spm    
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#    data_raw = get_data('Keating.ods')
+#    keys = data_raw.keys()
+#    data_list = []
+#    for key in keys:
+#        data_list.extend(data_raw[key])
+#    # get the spm id
+#    spm_id = []
+#    
+#    for i in range(len(data_list)-1):
+#        if len(data_list[i][0])==4 and data_list[i+1][0] == 'affinities':
+#            spm_id.append(data_list[i][5])
+#    # Select from the cleased
+#    clean_spm=[]
+#    for cl in clean_results:
+#        if cl[3] in spm_id:
+#            clean_spm.append(cl)
+#            
+#    return clean_spm
+#############################################################################
 
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#with open('affinity_pred_results', 'w') as f:
-#    json.dump(all_pred_dict, f)
-#all_pred_dict.keys()
-#all_pred_dict['0_1000'].keys()
-#all_pred_dict['1_1000']['auc_all']
-#affinity_results
-#clean_results = Cleanse_the_results(affinity_results)
-#clean_results
-#loc = '/home/leo/Documents/Database/Pipeline_New/Mutations/Mutation.xlsx'
-#wb = xlrd.open_workbook(loc) 
-#sheet = wb.sheet_by_index(0)
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
-#with open('matched_ids','r') as f:
-#    matched_ids = json.load(f)
-#name_index = Name_index(sheet, matched_ids)
-#auc, fpr, tpr, selected = AUC_under_cut(clean_results, cut_lower=0, cut_upper=1000)
-#selected
+#def Concentration(clean_results, top_percent_pred):
+#    clean_results_sorted = copy.deepcopy(clean_results)
+#    clean_results_sorted.sort(key = lambda x:x[2], reverse = True)
+#    top_pred = clean_results_sorted[:math.floor(top_percent_pred*len(clean_results_sorted))+1]
+#    negative = 0
+#    for t in top_pred:
+#        if t[1] <0:
+#            negative += 1
+#    negative /= len(top_pred)
+#    
+#    return negative
+    
+#negative = Concentration(clean_results, top_percent_pred=0.05)
+#negative
 ##################################################################################
+'''Write the prediction results in a .dat file'''
+def Write_pred_results_in_dat():
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+    with open('one_to_one_affinity', 'r') as f:
+        one_to_one_affinity = json.load(f)
+    
+    clean_results = Cleanse_the_results(one_to_one_affinity['affinity_results'])
+    
+    loc = '/home/leo/Documents/Database/Pipeline_New/Mutations/Mutation.xlsx'
+    wb = xlrd.open_workbook(loc) 
+    sheet = wb.sheet_by_index(0)
+    
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+    with open('matched_ids','r') as f:
+        matched_ids = json.load(f)
+    name_index = Name_index(sheet, matched_ids)
+
+    
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Mutations/ABbind_compt_data/ABbind_compt_data')
+    scores_bASA = pd.read_csv('CM.dat', sep = ',')
+        #row_ind = []
+    n_row, n_col = scores_bASA.shape
+    for i in range(n_row):
+        pdbid = scores_bASA['#pdb'][i]
+        mutation = scores_bASA['mutation'][i]
+        ind = 'NA'
+        for n_i in name_index:        
+            if n_i[0].upper() == pdbid and n_i[1].upper() == mutation:
+                ind = n_i[2]
+                break
+            
+        predictable = 0
+        for cl in clean_results:
+            if cl[3] == ind:
+                scores_bASA['comp'][i]=cl[2]
+                predictable = 1
+                break
+        if predictable == 0:
+            scores_bASA['comp'][i]='Unpredictable'
+    # Save the results
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Affinity_prediction')    
+    with open('clean_results', 'w') as f:
+        json.dump(clean_results, f)
+    save = scores_bASA[['#pdb', 'mutation', 'expt', 'comp']]  
+    save.to_csv('CM.dat', index = False)
+#Write_pred_results_in_dat()
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Affinity_prediction')    
+#with open('clean_results', 'r') as f:
+#    clean_results = json.load(f)
+#len(clean_results)
+#####################################################################################
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
+#with open('cross_results', 'r') as f:
+#    cross_results = json.load(f)
+#with open('cross_numerical_Markov_1', 'r') as f:
+#    cross_numerical_Markov_1 = json.load(f)
+#from pyexcel_ods import get_data, save_data
+#data = {'cross_validation_results':cross_results}
+#save_data('cross_validation_results.ods', data)
 '''
 Explanation about the results:
 ***************************************************

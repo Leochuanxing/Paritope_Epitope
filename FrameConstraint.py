@@ -228,7 +228,7 @@ def Match_up_indices(FC_parameter):
         Ab_indx_sequence.sort()
         Ab_indx_sub_sequence = Get_consecutive(Ab_indx_sequence, Ab_length, Ab_free_type)
         
-        # Match up the consecutive amino acids in for each consecutive amino acids in Ab
+        # Match up the consecutive amino acids for each consecutive amino acids in Ab
         if Ab_indx_sub_sequence != []:
             for Ab_sub in Ab_indx_sub_sequence:
                 Ag_indx_sequence_for_Ab_sub = []
@@ -366,7 +366,8 @@ def Select_match_up_indices(FC_parameter):
                     if fcdn[1] in match[0] and fcdn[2] in match[1]:
                         n_contact += fcdn[3]
                         cdr = fcdn[0]
-                match.extend([n_contact, cdr, key[:4]])
+                match.extend([n_contact, cdr, key])
+                '''change key[:4] to key'''
                 
             # Select the cores
             cores = Core_selection(value, core_number_per_chain, core_separation)
@@ -451,17 +452,17 @@ def Change_to_aa(FC_parameter):
                 Ab_pos = match[0]
                 Ag_pos = match[1]
                 n_contact = match[2]
-                cdl = match[3]
+                cdr = match[3]
                 
                 Ab_aa = []            
                 for i in Ab_pos:
-                    Ab_aa.append(chain_sequence[cdl[2]][i])
+                    Ab_aa.append(chain_sequence[cdr[2]][i])
                     
                 Ag_aa = []
                 for j in Ag_pos:
-                    Ag_aa.append(chain_sequence[cdl[3]][j])
+                    Ag_aa.append(chain_sequence[cdr[3]][j])
                 
-                core_aa.append([Ab_aa, Ag_aa, n_contact, cdl, match[4]])
+                core_aa.append([Ab_aa, Ag_aa, n_contact, cdr, match[4], match[0], match[1]])
             
     FC_parameter['core_aa'] = core_aa
         
@@ -512,8 +513,8 @@ def The_middle_aa(FC_parameter):
 def Main():
     
     # Set the working directory and the saving directory
-    wd = '/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A'
-    sd = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    wd = '/home/leo/Documents/Database/Pipeline_New/Complexes'
+    sd = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'
 
     
     training_testing = ['training', 'testing']
@@ -522,7 +523,7 @@ def Main():
         os.chdir(wd)
         with open(train_test+'_ac_contact', 'r') as f:
             ac_contact = json.load(f)
-        with open(train_test+'_sequence', 'r') as f:
+        with open('sequence', 'r') as f:
             sequence = json.load(f)
         with open('contact', 'r') as f:
             contact = json.load(f)
@@ -599,8 +600,11 @@ def Main():
 ##########################################################################
 #if __name__ == '__main__':
 #    Main()
-
-                         
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Cores')
+with open('training_2_2_0_0_1_2_1perchain', 'r') as f:
+    core = json.load(f) 
+len(core)   
+core[:6]                    
 #############################################################################
 '''
 Tailor the process

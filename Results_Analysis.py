@@ -5,13 +5,59 @@ import numpy as np
 import copy
 import pandas as pd
 import random
+import math
 from matplotlib.ticker import StrMethodFormatter
 ##########################################################
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
-
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
+'''Combine the testing sets and stor them in a new folder'''
+#for i in range(1, 4):
+#    for j in range(1, 4):
+#        match_type = str(i)+'_'+str(j)
+#        for n in range(10):
+##        training_name = 'training_'+match_type+'_0_0_1_2_1perchain'
+#            testing_name = 'testing_'+match_type+'_0_0_1_2_1perchain_negative'
+#            directory1 = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_'+str(n)
+#            os.chdir(directory1)
+#    #        with open(training_name, 'r') as f:
+#    #            training_set = json.load(f)
+#            with open(testing_name, 'r') as f:
+#                testing_set = json.load(f)
+#            
+#            directory2 = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores/sample_'+str(n)
+#            os.chdir(directory2)
+#            with open(testing_name, 'r') as f:
+#                testing_set_latest = json.load(f)
+#            testing_set.extend(testing_set_latest)
+#            # Save the training and the testing set in the new folder
+#            os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores/NegativeCores')
+#    #        with open('training_'+match_type, 'w') as f:
+#    #            json.dump(training_set, f)
+#            with open('testing_'+match_type+'_'+str(n), 'w') as f:
+#                json.dump(testing_set, f)
+##            print('training  ', len(training_set))
+#        print('testing1  ', len(testing_set_latest))
+#        print('testing2  ', len(testing_set))
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results') 
+#with open('test_results', 'r') as f:
+#    results = json.load(f)     
+#publication_res = {}
+#for key, value in results.items():
+#    new_key = key[:3]
+#    publication_res[new_key] = {}
+#    publication_res[new_key]['coeff'] = value['coeff']
+#    publication_res[new_key]['centers_selected'] = value['centers_selected']
+#publication_res.keys()
+#publication_res['2_1'].keys()
+#len(publication_res['2_1']['coeff'])
+#len(publication_res['2_1']['centers_selected'])
+#publication_res['2_1']['centers_selected']
+# save the results in binary
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')
+#with open('Centers and coefficients', 'w') as f:
+#    json.dump(publication_res, f)
 ##################################################################3
-def Distribution_over_CDR():
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
+def Distribution_over_CDR(core_d):
+    os.chdir(core_d)
     n_for_match_type = []
     paratope_length_distribution = {}
     for key in ['h1', 'h2', 'h3', 'l1', 'l2', 'l3']:
@@ -51,14 +97,9 @@ def Distribution_over_CDR():
     core_distribution['over_CDR'] = paratope_length_distribution
     
     return core_distribution
-                    
-#core_distribution = Distribution_over_CDR()                
-#core_distribution                
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')            
-#with open('core_distribution', 'w') as f:
-#    json.dump(core_distribution, f)
+
 ##################################################################
-def Distribution_of_aa():
+def Distribution_of_aa(core_d):
     TripleSingle =  [['TYR', 'Y'], ['LYS', 'K'],['ASP', 'D'], ['ASN', 'N'], ['TRP', 'W'], ['PHE', 'F'], ['GLN', 'Q'],
    ['GLU', 'E'], ['PRO', 'P'], ['GLY', 'G'], ['THR', 'T'],['SER', 'S'], ['ARG', 'R'], ['HIS', 'H'],
    ['LEU', 'L'], ['ILE', 'I'], ['CYS', 'C'], ['ALA', 'A'], ['MET', 'M'], ['VAL', 'V']]
@@ -68,7 +109,7 @@ def Distribution_of_aa():
         aa_20.append(ts[0])
         
     distribution_of_aa = {}
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
+    os.chdir(core_d)
     for i in range(1, 4):
         for j in range(1, 4):
             match_type = str(i)+'_'+str(j)
@@ -102,20 +143,19 @@ def Distribution_of_aa():
         
     return distribution_of_aa
 
-#distribution_of_aa = Distribution_of_aa()
-#distribution_of_aa
 
 ###########################################################
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-#with open('aa_distribution', 'w') as f:
-#    json.dump(distribution_of_aa, f) 
+
            
-with open('aa_distribution', 'r') as f:
-    aa_distribution = json.load(f)
+
 '''
 Draw side by side bar graph
 '''
-def Draw_aa_distribution(aa_distribution):
+def Draw_aa_distribution(results_d):
+    os.chdir(results_d)
+    with open('aa_distribution', 'r') as f:
+        aa_distribution = json.load(f)
+        
     for key, value in aa_distribution.items():
         Ag_aa = value['Ag_aa']
         Ab_aa = value['Ab_aa']
@@ -148,28 +188,27 @@ def Draw_aa_distribution(aa_distribution):
                 if ag_aa[0] == aa:
                     Ag_relative.append(ag_aa[1]/t_ag)
 
-        os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Data_description')
+
         x = np.arange(20)
-        plt.figure(figsize = (60, 24))
+        plt.figure(figsize = (15, 6))
         plt.gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
         plt.bar(x-0.15, Ab_relative, width = 0.3, label = 'Antibody Core Amino Acids')
         plt.bar(x+0.15, Ag_relative, width = 0.3, label = 'Antigen Core Amino Acids')
-        plt.xticks(ticks = np.arange(20),labels=aa_20, fontsize=40)
-        plt.ylabel('Relative frequency', fontsize = 50)
-        plt.rcParams['ytick.labelsize']=40
-        plt.legend(loc = 1, prop={'size': 50})
-        plt.title(key)
+        plt.xticks(ticks = np.arange(20),labels=aa_20, fontsize=15)
+        plt.ylabel('Relative frequency', fontsize = 30)
+        plt.rcParams['ytick.labelsize']=20
+        plt.legend(loc = 1, prop={'size': 25})
+        plt.title('Match-type('+key[0]+','+key[-1]+')', y=1.05, fontsize = 40)
         plt.xlim([-0.5, 20])
         plt.savefig('aa_distribution_'+key+'.eps')
     
-#Draw_aa_distribution(aa_distribution)
 
 ###################################################################
 '''
 Get the top match paires of one to one
 '''
-def Top_one_to_one():
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
+def Top_one_to_one(core_d, results_d):
+    os.chdir(core_d)
     name = 'training_1_1_0_0_1_2_1perchain'
     with open(name, 'r') as f:
         data = json.load(f)
@@ -193,28 +232,29 @@ def Top_one_to_one():
         one_frequency.append([key[:3], key[3:], value])
     # Sort
     one_frequency.sort(key = lambda x:x[2], reverse = True)
+    # Save the results
+    with open('one_to_one_frequency', 'w') as f:
+        json.dump(one_frequency, f)
+    # Save to csv
+    os.chdir(results_d)
+    d = {}
+    d['Antibody Amino Acids'] = []
+    d['Antigen Amino Acids'] = []
+    d['Frequency'] = []
+    for mat in one_frequency:
+        d['Antibody Amino Acids'].append(mat[0])
+        d['Antigen Amino Acids'].append(mat[1])
+        d['Frequency'].append(mat[2])
+    df = pd.DataFrame(data=d)   
+    df.to_csv('one_one_frequency.csv')
 
-    return one_frequency
-#one_frequency = Top_one_to_one()  
-#len(one_frequency)
-#one_frequency  
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results') 
-#with open('one_to_one_frequency', 'w') as f:
-#    json.dump(one_frequency, f)
-# Save the one-frequency as csv file
-#d = {}
-#d['Antibody Amino Acids'] = []
-#d['Antigen Amino Acids'] = []
-#d['Frequency'] = []
-#for mat in one_frequency:
-#    d['Antibody Amino Acids'].append(mat[0])
-#    d['Antigen Amino Acids'].append(mat[1])
-#    d['Frequency'].append(mat[2])
-#df = pd.DataFrame(data=d)   
- 
+
+
+
+
 ####################################################################
-def Cores_distribution_over_CDR():
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')            
+def Cores_distribution_over_CDR(results_d):
+    os.chdir(results_d)            
     with open('core_distribution', 'r') as f:
         core_distribution = json.load(f)
     core_distribution
@@ -275,11 +315,10 @@ def Cores_distribution_over_CDR():
 #Cores_distribution_over_CDR()    
 
 ################################################################
-def Core_distribution_over_match_type():
+def Core_distribution_over_match_type(results_d):
     from mpl_toolkits.mplot3d import axes3d
-#    from matplotlib import style
-#    style.use('ggplot')
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+
+    os.chdir(results_d)
     with open('core_distribution', 'r') as f:
         core_distribution = json.load(f)
     
@@ -323,97 +362,60 @@ def Core_distribution_over_match_type():
     ax1.set_xticks(ticks = [1, 2, 3,4,5,6])
     ax1.set_yticks(ticks = [1,2,3,4,5,6])
     # Save
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
     plt.savefig('Core_districution_over_Match_type.eps')
     plt.show()
-#Core_distribution_over_match_type()
+
 ######################################################################
-os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
-with open('training_ac_contact', 'r') as f:
-    training_ac_contact = json.load(f)
-#
-#len(training_ac_contact)
-#training_ac_contact
-##########################################################################
-def The_latest_complex():
-    import csv
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest')
-    pdbid_data = []
-    with open('summary.tsv', newline= '') as csvfile:
-        total = csv.reader(csvfile, delimiter='\t', quotechar='|')
-        for row in total:
-            if len(row) >= 10:
-                # Make sure the complex is either peptide or protein
-                antigen_type = row[5].split('|')
-                for at in antigen_type:
-                    at.strip()
-                if len(row[0]) == 4:
-                    if 'protein' in antigen_type or 'peptide' in antigen_type:
-                        pdbid_data.append([row[0], row[9], antigen_type])
-    # Convert the date to numbers 
-    for com in pdbid_data:
-        date = com[1]
-        date_list = date.split('/')
-        if int(date_list[2])>25:
-            number_date = int('19'+date_list[2]+date_list[0]+date_list[1])
-        else:
-            number_date = int('20'+date_list[2]+date_list[0]+date_list[1])
-        com[1] = number_date
-        
-    latest = []
-    for date in pdbid_data:
-        if date[1] > 20180401 and date[0] not in latest:
-            latest.append(date[0])
-    
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
-    with open('combined_ids', 'r') as f:
-        combined_ids = json.load(f)
-    
-    real_latest = []
-    for pdbid in latest:
-        if pdbid not in combined_ids:
-            real_latest.append(pdbid)
-    return real_latest, pdbid_data
-#########################################################################
-#import csv
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
-#pdbid_data = []
-#with open('summary.tsv', newline= '') as csvfile:
-#    total = csv.reader(csvfile, delimiter='\t', quotechar='|')
-#    for row in total:
-#        if len(row) >= 10:
-#            # Make sure the complex is either peptide or protein
-#            antigen_type = row[5].split('|')
-#            for at in antigen_type:
-#                at.strip()
-#            if len(row[0]) == 4:
-#                if 'protein' in antigen_type or 'peptide' in antigen_type:
-#                    pdbid_data.append([row[0], row[9], antigen_type])
-## Convert the date to numbers 
-#for com in pdbid_data:
-#    date = com[1]
-#    date_list = date.split('/')
-#    if int(date_list[2])>25:
-#        number_date = int('19'+date_list[2]+date_list[0]+date_list[1])
-#    else:
-#        number_date = int('20'+date_list[2]+date_list[0]+date_list[1])
-#    com[1] = number_date
-#pdbid_data.sort(key = lambda x:x[1])
-#pdbid_data[-6:-1]
-#with open('testing_ids', 'r') as f:
-#    testing_ids = json.load(f)
-#testing_id_date = []
-#for td in pdbid_data:
-#    if td[0] in testing_ids:
-#        testing_id_date.append(td)
-#testing_id_date
+
+#def The_latest_complex():
+#    import csv
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest')
+#    pdbid_data = []
+#    with open('summary.tsv', newline= '') as csvfile:
+#        total = csv.reader(csvfile, delimiter='\t', quotechar='|')
+#        for row in total:
+#            if len(row) >= 10:
+#                # Make sure the complex is either peptide or protein
+#                antigen_type = row[5].split('|')
+#                for at in antigen_type:
+#                    at.strip()
+#                if len(row[0]) == 4:
+#                    if 'protein' in antigen_type or 'peptide' in antigen_type:
+#                        pdbid_data.append([row[0], row[9], antigen_type])
+#    # Convert the date to numbers 
+#    for com in pdbid_data:
+#        date = com[1]
+#        date_list = date.split('/')
+#        if int(date_list[2])>25:
+#            number_date = int('19'+date_list[2]+date_list[0]+date_list[1])
+#        else:
+#            number_date = int('20'+date_list[2]+date_list[0]+date_list[1])
+#        com[1] = number_date
+#        
+#    latest = []
+#    for date in pdbid_data:
+#        if date[1] > 20180401 and date[0] not in latest:
+#            latest.append(date[0])
+#    
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+#    with open('combined_ids', 'r') as f:
+#        combined_ids = json.load(f)
+#    
+#    real_latest = []
+#    for pdbid in latest:
+#        if pdbid not in combined_ids:
+#            real_latest.append(pdbid)
+#    return real_latest, pdbid_data
 #########################################################################
 
-with open('good_combined_ids', 'r') as f:
-    good_combined_ids = json.load(f)
-with open('good_matched_ids', 'r') as f:
-    good_matched_ids = json.load(f)
-#len(good_combined_ids)
+#########################################################################
+#
+#with open('good_combined_ids', 'r') as f:
+#    good_combined_ids = json.load(f)
+#with open('good_matched_ids', 'r') as f:
+#    good_matched_ids = json.load(f)
+##len(good_combined_ids)
 #len(good_matched_ids)
 #############################################################
 #real_latest, pdbid_data = The_latest_complex()
@@ -432,15 +434,15 @@ def Generate_combined_matched_ids_the_latest(real_latest, good_combined_ids, goo
 '''
 Draw graphs of the testing and the discrimination testing
 '''
-def Draw_binary_test_AUC():
+def Draw_binary_test_AUC(results_d):
     average_AUC={}
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('test_results_combined', 'r') as f:
+    os.chdir(results_d)
+    with open('test_results', 'r') as f:
         data = json.load(f)
     
     for i in range(1, 4):
         for j in range(1, 4):
-            os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')
+            os.chdir(results_d)
             key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             fpr_list = data[key]['FPR_list']
             tpr_list = data[key]['TPR_list']
@@ -466,13 +468,10 @@ def Draw_binary_test_AUC():
             plt.savefig(str(i)+'_'+str(j)+'.eps')
             
             average_AUC[str(i)+'_'+str(j)]= average_auc
-    return average_AUC
-#average_AUC = Draw_binary_test_AUC()
-#average_AUC
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')
-#with open('average_AUC', 'w') as f:
-#    json.dump(average_AUC, f)
-         
+
+    with open('average_AUC', 'w') as f:
+        json.dump(average_AUC, f)
+
 ###########################################################################
 def Calculate_FPR_by_TPR(TPR):
     FPR = []
@@ -554,16 +553,15 @@ def Calculate_AUC(sample):
         auc += tpr[i]*(fpr[i]-fpr[i-1])        
     return auc
 #####################################################################
-def Draw_discrimination_AUC():    
+def Draw_discrimination_AUC(results_d):    
     reverse_auc_dict = {}
 #    for mode in ['binary', 'latest_binary']:
 #    name = 'reverse_test_'+mode
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    os.chdir(results_d)
     with open('reverse_test_results', 'r') as f:
         data = json.load(f)
     for i in range(1, 4):
         for j in range(1, 4):
-            os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')
             key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
             tpr = data[key]['TPR']
             fpr = data[key]['FPR']
@@ -591,58 +589,81 @@ def Draw_discrimination_AUC():
             print('bootstraping '+ key)
             
             reverse_auc_dict[str(i)+'_'+str(j)]=[auc, CI95]
-    return reverse_auc_dict
+            
+    with open('reverse_auc_dict', 'w') as f:
+        json.dump(reverse_auc_dict, f)
+
 ###########################################################################
 
-reverse_auc_dict_all_negative = Draw_discrimination_AUC() 
+#reverse_auc_dict = Draw_discrimination_AUC() 
 #reverse_auc_dict_all_negative
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Binary_prediction')   
-#with open('reverse_auc_dict', 'w') as f:
-#    json.dump(reverse_auc_dict_all_negative, f)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')   
+
 
 ############################################################################
 '''
 ****************************************************************************
 Analyze the data from the affinity validation
 '''
-
-
-def Affinity_pred():   
-    CI95 = {}
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
-    with open('affinity_pred_results', 'r') as f:
+def Fomalize_results(results_d):
+    os.chdir(results_d)
+    with open('one_to_one_affinity', 'r') as f:
         one_to_one_affinity = json.load(f)
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Affinity_prediction')    
+    one_to_one_affinity.keys()
+    one_to_one_affinity['0_1000'].keys()
+    one_to_one_affinity['0_1000']['my_pred_dict'].keys()
+    one_to_one_affinity['0_1000']['other_pred_dict'].keys()
+    one_to_one_affinity['0_1000']['other_pred_dict']['bASA'].keys()
+    type(one_to_one_affinity['affinity_results'])
+    one_to_one_affinity['affinity_results'].keys()
+    type(one_to_one_affinity['affinity_results']['results_dict'])
+    one_to_one_affinity['affinity_results']['results_dict'].keys()
+    # Format the one_to_one_affinity
+    one_to_one ={}
+    keys = ['0_1000', '0_0.5', '0.5_1000', '1_1000']
+    methods = ['bASA', 'dDFIRE', 'DFIRE', 'Design_studio', 'FoldX', 'Rosetta', 'Statium']
+    for key in keys:
+        one_to_one[key]={}
+        one_to_one[key]['CM']={}
+        for k, v in one_to_one_affinity[key]['my_pred_dict'].items():
+            one_to_one[key]['CM'][k] = v
+    for key in keys:
+        for md in methods:
+            one_to_one[key][md] = {}
+            for ke, va in one_to_one_affinity[key]['other_pred_dict'][md].items():
+                if len(ke)==9:
+                    one_to_one[key][md][ke[-3:]] = va
+                elif len(ke) == 14:
+                    one_to_one[key][md][ke[-8:]] = va
+                else:
+                    one_to_one[key][md][ke] = va
+    one_to_one.keys()
+    one_to_one['0.5_1000'].keys()        
+    one_to_one['0.5_1000']['DFIRE'].keys()  
+    one_to_one['0.5_1000']['bASA']['auc']
+    one_to_one['0_1000']['dDFIRE']['fpr']
+    one_to_one['0_0.5']['Design_studio']['tpr']
+    one_to_one['0_1000']['FoldX']['CI_95']
+    one_to_one['0_1000']['Rosetta']['selected']
+    one_to_one['affinity_results'] = one_to_one_affinity['affinity_results']
+    
+    with open('one_to_one', 'w') as f:
+        json.dump(one_to_one, f)
+
+
+
+
+def Affinity_pred(results_d):   
+    CI95 = {}
+    os.chdir(results_d)
+    with open('one_to_one', 'r') as f:
+        one_to_one = json.load(f)
+    
     keys = ['0_1000', '0_0.5', '0.5_1000', '1_1000']
     lengends = [r'$|\Delta\Delta G|>0.0 $', r'$|\Delta\Delta G|<0.5 $',\
                r'$|\Delta\Delta G|>0.5 $', r'$|\Delta\Delta G|>1.0 $']
-    plt.figure(figsize = (10, 10))
-    plt.plot([0,1], [0,1])
-    plt.plot([0,1], [0,1], linewidth = 2)
-    plt.ylabel('True Positive Rate', fontsize = 20)
-    plt.ylim([0, 1])
-    plt.xlabel('False Positive Rate', fontsize = 20)
-    plt.xlim([0,1])
-    CI = []
-    for key, le in zip(keys, lengends):
-        fpr = one_to_one_affinity[key]['my_pred_dict']['fpr']
-        tpr = one_to_one_affinity[key]['my_pred_dict']['tpr']
-        auc = one_to_one_affinity[key]['my_pred_dict']['auc']
-        ci = one_to_one_affinity[key]['my_pred_dict']['CI_95']
-        CI.append(ci)
-        plt.plot(fpr, tpr, label = le+'   '+str(round(auc,2)), linewidth =2)
-    tic = [0.2, 0.4, 0.6, 0.8, 1]
-    lab = ['0.2', '0.4', '0.6', '0.8', '1']
-    plt.xticks(tic, labels = lab, fontsize = 15)
-    plt.yticks(tic, labels = lab, fontsize = 15)
-    plt.rcParams['ytick.labelsize']=15
-    plt.rcParams['xtick.labelsize']=15
-    plt.legend(loc = 4, prop={'size': 20})
-    plt.title('CM', fontsize = 15)
-    plt.savefig('Affinity_pred_'+'CM.eps') 
-    CI95['Affinity_pred_'+'CM'] = copy.deepcopy(CI)
     
-    methods = ['bASA', 'dDFIRE', 'DFIRE', 'Design_studio', 'FoldX', 'Rosetta', 'Statium']
+    methods = ['bASA', 'dDFIRE', 'DFIRE', 'Design_studio', 'FoldX', 'Rosetta', 'Statium', 'CM']
     for method in methods:
         plt.figure(figsize = (10, 10))
         plt.plot([0,1], [0,1], linewidth = 2)
@@ -652,10 +673,10 @@ def Affinity_pred():
         plt.xlim([0,1])
         CI = []
         for key, le in zip(keys, lengends):
-            fpr = one_to_one_affinity[key]['other_pred_dict'][method]['other_fpr']
-            tpr = one_to_one_affinity[key]['other_pred_dict'][method]['other_tpr']
-            auc = one_to_one_affinity[key]['other_pred_dict'][method]['other_auc']
-            ci = one_to_one_affinity[key]['other_pred_dict'][method]['CI_95']
+            fpr = one_to_one[key][method]['fpr']
+            tpr = one_to_one[key][method]['tpr']
+            auc = one_to_one[key][method]['auc']
+            ci = one_to_one[key][method]['CI_95']
             CI.append(ci)
             plt.plot(fpr, tpr, label = le+'   '+str(round(auc,2)), linewidth = 2)
         tic = [0.2, 0.4, 0.6, 0.8, 1]
@@ -665,23 +686,21 @@ def Affinity_pred():
         plt.rcParams['ytick.labelsize']=15
         plt.rcParams['xtick.labelsize']=15
         plt.legend(loc = 4, prop={'size': 20})
-        plt.title(method, fontsize = 15)
+        plt.title(method, y = 1.03,fontsize = 50)
         plt.savefig('Affinity_pred_'+method+'.eps')
         CI95['Affinity_pred_'+method] = copy.deepcopy(CI)
-    return CI95
-#CI95 = Affinity_pred()
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Affinity_prediction') 
-#with open('CI95', 'w') as f:
-#    json.dump(CI95, f)
+    with open('CI95', 'w') as f:
+        json.dump(CI95, f)
+
 ##################################################################################
 def Affinity_pred_on_my_data():
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
     with open('prediction_on_my_data', 'r') as f: 
         prediction_on_my_data = json.load(f)
     keys = ['0_1000', '0_0.5', '0.5_1000', '1_1000']
     legends = [r'$|\Delta\Delta G|>0.0 $', r'$|\Delta\Delta G|<0.5 $',\
            r'$|\Delta\Delta G|>0.5 $', r'$|\Delta\Delta G|>1.0 $']
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results/Affinity_prediction')
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
     plt.figure(figsize = (30, 30))
     plt.plot([0,1], [0,1], linewidth = 2)
     plt.ylabel('True Positive Rate', fontsize = 60)
@@ -712,22 +731,127 @@ def Affinity_pred_on_my_data():
 #with open('CI95_on_my_data', 'w') as f:
 #    json.dump(CI95_on_my_data, f)
 ################################################################################
+'''Analyze the distribution of different amino acids'''
+def Top_concentration(core_d, results_d, percentage=0.05):
+    from mpl_toolkits.mplot3d import axes3d
+    top_concentration = []
+    os.chdir(core_d)
+    x3 = []; y3 = []; dz = []
+    for i in range(1, 4):
+        for j in range(1, 4):
+            x3.append(i-0.25)
+            y3.append(j-0.25)
+            
+            name = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+            with open(name, 'r') as f:
+                core = json.load(f)
+            # Find the top six matches
+            matches = []; match_set = []
+            for parepi in core:
+                matches.append([parepi[0], parepi[1]])
+                if [parepi[0], parepi[1]] not in match_set:
+                    match_set.append([parepi[0], parepi[1]])
+            # count the number
+            for match in match_set:
+                n = 0
+                for parepi in core:
+                    if parepi[0]==match[0] and parepi[1]==match[1]:
+                        n+=1
+                match.append(n)
+            match_set.sort(key = lambda x:x[2], reverse = True)
+            n = math.floor(len(match_set)*percentage)
+            top_number = 0
+            for t in range(n):
+                top_number += match_set[t][2]
+            top_concentration.append([str(i)+'_'+str(j), top_number/len(matches)])
+            dz.append(top_number/len(matches))
+    
+#    fig = plt.figure(figsize= (40, 24))
+    fig = plt.figure(figsize= (15, 8))
+    ax1 = fig.add_subplot(111, projection='3d')
+    
+    z3 = np.zeros(len(x3))    
+    dx = np.ones(len(x3))*0.5
+    dy = np.ones(len(x3))*0.5           
+    
+    
+    ax1.bar3d(x3, y3, z3, dx, dy, dz, color= 'c')
+    
+    
+    ax1.set_xlabel('Length of antibody amino acids')
+    ax1.set_ylabel('Length of antigen amino acids')
+    ax1.set_zlabel('Relative frequency of the top 5% cores')
+    
+    ax1.set_xticks(ticks = [1,2,3])
+    ax1.set_yticks(ticks = [1,2,3])
+    # Save
+    os.chdir(results_d)
+    plt.savefig('Top_concentration.eps')
+    plt.show()
+    
+    os.chdir(results_d)
+    with open('top_concentration', 'w') as f:
+        json.dump(top_concentration, f)
+
+
+
+
+def Top_aa_distribution(results_d, t_n=6):
+    os.chdir(results_d)
+    with open('aa_distribution', 'r') as f:
+        aa_distribution = json.load(f)
+    top_n = {}
+    for i in range(1, 4):
+        for j in range(1, 4):
+            top_n[str(i)+'_'+str(j)] = {}
+    
+            for key, value in aa_distribution[str(i)+'_'+str(j)].items():
+                value.sort(key = lambda x:x[1], reverse = True)
+                top_n[str(i)+'_'+str(j)][key] = value[:t_n]
+    with open('top_six', 'w') as f:
+        json.dump(top_n, f)
+
+################################################################################
 '''
-Some basic numbers
+Combination:
+    This function combines all the above functions 
+Input:
+    core_d: the directory of the cores
+    results_d: the directory gives all the results
 '''
+def Combination(core_d, results_d):
+    core_distribution = Distribution_over_CDR(core_d)                               
+    os.chdir(results_d)            
+    with open('core_distribution', 'w') as f:
+        json.dump(core_distribution, f)
 
+    distribution_of_aa = Distribution_of_aa()
+    os.chdir(results_d)
+    with open('aa_distribution', 'w') as f:
+        json.dump(distribution_of_aa, f) 
+        
+    Draw_aa_distribution(results_d)
+    
+    Top_one_to_one(core_d, results_d)
+    
+    Cores_distribution_over_CDR(results_d)
+    
+    Core_distribution_over_match_type(results_d)
+    
+    Draw_binary_test_AUC(results_d)
+    
+    Draw_discrimination_AUC(results_d)
+    
+    Fomalize_results(results_d)
+    
+    Affinity_pred(results_d)
+    
+    Top_aa_distribution(results_d, t_n=6)
+    
+    Top_concentration(core_d, results_d, percentage=0.05)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+##########################################################
+if __name__ == '__main__':
+    core_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'
+    results_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Results'
+    Combination(core_d, results_d)

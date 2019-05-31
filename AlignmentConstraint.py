@@ -226,7 +226,7 @@ def Draw_elbow(sd, heights_nCDRH_nCDRL):
     plt.xlabel('cut_distance')
     plt.ylabel('CDRH_clusters')
     plt.plot(heights, n_clusters_CDRH)
-    plt.savefig('CDRH_clusters Vs cut_distance.png')
+    plt.savefig('CDRH_clusters Vs cut_distance.eps')
     plt.show()
     plt.close()
     
@@ -234,7 +234,7 @@ def Draw_elbow(sd, heights_nCDRH_nCDRL):
     plt.xlabel('cut_distance')
     plt.ylabel('CDRL_clusters')
     plt.plot( heights, n_clusters_CDRL)
-    plt.savefig('CDRL_clusters Vs cut_distance.png')
+    plt.savefig('CDRL_clusters Vs cut_distance.eps')
     plt.show()
     plt.close()
 ################################################################################    
@@ -352,51 +352,87 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 #######################################################################
-#def main(): 
-##     wd is the working directory, where you can find the returned results from AAC_2
-##     sd is the saving directory               
-#    wd= "/home/leo/Documents/Database/Pipeline_New/Latest"
-#    sd = '/home/leo/Documents/Database/Pipeline_New/Latest'
-#    
-#    os.chdir(wd)
-#    # We have to process the training and the testing data separetely
-#    train_test = ['training']
-#    for header in train_test:
-#        with open(header+'_sequence', 'r') as f:
-#            sequence = json.load(f)
-#        with open(header+'_matched_ids', 'r') as f:
-#            matched_ids = json.load(f)
-#        with open(header+'_contact', 'r') as f:
-#            contact = json.load(f)  
-#        # Do the alignment and selection   
-#        seqCDRH, seqCDRL = SeqCDR(sequence, matched_ids)
-#        
-#        hcluster_CDRH, hcluster_CDRL = Hcluster(seqCDRH, seqCDRL)
-#        
-#    #    clusters_CDRL = Cluster_by_cut_dist(hcluster_CDRL, 0.1)
-#    #    clusters_CDRH = Cluster_by_cut_dist(hcluster_CDRH, 0.1)
-#        
-#    #    CDRL_rpts = Select_representatives(contact, seqCDRL, clusters_CDRL)
-#    #    CDRH_rpts = Select_representatives(contact, seqCDRH, clusters_CDRH)
-#        
-#    #        ac_contact = Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts)
-#        
-#        heights_nCDRH_nCDRL = Cut_distance_n_cluster( hcluster_CDRH, hcluster_CDRL)  
-#    #    # Save the results
+def main(): 
+#     wd is the working directory, where you can find the returned results from AAC_2
+#     sd is the saving directory               
+    wd= '/home/leo/Documents/Database/Pipeline_New/Complexes'
+    sd = '/home/leo/Documents/Database/Pipeline_New/Complexes'
+    
+    os.chdir(wd)
+    # We have to process the training and the testing data separetely
+
+    with open('sequence', 'r') as f:
+        sequence = json.load(f)
+    with open('contact', 'r') as f:
+        contact = json.load(f)
+    with open('training_matched_ids', 'r') as f:
+        matched_ids = json.load(f) 
+    # Do the alignment and selection   
+    seqCDRH, seqCDRL = SeqCDR(sequence, matched_ids)
+    
+    hcluster_CDRH, hcluster_CDRL = Hcluster(seqCDRH, seqCDRL)
+    
+    clusters_CDRL = Cluster_by_cut_dist(hcluster_CDRL, 0.1)
+    clusters_CDRH = Cluster_by_cut_dist(hcluster_CDRH, 0.1)
+    
+    CDRL_rpts = Select_representatives(contact, seqCDRL, clusters_CDRL)
+    CDRH_rpts = Select_representatives(contact, seqCDRH, clusters_CDRH)
+    
+    ac_contact = Prepare_for_FrameConstraint(contact, CDRH_rpts, CDRL_rpts)
+    
+    heights_nCDRH_nCDRL = Cut_distance_n_cluster( hcluster_CDRH, hcluster_CDRL)  
+
+    # Take out the values
+    heights = heights_nCDRH_nCDRL[0]
+    n_clusters_CDRH = heights_nCDRH_nCDRL[1]
+    n_clusters_CDRL = heights_nCDRH_nCDRL[2]
+    
+    os.chdir(sd)
+    from matplotlib import pyplot as plt    
+#    plt.title('Testing_latest')
+    plt.xlabel('Cut distance', size = 15)
+    plt.ylabel('Number of CDRH clusters', fontsize = 15)
+    plt.plot(heights, n_clusters_CDRH)
+    plt.savefig('Training_CDRH.eps')
+    plt.show()
+    plt.close()
+    
+#    plt.title('Testing_lates')
+    plt.xlabel('Cut distance', fontsize = 15)
+    plt.ylabel('Number of CDRL clusters', fontsize = 15)
+    plt.plot( heights, n_clusters_CDRL)
+    plt.savefig('Training_CDRL.eps')
+    plt.show()
+    plt.close()
+    # Save the results
 #    os.chdir(sd)
-#    #Draw_elbow(sd, heights_nCDRH_nCDRL)
-#    for li in heights_nCDRH_nCDRL:
-#        for i in range(len(li)):
-#            li[i] = int(li[i])
-#    with open(header+'heights_nCDRH_nCDRL', 'w') as f:
-#        json.dump(heights_nCDRH_nCDRL, f)
+    #Draw_elbow(sd, heights_nCDRH_nCDRL)
+    for li in heights_nCDRH_nCDRL:
+        for i in range(len(li)):
+            li[i] = int(li[i])
+    with open('training_heights_nCDRH_nCDRL', 'w') as f:
+        json.dump(heights_nCDRH_nCDRL, f)
+        
+    with open('training_ac_contact', 'w') as f:
+        json.dump(ac_contact, f)
 
 ############################################################################
     
 #if __name__ == '__main__':
 #    main()
 
-
+#with open('testing_ac_contact', 'r') as f:
+#    testing_ac_contact = json.load(f)
+#type(testing_ac_contact)
+#testing_ac_contact.keys()
+#len(testing_ac_contact)
+    
+#with open('training_ac_contact', 'r') as f:
+#    training_ac_contact = json.load(f)
+#type(training_ac_contact)
+#training_ac_contact.keys()
+#len(training_ac_contact)
+#training_ac_contact['1a3rLl']
 '''
 Do the following step by step, you will get the latest data
 '''

@@ -75,10 +75,10 @@ def With_replacement_sample(population, size):
 
 def main():
     # Set the working directory and the saving directory
-    wd = '/home/leo/Documents/Database/Pipeline_New/Cores'
+    wd = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'
     # we want to generate 10 negative samples
     for n in range(10):
-        sd = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/'+'Sample_'+str(n)        
+        sd = '/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/'+'Sample_'+str(n)        
 
         for i in range(1, 7):
             for j in range(1,7):                
@@ -112,9 +112,9 @@ def main():
 ####################################################################
 #if __name__ == '__main__':
 #    main()
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0')
-with open('testing_1_1_0_0_1_2_1perchain_negative', 'r') as f:
-    training_1_1 = json.load(f)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/Sample_5')
+#with open('training_1_1_0_0_1_2_1perchain_negative', 'r') as f:
+#    training_1_1 = json.load(f)
 #len(training_1_1)
 ####################################################################
 '''

@@ -22,7 +22,12 @@ Output:
         lists. Take the complex "4ydl" for example, the output is 
         [['B', 'C', 'A'], ['H', 'L', 'G']], where ['B', 'C', 'A'] 
         means the heavy chain is B, the light chain is C and the antigen chain 
-        is A. And ['H', 'L', 'G'] has the similar meanings. 
+        is A. And ['H', 'L', 'G'] has the simil
+os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes')
+with open('combined_ids', 'r') as f:
+    combined_ids = json.load(f)
+with open('matched_ids', 'r') as f:
+    matched_ids = json.load(f)ar meanings. 
         From this result, we can tell that this complex may be composed of two 
         subunits, and those two units may be the same.    
 '''
@@ -363,7 +368,6 @@ def Get_contact(cdn, matched_ids, cutoff = 4):
     return contact
 ##################################################################
 
-###############################################
 '''
 wd: the working directory
 percent: the percentage of the latest ids
@@ -504,7 +508,7 @@ Run the main function
 '''
 The following code is to extract data from the complexes submitted from 1804-1904
 '''
-def The_1804_1904(combined_ids, matched_ids):
+def Restricted_complexes(combined_ids, matched_ids):
     # Extract the sequence
     sequence = {}
     for i in combined_ids:
@@ -542,42 +546,16 @@ def The_1804_1904(combined_ids, matched_ids):
         del sequence[dud]
     
     return sequence, contact
-
-# Take a look at the ids of the data 1804-1904
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest')
-#with open('matched_ids_latest', 'r') as f:
-#    matched_ids_latest = json.load(f)
-#with open('combined_ids_latest', 'r') as f:
-#    combined_ids_latest = json.load(f)
-#len(matched_ids_latest)
-#len(combined_ids_latest)
-#for key in matched_ids_latest:
-#    if key=='6db8':
-#        print(key)
-#del matched_ids_latest['6h7k']
-#del combined_ids_latest['6h7k']
-
-    
-#with open('combined_ids_latest', 'w') as f:
-#    json.dump(combined_ids_latest, f)
-#with open('matched_ids_latest', 'w') as f:
-#    json.dump(matched_ids_latest, f)
-
-#sequence, contact = The_1804_1904(combined_ids_latest, matched_ids_latest)
 #
-#len(matched_ids)
-#len(combined_ids)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes')
+#with open('combined_ids', 'r') as f:
+#    combined_ids = json.load(f)
+#with open('matched_ids', 'r') as f:
+#    matched_ids = json.load(f)
 
-#with open('sequence_latest', 'w') as f:
-#    json.dump(sequence, f)
-#with open('contact_latest', 'w') as f:
-#    json.dump(contact, f)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A/structure')
 
-
-
-
-
-
+#sequence, contact = Restricted_complexes(combined_ids, matched_ids)
 
 
 
