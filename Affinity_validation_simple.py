@@ -883,6 +883,7 @@ def My_pred(single_mutation = True, binary = True, one_to_one = False):
         sequence = json.load(f)
                 
     os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#    data_raw = get_data('multimutations.ods')
     data_raw = get_data('Keating.ods')
     keys = data_raw.keys()
     
@@ -1224,7 +1225,7 @@ def Prediction_on_my_data():
          
 if __name__=='__main__': 
     all_pred_dict = {}
-    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=True)
+    affinity_results = My_pred(single_mutation = False, binary = True, one_to_one=False)
     all_pred_dict['affinity_results'] = affinity_results
     boundaries = [[0,1000], [0,0.5],[0.5, 1000], [1, 1000]]
     for bound in boundaries:                 
@@ -1239,6 +1240,7 @@ if __name__=='__main__':
         all_pred_dict[str(bound[0])+'_'+str(bound[1])]['other_pred_dict'] = other_pred_dict
         all_pred_dict[str(bound[0])+'_'+str(bound[1])]['my_pred_dict'] = my_pred_dict
         all_pred_dict[str(bound[0])+'_'+str(bound[1])]['auc_all'] = auc_all
+
 # Save the results
 #os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
 #with open('one_to_one_affinity', 'w') as f:
