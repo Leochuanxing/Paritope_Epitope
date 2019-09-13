@@ -213,6 +213,15 @@ def main(wd, cutoff = 4):
         combined_ids = json.load(f)
     with open('matched_ids', 'r') as f:
         matched_ids = json.load(f)
+    with open('training_combined_ids', 'r') as f:
+        training_combined_ids = json.load(f)
+    with open('training_matched_ids', 'r') as f:
+        training_matched_ids = json.load(f)
+    with open('testing_combined_ids', 'r') as f:
+        testing_combined_ids = json.load(f)
+    with open('testing_matched_ids', 'r') as f:
+        testing_matched_ids = json.load(f)
+        
     os.chdir(wd+'/imgt')
     # Extract the sequence
     sequence = {}
@@ -245,12 +254,36 @@ def main(wd, cutoff = 4):
     for pdbid in contact:
         if contact[pdbid] == []:
             dud_AAC.append(pdbid)
-    dud_AAC
-    for dud in dud_AAC:
-        del contact[dud]
-        del combined_ids[dud]
-        del matched_ids[dud]
+            
+    # Update the matched ids, training and testing ids according to the contact
+    update_pdb = []
+    for pdb in combined_ids:
+        if pdb not in contact:
+            update_pdb.append(pdb)
+            
+    for key in update_pdb:
+        del combined_ids[key]
+        del matched_ids[key]
+        if key in training_combined_ids:
+            del training_combined_ids[key]
+            del training_matched_ids[key]
+        if key in testing_combined_ids:
+            del testing_combined_ids[key]
+            del testing_matched_ids[key]
            
+    os.chdir(wd)
+    with open('combined_ids', 'w') as f:
+        json.dump(combined_ids, f)
+    with open('matched_ids', 'w') as f:
+        json.dump(matched_ids, f)
+    with open('training_combined_ids', 'w') as f:
+        json.dump(training_combined_ids, f)
+    with open('training_matched_ids', 'w') as f:
+        json.dump(training_matched_ids, f)
+    with open('testing_combined_ids', 'w') as f:
+        json.dump(testing_combined_ids, f)
+    with open('testing_matched_ids', 'w') as f:
+        json.dump(testing_matched_ids, f)
 
         
     return sequence, contact
@@ -263,30 +296,67 @@ if __name__ == '__main__':
     # wd is the working directory, sd is the saving directory
     working_directory = "/home/leo/Documents/Database/Data_Code_Publish/Structures" 
     saving_directory = "/home/leo/Documents/Database/Data_Code_Publish/Structures" 
-    sequence, contact =  main(working_directory, cutoff = 4)
+    sequence, contact=  main(working_directory, cutoff = 4)
     os.chdir(saving_directory)
     with open('sequence', 'w') as f:
         json.dump(sequence, f)
     with open('contact', 'w') as f:
         json.dump(contact, f)
 
+
+#
+#with open('combined_ids', 'r') as f:
+#    combined_ids = json.load(f)
+#with open('matched_ids', 'r') as f:
+#    matched_ids = json.load(f)
+#with open('training_combined_ids', 'r') as f:
+#    training_combined_ids = json.load(f)
+#with open('training_matched_ids', 'r') as f:
+#    training_matched_ids = json.load(f)
+#with open('testing_combined_ids', 'r') as f:
+#    testing_combined_ids = json.load(f)
+#with open('testing_matched_ids', 'r') as f:
+#    testing_matched_ids = json.load(f)
 #with open('contact', 'r') as f:
-#    contact_read = json.load(f)
-#len(contact_read)
-#with open('sequence', 'r') as f:
-#    sequence_read = json.load(f)
-#len(sequence)
-#keys = list(contact_read.keys())
-#contact_read[keys[6]]
-#sequence[keys[6]].keys()
-#sequence_read[keys[6]]['R']
+#    contact = json.load(f)
+#    
+#update_pdb = []
+#for pdb in training_combined_ids:
+#    if pdb not in contact:
+#        update_pdb.append(pdb)
+#        
+#for pdb in testing_combined_ids:
+#    if pdb not in contact:
+#        update_pdb.append(pdb)
+#        
+#update_pdb        
+#for key in update_pdb:
+#    if key in training_combined_ids:
+#        del training_combined_ids[key]
+#        del training_matched_ids[key]
+#    if key in testing_combined_ids:
+#        del testing_combined_ids[key]
+#        del testing_matched_ids[key]
+#       
+#os.chdir(wd)
+#with open('combined_ids', 'w') as f:
+#    json.dump(combined_ids, f)
+#with open('matched_ids', 'w') as f:
+#    json.dump(matched_ids, f)
+#with open('training_combined_ids', 'w') as f:
+#    json.dump(training_combined_ids, f)
+#with open('training_matched_ids', 'w') as f:
+#    json.dump(training_matched_ids, f)
+#with open('testing_combined_ids', 'w') as f:
+#    json.dump(testing_combined_ids, f)
+#with open('testing_matched_ids', 'w') as f:
+#    json.dump(testing_matched_ids, f)
 
 
-
-
-
-
-
+#len(training_combined_ids)
+#len(training_matched_ids)
+#len(testing_matched_ids)
+#len(testing_combined_ids)
 
 
 

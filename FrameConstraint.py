@@ -404,32 +404,32 @@ Output:
         in the same form as the FC_parameter['selected_match_up_indices']
         
 '''
-def Each_CDR_get_one(FC_parameter):
-    matched_up_indices = FC_parameter['matched_up_indices']
-    l_range = FC_parameter['l_range']
-    h_range = FC_parameter['h_range']
-    
-    each_CDR_get_one = {}
-    for key, value in matched_up_indices.items():
-        each_CDR_get_one[key] = []
-        if key[5] == 'l':
-            Rs = l_range
-        elif key[5] == 'h':
-            Rs = h_range
-        R1=Rs[0];R2=Rs[1];R3=Rs[2]  
-        # Group the value into three groups according to the Rs
-        G1=[]; G2=[]; G3=[]
-        for match in value:
-            if match[0][0]>= R1[0] and match[0][0] <= R1[-1]:
-                G1.append(match)
-            elif match[0][0]>= R2[0] and match[0][0] <= R2[-1]:
-                G2.append(match)
-            elif match[0][0]>= R3[0] and match[0][0] <= R3[-1]:
-                G3.append(match)
-        # Select the one with the largest contact number from each group
-        each_CDR_get_one[key] = [Choose_the_best(G1), Choose_the_best(G2), Choose_the_best(G3)]
-        
-    FC_parameter['each_CDR_get_one'] = each_CDR_get_one
+#def Each_CDR_get_one(FC_parameter):
+#    matched_up_indices = FC_parameter['matched_up_indices']
+#    l_range = FC_parameter['l_range']
+#    h_range = FC_parameter['h_range']
+#    
+#    each_CDR_get_one = {}
+#    for key, value in matched_up_indices.items():
+#        each_CDR_get_one[key] = []
+#        if key[5] == 'l':
+#            Rs = l_range
+#        elif key[5] == 'h':
+#            Rs = h_range
+#        R1=Rs[0];R2=Rs[1];R3=Rs[2]  
+#        # Group the value into three groups according to the Rs
+#        G1=[]; G2=[]; G3=[]
+#        for match in value:
+#            if match[0][0]>= R1[0] and match[0][0] <= R1[-1]:
+#                G1.append(match)
+#            elif match[0][0]>= R2[0] and match[0][0] <= R2[-1]:
+#                G2.append(match)
+#            elif match[0][0]>= R3[0] and match[0][0] <= R3[-1]:
+#                G3.append(match)
+#        # Select the one with the largest contact number from each group
+#        each_CDR_get_one[key] = [Choose_the_best(G1), Choose_the_best(G2), Choose_the_best(G3)]
+#        
+#    FC_parameter['each_CDR_get_one'] = each_CDR_get_one
 
 ########################################################################
 '''
@@ -510,11 +510,11 @@ def The_middle_aa(FC_parameter):
          
 ################################################################################            
            
-def Main():
+def Main(wd, sd):
     
-    # Set the working directory and the saving directory
-    wd = '/home/leo/Documents/Database/Pipeline_New/Complexes'
-    sd = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'
+#    # Set the working directory and the saving directory
+#    wd = '/home/leo/Documents/Database/Pipeline_New/Complexes'
+#    sd = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'
 
     
     training_testing = ['training', 'testing']
@@ -546,14 +546,14 @@ def Main():
         with open(train_test+'_middle_Ag_aa', 'w') as f:
             json.dump(FC_parameter['middle_Ag_aa'], f)
         # Select the cores by assigning different number of cores per chain
-        for i in range(1,7):
-            for j in range(1, 7):    
+        for i in range(1,5):
+            for j in range(1, 5):    
                 Ab_length = i
                 Ag_length =j
                 FC_parameter['Ag_length'] = Ag_length
                 FC_parameter['Ab_length'] = Ab_length
                 
-                for k in [0]:
+                for k in [0,1]:
                     Ag_free_type = k
                     Ab_free_type = k
                     FC_parameter['Ag_free_type'] = Ag_free_type
@@ -567,7 +567,7 @@ def Main():
                     Match_up_indices(FC_parameter)
                     Adjust_the_order(FC_parameter)
                         
-                    for h in [1, 2, 3]:
+                    for h in [1]:
                         core_number_per_chain = h
                         core_separation = 2                       
                         FC_parameter['core_number_per_chain'] = core_number_per_chain
@@ -586,233 +586,26 @@ def Main():
                         with open(train_test+'_'+name, 'w') as f:
                             json.dump(FC_parameter['core_aa'], f)
                             
-                    Each_CDR_get_one(FC_parameter)
-                    FC_parameter['selected_match_up_indices'] = FC_parameter['each_CDR_get_one']
-                    Change_to_aa(FC_parameter)                    
-                    # save the results
-                    os.chdir(sd)
-                    name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
-                    print('working on '+ name)
-                    with open(train_test+'_'+name, 'w') as f:
-                        json.dump(FC_parameter['core_aa'], f)
+#                    Each_CDR_get_one(FC_parameter)
+#                    FC_parameter['selected_match_up_indices'] = FC_parameter['each_CDR_get_one']
+#                    Change_to_aa(FC_parameter)                    
+#                    # save the results
+#                    os.chdir(sd)
+#                    name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
+#                    print('working on '+ name)
+#                    with open(train_test+'_'+name, 'w') as f:
+#                        json.dump(FC_parameter['core_aa'], f)
 
     
 ##########################################################################
-#if __name__ == '__main__':
-#    Main()
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Cores')
-with open('training_2_2_0_0_1_2_1perchain', 'r') as f:
-    core = json.load(f) 
-len(core)   
-core[:6]                    
+if __name__ == '__main__':
+    wd = '/home/leo/Documents/Database/Data_Code_Publish/Structures'
+    sd = '/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores'
+    Main(wd, sd)
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Cores')
+#with open('training_2_2_0_0_1_2_1perchain', 'r') as f:
+#    core = json.load(f) 
+                  
 #############################################################################
-'''
-Tailor the process
-'''
-def The_latest_data():
-    # Set the working directory and the saving directory
-    wd = '/home/leo/Documents/Database/Pipeline_New/Latest'
-    sd = '/home/leo/Documents/Database/Pipeline_New/Latest/cores'
-    #
-    
-    #training_testing = ['training', 'testing']
-    #for train_test in training_testing:
-        # Go to the working directory
-    os.chdir(wd)
-    with open('ac_contact_latest', 'r') as f:
-        ac_contact = json.load(f)
-    with open('sequence_latest', 'r') as f:
-        sequence = json.load(f)
-    with open('contact_latest', 'r') as f:
-        contact = json.load(f)
-        
-    FC_parameter={}
-    FC_parameter['ac_contact'] = ac_contact
-    FC_parameter['contact'] = contact
-    FC_parameter['sequence'] = sequence   
-     
-    CN_gate = 1
-    FC_parameter['CN_gate'] = CN_gate 
-    
-    CN_gated(FC_parameter) 
-    Ab_Ag_Contact(FC_parameter)
-    # Calculate the middle aa
-    #    The_middle_aa(FC_parameter)
-    #    # Save the results
-    #    with open(train_test+'_middle_Ab_aa', 'w') as f:
-    #        json.dump(FC_parameter['middle_Ab_aa'], f)
-    #    with open(train_test+'_middle_Ag_aa', 'w') as f:
-    #        json.dump(FC_parameter['middle_Ag_aa'], f)
-    # Select the cores by assigning different number of cores per chain
-    for i in range(1, 5):
-        for j in range(1, 5):                
-            Ab_length =i
-            Ag_length = j
-            FC_parameter['Ag_length'] = Ag_length
-            FC_parameter['Ab_length'] = Ab_length
-            
-            for k in [0]:
-                Ag_free_type = k
-                Ab_free_type = k
-                FC_parameter['Ag_free_type'] = Ag_free_type
-                FC_parameter['Ab_free_type'] = Ab_free_type
-                
-                l_range = [[23, 40], [49, 63], [89, 110]]
-                h_range = [[25, 37], [50, 71], [99, 129]]
-                FC_parameter['l_range'] = l_range  
-                FC_parameter['h_range'] = h_range 
-                
-                Match_up_indices(FC_parameter)
-                Adjust_the_order(FC_parameter)
-                    
-                for h in [1]:
-                    core_number_per_chain = h
-                    core_separation = 2                       
-                    FC_parameter['core_number_per_chain'] = core_number_per_chain
-                    FC_parameter['core_separation'] = core_separation
-                    
-                    Select_match_up_indices(FC_parameter)
-                    Change_to_aa(FC_parameter)
-                                                               
-                    # Save the results
-    #                        os.chdir(wd)
-                    name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
-    #                    print('working on '+ name)
-                    
-    
-                    print ('testing_'+name, len(FC_parameter['core_aa']))
-    
-                        # Save the core aa
-                    os.chdir(sd)
-                    with open('testing'+'_'+name, 'w') as f:
-                        json.dump(FC_parameter['core_aa'], f)
-                        
-                Each_CDR_get_one(FC_parameter)
-                FC_parameter['selected_match_up_indices'] = FC_parameter['each_CDR_get_one']
-                Change_to_aa(FC_parameter)                    
-                # save the results
-                os.chdir(sd)
-                name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
-    #                print('working on '+ name)
-                print('testing'+'_'+name, len(FC_parameter['core_aa'])) 
-    
-                with open('testing'+'_'+name, 'w') as f:
-                    json.dump(FC_parameter['core_aa'], f)
-############################################################################T
-#The_latest_data()
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest/cores')
-#with open('testing_1_2_0_0_1_2_1perchain', 'r') as f:
-#    testing = json.load(f)
-#len(testing)
-#'''
-#The following comments is for testing the above function with a small artifical data set.
-#'''
-#
-#
-## Create a small testing data
-#test_sequence = {}
-#test_sequence['test'] = {}
-#test_sequence['test']['H'] = ['SER','ASP','SER','LYS','ILE','LEU','ALA','HIS','LEU','PHE', 'ILE', 'SER', 'LYS']
-#test_sequence['test']['L'] = ['GLY','TYR','ASP','PHE','ARG','VAL','ARG','PRO','PRO','THR', 'ILE','LEU','ALA']
-#test_sequence['test']['A'] = ['ASP','ASN','GLY','GLY','PRO','ASN','MET','LEU','LEU','ARG','PHE','ARG','VAL']
-#test_sequence['test']['B'] = ['ASP','ASN','GLY','GLY','PRO','ASN','MET','LEU','LEU','ARG','PHE','ARG','VAL']
-#
-#test_contact = {}
-#test_contact['test'] = [['l1LA', 0, 2, 5],
-#                            ['l1LA', 2, 1, 8],
-#                            ['l2LA', 5, 4, 3],
-#                            ['l2LA', 6, 6, 2],
-#                            ['l3LA', 10, 7,8],
-#                            ['l3LA', 11, 8, 8],
-#                            ['h1HA', 0, 0, 1], 
-#                            ['h1HA', 1, 0, 3],
-#                            ['h2HA', 5, 8, 4],
-#                            ['h2HA', 6, 7, 5],
-#                            ['h3HA', 10, 5, 10],
-#                            ['h3HA', 12, 7, 9],
-#                            ['h1HB', 0, 0, 1], 
-#                            ['h1HB', 1, 0, 3],
-#                            ['h2HB', 5, 8, 4],
-#                            ['h2HB', 6, 7, 5],
-#                            ['h3HB', 10, 5, 10],
-#                            ['h3HB', 12, 7, 9]]
-#test_ac_contact={}
-#test_ac_contact['testHh']=  [['h1HA', 0, 0, 1], 
-#                            ['h1HA', 1, 0, 3],
-#                            ['h2HA', 5, 8, 4],
-#                            ['h2HA', 6, 7, 5],
-#                            ['h3HA', 10, 5, 10],
-#                            ['h3HA', 12, 7, 9],
-#                            ['h1HB', 0, 0, 1], 
-#                            ['h1HB', 1, 0, 3],
-#                            ['h2HB', 5, 8, 4],
-#                            ['h2HB', 6, 7, 5],
-#                            ['h3HB', 10, 5, 10],
-#                            ['h3HB', 12, 7, 9]]
-#
-#test_ac_contact['testLl'] =  [['l1LA', 0, 2, 5],
-#                            ['l1LA', 2, 1, 8],
-#                            ['l2LA', 5, 4, 3],
-#                            ['l2LA', 6, 6, 2],
-#                            ['l3LA', 10, 7,8],
-#                            ['l3LA', 11, 8, 8],
-#                            ['l3LA', 12, 6, 9]]
-#
-#             
-#
-#CN_gate = 1
-#Ag_length =2
-#Ab_length = 2
-#Ag_free_type = 0
-#Ab_free_type = 0
-#core_number_per_chain = 1
-#core_separation = 2
-#l_range = [[0, 2], [5,7], [10, 12]]
-#h_range = [[0, 2], [5,7], [10, 12]]
-#FC_parameter={}
-#FC_parameter['ac_contact'] = test_ac_contact
-#FC_parameter['contact'] = test_contact
-#FC_parameter['sequence'] = test_sequence
-#FC_parameter['CN_gate'] = CN_gate 
-#FC_parameter['Ag_length'] = Ag_length
-#FC_parameter['Ab_length'] = Ab_length
-#FC_parameter['Ag_free_type'] = Ag_free_type
-#FC_parameter['Ab_free_type'] = Ab_free_type
-#FC_parameter['core_number_per_chain'] = core_number_per_chain
-#FC_parameter['core_separation'] = core_separation
-#FC_parameter['l_range'] = l_range  
-#FC_parameter['h_range'] = h_range  
-#
-## Test the CN-gated
-#FC_parameter['CN_gate'] = 1
-#CN_gated(FC_parameter) 
-#FC_parameter['cn_gated']
-##Test the Match_up_indices
-#FC_parameter['Ag_length'] = Ag_length
-#FC_parameter['Ab_length'] = Ab_length
-#FC_parameter['Ag_free_type'] = 1
-#FC_parameter['Ab_free_type'] = 1
-#Match_up_indices(FC_parameter)
-#FC_parameter['matched_up_indices']
-## Test Adjust_the_order
-#Adjust_the_order(FC_parameter) 
-#FC_parameter['matched_up_indices']
-## Test Select_match_up_indices
-#FC_parameter['core_number_per_chain'] = 2
-#FC_parameter['core_separation'] = 2
-#Select_match_up_indices(FC_parameter)
-##FC_parameter.keys()
-#FC_parameter['selected_match_up_indices']
-#FC_parameter['matched_up_indices']
-## Test the Change_to_aa
-#Change_to_aa(FC_parameter)
-#FC_parameter['core_aa']
-#The_middle_aa(FC_parameter)
-#FC_parameter['middle_Ab_aa']
-#FC_parameter['middle_Ag_aa']
-#Each_CDR_get_one(FC_parameter)
-#FC_parameter['each_CDR_get_one']
-#FC_parameter['selected_match_up_indices'] = FC_parameter['each_CDR_get_one']
-#Change_to_aa(FC_parameter)
-#FC_parameter['core_aa']
-  
+
+

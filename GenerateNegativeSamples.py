@@ -73,16 +73,14 @@ def With_replacement_sample(population, size):
     return sample
 ###############################################################
 
-def main():
-    # Set the working directory and the saving directory
-    wd = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'
-    # we want to generate 10 negative samples
-    for n in range(10):
-        sd = '/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/'+'Sample_'+str(n)        
-
-        for i in range(1, 7):
-            for j in range(1,7):                
-                for k in [0]:                        
+def main(positive_core_directory, negative_core_directory):
+    # we want to generate 10 set of negative samples
+    for n in range(10):    
+        negative_directory = negative_core_directory+ '/Sample_'+str(n)
+        os.makedirs(negative_directory)
+        for i in range(1, 5):
+            for j in range(1,5):                
+                for k in [0, 1]:                        
                     for h in [1]:                                                                   
 
                         train_name ='training_' + str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
@@ -90,7 +88,7 @@ def main():
                         print('working on '+ train_name + '\n' + test_name)
 
                         # Save the core aa
-                        os.chdir(wd)
+                        os.chdir(positive_core_directory)
                         with open(train_name, 'r') as f:
                             data = json.load(f)
                         with open(test_name, 'r') as f:
@@ -102,7 +100,7 @@ def main():
                         negative_training_samples = Generate_random_negative(data, len(data))
                         
                         # Save the negative samples
-                        os.chdir(sd)
+                        os.chdir(negative_directory)
                         with open(test_name+'_negative', 'w') as f:
                             json.dump(negative_testing_samples, f)
                         with open(train_name + '_negative', 'w') as f:
@@ -110,134 +108,14 @@ def main():
 
    
 ####################################################################
-#if __name__ == '__main__':
-#    main()
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/Sample_5')
-#with open('training_1_1_0_0_1_2_1perchain_negative', 'r') as f:
-#    training_1_1 = json.load(f)
-#len(training_1_1)
+if __name__ == '__main__':
+    positive_core_directory = '/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores'
+    negative_core_directory = '/home/leo/Documents/Database/Data_Code_Publish/Cores/Negative_cores'
+    main(positive_core_directory, negative_core_directory)
+
 ####################################################################
-'''
-sd: the saving directory
-'''
-sd = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores'
-def Negative_the_latest(sd):
-    # Get the training set by combining all the previous    
-    for i in range(1,5):
-        for j in range(1, 5):
-            train_name = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            test_name = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-            os.chdir('/home/leo/Documents/Database/Pipeline_New/Cores')
-            with open(train_name, 'r') as f:
-                train_old = json.load(f)
-            with open(test_name, 'r') as f:
-                test_old = json.load(f)
-            train = copy.deepcopy(train_old)
-            train.extend(test_old)
-            
-            os.chdir('/home/leo/Documents/Database/Pipeline_New/Latest/cores')
-            with open(test_name, 'r') as f:
-                test_new = json.load(f)
-            # Generate the negative samples
-            for n in range(10):            
-                save_directory =  sd + '/sample_'+str(n)
-                print('Generating '+ test_name)
-                negative_test =  Generate_random_negative(train, len(test_new))
-                print('Generating '+ train_name)
-                negative_train = Generate_random_negative(train, len(train))
-                # Same the negative samples
-                os.chdir(save_directory)
-                save_name_test = test_name + '_negative'
-                save_name_train = train_name + '_negative'
-                with open(save_name_test, 'w') as f:
-                    json.dump(negative_test, f)
-                with open(save_name_train, 'w') as f:
-                    json.dump(negative_train, f)
-#Negative_the_latest(sd)  
-#os.chdir('/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_0')  
-#with open('training_1_1_0_0_1_2_1perchain_negative', 'r') as f: 
-#    train = json.load(f)   
-#len(train)                      
-'''
-Need to take a look at the negative samples, make sure they have nothing in common with the real cores
-'''
-#def Check():
-#        # Set the working directory and the saving directory
-#    wd = '/home/leo/Documents/Database/Pipeline_New/Cores'
-#    # we want to generate 10 negative samples
-#    for n in range(10):
-#        sd = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/'+'Sample_'+str(n)        
-#        for i in range(1, 5):
-#            for j in range(1, 5):                
-#                for k in [1, 0]:                        
-#                    for h in [1, 2, 3]:                                                                   
-#
-#                        name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_2_'+str(h)+'perchain'
-#
-#                        # Save the core aa
-#                        os.chdir(wd)
-#                        with open('training_'+name, 'r') as f:
-#                            positive_training_data = json.load(f)
-#                            
-#                        with open('testing_'+name, 'r') as f:
-#                            positive_testing_data = json.load(f)                            
-#                        
-#                        # Save the negative samples
-#                        os.chdir(sd)
-#                        save_name =  name + '_negative'
-#                        with open('testing_'+save_name, 'r') as f:
-#                            negative_testing_data = json.load( f)
-#                        with open('training_'+save_name, 'r') as f:
-#                            negative_training_data = json.load(f)
-#                            
-#                        # Check 
-#                        res1 = Subcheck(positive_training_data, negative_testing_data)
-#                        res2 = Subcheck(positive_training_data, negative_training_data)
-#                        
-#                        if res1 and res2 and len(positive_testing_data)== len(negative_testing_data):
-#                            print(' Correct')
-#                        else:
-#                            print(print(name+'\n not correct'))
-#
-#                    os.chdir(wd)
-#                    with open('training_'+name, 'r') as f:
-#                        positive_training_data = json.load(f)
-#                        
-#                    with open('testing_'+name, 'r') as f:
-#                        positive_testing_data = json.load(f)                            
-#                    
-#                    # Save the negative samples
-#                    os.chdir(sd)
-#                    save_name = name + '_negative'
-#                    with open('testing_'+save_name, 'r') as f:
-#                        negative_testing_data = json.load( f)
-#                    with open('training_'+save_name, 'r') as f:
-#                        negative_training_data = json.load(f)
-#                        
-#                    # Check 
-#                    res1 = Subcheck(positive_training_data, negative_testing_data)
-#                    res2 = Subcheck(positive_training_data, negative_training_data)
-#                    
-#                    if res1 and res2 and len(positive_testing_data)== len(negative_testing_data):
-#                        print(' Correct')
-#                    else:
-#                        print(print(name+'\n not correct'))    
-#    
-#        
-#def Subcheck(data, sub_data):
-#    res = True
-#    pool = [x[:2] for x in data]
-#    for sub in sub_data:
-#        if sub[:] in pool:
-#            res = False
-#            break
-#    return res
-#    
-#        
-#Check()        
- 
-        
-        
+
+
         
         
         

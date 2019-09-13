@@ -1,4 +1,4 @@
-
+import os
 '''
 Id_dict, is to extract the names of the heavy chain, light chain and the antigen
         chain for each pdb id from the "summary" file.
