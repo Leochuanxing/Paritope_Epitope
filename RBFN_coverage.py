@@ -337,7 +337,7 @@ reg:
 def Cross_validation(data_dict, train_para):
     
     # Take out the values
-    all_training_distance_matrix = data_dict['all_training_distance_matrix ']
+    all_training_distance_matrix = data_dict['all_training_distance_matrix']
     all_training_design_matrix = data_dict['all_training_design_matrix']
     all_training_observed_values = data_dict['all_training_observed_values']# pay attention to this one, it is used in the one step reduce
     positive_training_set = data_dict['positive_training_set']
@@ -509,23 +509,11 @@ def Observed_values(training_set, binary):
         
     return observed_values
     
-###################################################################################
-def Batch_cross_validation(negative_d, positive_d, binary, basis_function):
-    
-#    negative_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/Sample_0'
-#    positive_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'    
-#                
-    cross_number = 5      
-    percentages = [0.8, 0.4, 0.2, 0.1, 0.05, 0.02]
-#    reg_list = [0, 0.01, 0.05, 0.1, 0.5]
-    reg_list = [0.0001, 0.001, 0.01, 0.1]
-    
-    # The final result will be stored in cross_coverage_RBFN
-    cross_coverage_RBFN = {}
-    cross_coverage_RBFN['percentages'] = percentages
-    cross_coverage_RBFN['cross_number'] = cross_number
-    cross_coverage_RBFN['reg_list'] = reg_list    
 
+
+######################################################################################
+def Distance_design(positive_d, negative_d, basis_function):
+    distance_design ={}
     for i in range(1, 5):
         for j in range(1,5):
             p_name = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
@@ -543,7 +531,7 @@ def Batch_cross_validation(negative_d, positive_d, binary, basis_function):
             training_set = copy.deepcopy(positive_training_set)
             training_set.extend(negative_training_set)   
             # Get the observed values
-            all_training_observed_values = Observed_values(training_set, binary)
+#            all_training_observed_values = Observed_values(training_set, binary)
             
             print('Working on: ' +str(i)+'_'+str(j)+'_0_0_1_2_1perchain')
             all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)
@@ -552,15 +540,71 @@ def Batch_cross_validation(negative_d, positive_d, binary, basis_function):
             all_training_design_matrix = Design_matrix(all_training_distance_matrix,\
                                                        radius_coeff, basis_function)
             
+            # load the results
+            distance_design[str(i)+'_'+str(j)] = {}
+            distance_design[str(i)+'_'+str(j)]['positive_training_set']=positive_training_set
+            distance_design[str(i)+'_'+str(j)]['negative_training_set']=negative_training_set
+            distance_design[str(i)+'_'+str(j)]['training_set']=training_set
+            distance_design[str(i)+'_'+str(j)]['all_training_distance_matrix']=all_training_distance_matrix
+            distance_design[str(i)+'_'+str(j)]['all_training_design_matrix']=all_training_design_matrix
+            
+    return distance_design
+###################################################################################
+def Batch_cross_validation(distance_design, binary):
+    
+#    negative_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/Sample_0'
+#    positive_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'    
+#                
+    cross_number = 5      
+    percentages = [0.8, 0.4, 0.2, 0.1, 0.05, 0.02]
+#    reg_list = [0, 0.01, 0.05, 0.1, 0.5]
+    reg_list = [0.0001, 0.001, 0.01, 0.1]
+    
+    # The final result will be stored in cross_coverage_RBFN
+    cross_coverage_RBFN = {}
+    cross_coverage_RBFN['percentages'] = percentages
+    cross_coverage_RBFN['cross_number'] = cross_number
+    cross_coverage_RBFN['reg_list'] = reg_list    
+
+    for i in range(1, 5):
+        for j in range(1,5):
+            k = str(i)+'_'+str(j)
+#            p_name = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+#            os.chdir(positive_d)
+#            with open(p_name, 'r') as f:
+#                positive_training_set = json.load(f)
+#            n_name = p_name+'_negative'
+#            os.chdir(negative_d)
+#            with open(n_name, 'r') as f:
+#                negative_training_set = json.load(f)
+#            
+#            '''*******The following block is to calculate the observed values 
+#            ***********according whether the observed should be binary or not'''
+#            # Calculate 
+#            training_set = copy.deepcopy(positive_training_set)
+#            training_set.extend(negative_training_set)   
+#            # Get the observed values
+#            all_training_observed_values = Observed_values(training_set, binary)
+#            
+#            print('Working on: ' +str(i)+'_'+str(j)+'_0_0_1_2_1perchain')
+#            all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)
+#            
+#            radius_coeff = np.ones((all_training_distance_matrix.shape[1], 1))
+#            all_training_design_matrix = Design_matrix(all_training_distance_matrix,\
+#                                                       radius_coeff, basis_function)
+            
             #            percentages = [0.005]
             # Load up the parameter
             data_dict = {}
-            data_dict['all_training_distance_matrix '] = all_training_distance_matrix 
-            data_dict['all_training_design_matrix'] = all_training_design_matrix
-            data_dict['all_training_observed_values'] = all_training_observed_values 
-            data_dict['positive_training_set'] = positive_training_set 
-            data_dict['negative_training_set'] = negative_training_set 
-            data_dict['training_set'] = training_set 
+            data_dict['all_training_distance_matrix'] = distance_design[k]['all_training_distance_matrix']
+            data_dict['all_training_design_matrix'] = distance_design[k]['all_training_design_matrix']
+#            data_dict['all_training_observed_values'] = all_training_observed_values 
+            data_dict['positive_training_set'] = distance_design[k]['positive_training_set'] 
+            data_dict['negative_training_set'] = distance_design[k]['negative_training_set'] 
+            data_dict['training_set'] = distance_design[k]['training_set'] 
+            
+            data_dict['all_training_observed_values'] =\
+                Observed_values(data_dict['training_set'], binary)
             
             data_dict['cross_number'] = cross_number 
             data_dict['percentages'] = percentages 
@@ -587,8 +631,7 @@ def Batch_cross_validation(negative_d, positive_d, binary, basis_function):
                     cross_coverage_RBFN[key] = np.vstack((cross_coverage_RBFN[key], AUC_array))
         
     return cross_coverage_RBFN
-
-######################################################################################
+            
 
 '''
 Run the main and Save the results
@@ -600,16 +643,19 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 ###################################################################################
 def main(negative_d, positive_d, saving_d):
-    for gap_score in range(-5, 0):
-        for extended_gap_score in range(gap_score, 0):
-        
-            aligner.open_gap_score = gap_score
-            aligner.extend_gap_score = extended_gap_score
-    
-            for binary in [True, False]:
-                for basis_function in ['Gaussian']:
+    for basis_function in ['Gaussian']:
+        for gap_score in range(-4, 0):
+            for extended_gap_score in range(gap_score, 0):
+            
+                aligner.open_gap_score = gap_score
+                aligner.extend_gap_score = extended_gap_score
+                
+                distance_design = Distance_design(positive_d, negative_d, basis_function)
+                
+                for binary in [True, False]:
+                
                     cross_coverage_RBFN_binary = \
-                    Batch_cross_validation(negative_d, positive_d, binary, basis_function)
+                    Batch_cross_validation(distance_design, binary)
                     
                     os.chdir(saving_d)
                     suffix = '_'+str(gap_score)+'_'+str(extended_gap_score)
