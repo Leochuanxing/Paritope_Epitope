@@ -63,7 +63,7 @@ def Generate_random_negative(data, sample_size):
             r_Ab_r_Ag  = [r_Ab, r_Ag]
             if r_Ab_r_Ag in Ab_Ag:
                 r_Ab_r_Ag  = []
-        negative_samples.append([r_Ab, r_Ag, -1, -1])
+        negative_samples.append([r_Ab, r_Ag, 0, 0])
     return negative_samples
 
 def With_replacement_sample(population, size):
@@ -77,7 +77,7 @@ def main(positive_core_directory, negative_core_directory):
     # we want to generate 10 set of negative samples
     for n in range(10):    
         negative_directory = negative_core_directory+ '/Sample_'+str(n)
-        os.makedirs(negative_directory)
+#        os.makedirs(negative_directory)
         for i in range(1, 5):
             for j in range(1,5):                
                 for k in [0, 1]:                        

@@ -1,4 +1,4 @@
-s###############################################################
+###############################################################
 # Import the modules
 #import random
 import numpy as np
@@ -7,6 +7,7 @@ import json
 import math
 import copy
 from matplotlib import pyplot as plt
+from Train_Loss import Train
 
 ###########################################################
 os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes')
@@ -44,7 +45,7 @@ def Multiplication_distance(parepi_1, parepi_2):
     Ag_seq2 = To_seq(parepi_2[1])
     l_Ab = len(Ab_seq1)
     l_Ag = len(Ag_seq1)
-    distance = (1 - (4*l_Ab + aligner.score(Ab_seq1, Ab_seq2))/(15*l_Ab)) *  (1 - (4*l_Ag + aligner.score(Ag_seq1, Ag_seq2))/(15*l_Ag))
+    distance = (1 - (4*l_Ab + aligner.score(Ab_seq1, Ab_seq2))/(13*l_Ab)) *  (1 - (4*l_Ag + aligner.score(Ag_seq1, Ag_seq2))/(13*l_Ag))
     return distance  
 
 ################################################################################
@@ -179,175 +180,7 @@ def Coverage_reduce_centers(training_training_distance_matrix, training_set,n_ce
     return centers_list
 
 #####################################################################################
-'''
-Remove the duplicates before removing the centers
-'''
-def Remove_duplicates(training_set):
-    centers = []
-    pure_parepi = []
-    non_redundent_training_set = []
-    for i in range(len(training_set)):
-        parepi = training_set[i]
-        if [parepi[0], parepi[1]] not in pure_parepi:            
-            pure_parepi.append([parepi[0], parepi[1]])
-            centers.append(i)
-            non_redundent_training_set.append(training_set[i])
-    return centers, non_redundent_training_set
-##############################################################################
-'''
-Loss:
-    To return the loss, the gradient, and the parameters
-Input:
-        Distance_matrix in the shape of (m,n)
-    observed_values:
-        A vector gives the observed valuse, in the shape of (m,1)
-    parameter:
-        A dictionary, 
-        parameter['coeff'] contains the vector of the coefficients, in the shape of (2n+1,1)
-            where the first n+1 elements are the linear coefficients and the last n elements are
-            the radius coefficients.
-        parameter['reg']: a float, gives the coeffincient of the regularizaion coefficient
-    distance_matrix
-       
-Output:
-    loss:
-        A real number
-    gradient:
-        a dictionary
-        gradient['coeff'] is the gradient of the parameter['coeff']
-'''
-def Loss(distance_matrix, observed_values, parameter, basis_function):
-    # Unpack the dictionary 
-    reg = parameter['reg']
-    n_row, n_col = distance_matrix.shape
-    linear_coeff = parameter['coeff'][:n_col+1, 0]
-    linear_coeff = np.reshape(linear_coeff, (-1,1))
-    radius_coeff = parameter['coeff'][n_col+1:,0]
-    
-    radius_coeff_mat = np.tile(np.reshape(radius_coeff,(1, -1)), (n_row, 1))
-    if basis_function == 'Gaussian':
-        D_square = distance_matrix * distance_matrix
-    elif basis_function == 'Markov':
-        D_square = distance_matrix
-     
-#    radius_coeff = np.ones((n_col, 1))   
-    radius_coeff = np.reshape(radius_coeff, (-1,1))
-    design_matrix_pure = Design_matrix(distance_matrix,radius_coeff, basis_function )
-    design_matrix = np.hstack((design_matrix_pure, np.ones((n_row,1))))    
 
-    # Calculate the loss
-    linear_coeff = np.reshape(linear_coeff, (-1,1))
-    loss = np.sum(linear_coeff*linear_coeff*reg)
-    diff = design_matrix.dot(linear_coeff) - observed_values
-    loss += (diff.T).dot(diff) /n_row
-
-#    loss += np.sum(coeff_square*reg)
-    # Calculate the grad of the linear_coeff
-    grad_linear_coeff = 2*(design_matrix.T).dot(diff) 
-    grad_linear_coeff /= n_row
-    grad_linear_coeff += 2 * linear_coeff * reg
-    # Calculate the grad of the radius_coeff
-    
-    pure_l_c = np.reshape(linear_coeff[:-1,0], (-1,1))
-    grad_radius_coeff = np.sum(2*(diff.dot(pure_l_c.T))*design_matrix_pure*D_square*(-2)*radius_coeff_mat, axis=0)
-    grad_radius_coeff = np.reshape(grad_radius_coeff, (-1, 1))
-    grad_radius_coeff /= n_row
-    
-    gradient = {}
-#    gradient['linear_coeff'] = grad_linear_coeff
-#    gradient['radius_coeff'] =grad_radius_coeff
-    gradient['coeff'] = np.vstack((grad_linear_coeff, grad_radius_coeff))
-#    gradient['coeff'] = grad_linear_coeff
-#    print('Design matrix pure', design_matrix_pure)
-#    print('pure_l_c', pure_l_c)
-    
-    return loss, gradient
-
-####################################################################################
-
-'''
-Train_RBFN_BFGS:
-    A function to train the RBFN by using the BFGS method
-Input:
-    design_matrix:
-        The return value of Design_matrix, in the shape of (m,n)
-    observed_values:
-        A vector gives the observed valuse, in the shape of (m,1)
-    rho:
-        The contraction factor in Ramijo backtracking
-    c:
-        the Goldstein coefficient c
-    termination:
-        The termination condition with the norm of the gradient < termination
-Output:
-    parameter:
-        A dictionary contains
-        parameter['coeff'], the coefficient after training
-        parameter['reg'], the regularization coefficient    
-'''
-#a = np.reshape(np.array([1,2,3]), (-1,1))
-#b = np.reshape(np.array([4,5,6]), (-1,1))
-#c = np.vstack((a, b))
-#c.shape
-def Train_RBFN_BFGS(distance_matrix, observed_values, rho=0.8, c = 1e-3, termination = 1e-2,\
-                    parameter_inheritance = False, parameter=None, basis_function = 'Gaussian'):
-    
-    nrow = np.shape(distance_matrix)[0]
-    ncol = np.shape(distance_matrix)[1]
-        
-    # Give the initial Hessian H. The variables are the coeff and reg
-    H = np.eye(2*ncol+1)/(10*nrow)
-#    H = np.eye(ncol+1)/(10*nrow)
-    # Check if it inherit the parameter from somewhere else.
-    if not parameter_inheritance :
-        # Set the starting point
-        parameter = {}
-#        parameter['coeff'] = np.ones((2*ncol+1,1))
-        parameter['coeff'] = np.ones((2*ncol+1,1))
-        #The reg should not be negative. It is better that reg > delta, a small positive number
-#        parameter['reg'] = reg
-
-    # BFGS algorithm
-    loss, gradient = Loss(distance_matrix, observed_values, parameter, basis_function)
-    grad_coeff = gradient['coeff']
-    ternination_square = termination**2
-    grad_square = ternination_square + 1
-#    grad_square = (grad_coeff.T).dot(grad_coeff)
-    while grad_square >= ternination_square:        
-        p = - H.dot(grad_coeff)        
-        # Find the next coeff
-        parameter_new = {}
-        parameter_new['coeff'] = p + parameter['coeff']
-        parameter_new['reg'] = parameter['reg']
-        
-        new_loss, new_gradient = Loss(distance_matrix, observed_values, parameter_new, basis_function)
-        # Ramijo Back-tracking
-        while new_loss > loss + c * (grad_coeff.T).dot(p):
-            p *= rho
-            parameter_new['coeff'] = p + parameter['coeff']            
-            new_loss, new_gradient = Loss(distance_matrix, observed_values, parameter_new, basis_function)
-        
-        # update H
-        s = p
-        new_grad = new_gradient['coeff']
-        y = new_grad - grad_coeff
-        r = (y.T).dot(s)
-        I = np.eye(2*ncol+1)
-#        I = np.eye(ncol+1)
-        if r != 0:
-            r = 1/r            
-            H = (I - r*s.dot(y.T)).dot(H).dot(I - r*y.dot(s.T)) + r*s.dot(s.T)# Can be accelerate
-        else:
-            H = I
-        # Update loss, grad, grad_square and paramter
-        loss = new_loss
-        grad_coeff = new_grad
-        parameter['coeff'] = parameter_new['coeff']
-        grad_square = (grad_coeff.T).dot(grad_coeff)
-        print('loss  ', loss, '    ','grad_square   ', grad_square)
-        
-    return parameter, loss
-###############################################################################
 
 '''
 '''
@@ -362,8 +195,8 @@ Input:
     cross_number:
         an integer, gives the number of crosses
 Output:
-    cross_training_set:
-        a list contains 'cross_number' of lists of positions of the training_set
+    cross_testing_set:
+        a list contains 'cross_number' of lists of positions of the testing_set
     cross_training_set:
         a list contains 'cross_number' of lists of positions of the training_set
         
@@ -444,22 +277,23 @@ def Raised_cross_indices(positive_training_set, negative_training_set, cross_num
 The purpose of this block is to do cross validation, select centers and make predictiion about the 
 testing data accroding to the results of the cross validation
 
-parameter contains
-    parameter['percentages']
-    parameter['all_training_distance_matrix']
-    parameter['all_training_design_matrix']
-    parameter['all_training_observed_values']
-    parameter['list_centers']
-    parameter['list_n_centers']
-    parameter['training_set']
-    parameter['testing_set']
-    parameter['positive_training_set']
-    parameter['negative_training_set']
-    parameter['positive_testing_set']
-    parameter['negative_testing_set']
-    parameter['cross_number']
-    parameter['coeff']
-    parameter['reg']
+data_dict contains
+    data_dict['percentages']
+    data_dict['all_training_distance_matrix']
+    data_dict['all_training_design_matrix']
+    data_dict['all_training_observed_values']
+    data_dict['list_centers']
+    data_dict['list_n_centers']
+    data_dict['training_set']
+    data_dict['testing_set']
+    data_dict['positive_training_set']
+    data_dict['negative_training_set']
+    data_dict['positive_testing_set']
+    data_dict['negative_testing_set']
+    data_dict['cross_number']
+
+
+### REMARK: the row number of coefficients and the column number of the design_matrix are the same
     
 ******************Explanation about the above values***********************
 percentages:
@@ -499,17 +333,18 @@ reg:
     
 '''
 #########################################################################
-def Cross_validation(parameter, method,  basis_function = 'Gaussian'):
-
+def Cross_validation(data_dict, train_para):
+    
     # Take out the values
-    all_training_distance_matrix = parameter['all_training_distance_matrix ']
-#    all_training_design_matrix = parameter['all_training_design_matrix']
-    all_training_observed_values = parameter['all_training_observed_values']# pay attention to this one, it is used in the one step reduce
-    positive_training_set = parameter['positive_training_set']
-    negative_training_set = parameter['negative_training_set']
-    training_set = parameter['training_set']
-    cross_number = parameter['cross_number']
-    percentages = parameter['percentages']
+    all_training_distance_matrix = data_dict['all_training_distance_matrix ']
+    all_training_design_matrix = data_dict['all_training_design_matrix']
+    all_training_observed_values = data_dict['all_training_observed_values']# pay attention to this one, it is used in the one step reduce
+    positive_training_set = data_dict['positive_training_set']
+    negative_training_set = data_dict['negative_training_set']
+    training_set = data_dict['training_set']
+    cross_number = data_dict['cross_number']
+    percentages = data_dict['percentages']
+
     
     # Initiate list_area_under_rp_curve 
     list_AUC = [0*i for i in range(len(percentages))]
@@ -535,16 +370,16 @@ def Cross_validation(parameter, method,  basis_function = 'Gaussian'):
             
         
         # Load the list_n_centers
-        parameter['list_n_centers'] = []
+        train_para['list_n_centers'] = []
         for per in percentages:
             n_center = math.floor(len(centers)*per)
             if n_center >= 1:
-                parameter['list_n_centers'].append(n_center)
+                train_para['list_n_centers'].append(n_center)
         
         # Load the list_centers
         distance_matrix_center = all_training_distance_matrix[centers,:][:, centers]
-        parameter['list_centers'] =\
-        Coverage_reduce_centers(distance_matrix_center,centers,parameter['list_n_centers'])
+        train_para['list_centers'] =\
+        Coverage_reduce_centers(distance_matrix_center,centers,train_para['list_n_centers'])
         
         # Get the observed values
         observed_values_train = all_training_observed_values[train_indices]
@@ -554,42 +389,44 @@ def Cross_validation(parameter, method,  basis_function = 'Gaussian'):
         observed_values_test = np.reshape(observed_values_test, (-1,1))
 
         # Train the model at different centers
-        list_centers = parameter['list_centers']
+        list_centers = train_para['list_centers']
         for i in range(len(list_centers)):
             centers = list_centers[i]
             print('length of centers d%',len(centers))                       
             
 #           # Get the testing distance matrix and the training distance matrix
-            distance_matrix_testing = all_training_distance_matrix[test_indices,:][:,centers]
-            distance_matrix_training = all_training_distance_matrix[train_indices,:][:,centers]
+            design_matrix_test = all_training_design_matrix[test_indices,:][:,centers]
+            design_matrix_train = all_training_design_matrix[train_indices,:][:,centers]
+            
+            design_matrix_test = np.hstack((design_matrix_test, np.ones((len(test_indices, 1)))))
+            design_matrix_train = np.hstack((design_matrix_train, np.ones((len(train_indices, 1)))))
 #            centers.remove(-1)
             
             # initiate the coeff
-            coeff = np.ones((2*len(centers)+1, 1))
-#            coeff = np.ones((len(centers)+1, 1))
-            parameter['coeff'] = coeff
+#            coeff = np.ones((2*len(centers)+1, 1))
+            coeff = np.zeros((len(centers)+1, 1))
+            train_para['coefficients'] = coeff
+            train_para['design_matrix'] = design_matrix_train
+            train_para['observed'] = observed_values_train
+
+#            train_para['reg']
+#            train_para['loss_type']  Those values should be given outside
+#            train_para['method']
             
             # Pay attention to the termination condition
             '''*****************************************'''
 #            termination_grad_norm = 1E-4*len(centers)
-            termination_grad_norm = 1E-4*len(centers)
-            if method == 'BFGS':
-                parameter, loss = Train_RBFN_BFGS(distance_matrix_training, observed_values_train, rho=0.7, c = 1e-3,\
-                                                  termination = termination_grad_norm,\
-                                                 parameter_inheritance = True, parameter=parameter, \
-                                                 basis_function = basis_function)
+            termination = 1E-4*len(centers)
+            train_para, loss = Train(train_para, rho=0.8, c = 1e-4, termination = termination)
             
-            coeff = np.reshape(parameter['coeff'], (-1,1)) 
+            coeff = np.reshape(train_para['coefficients'], (-1,1)) 
             print('length of coefficinets ', np.shape(coeff))
-            linear_coeff = parameter['coeff'][:len(centers)+1, 0]
-            radius_coeff = parameter['coeff'][len(centers)+1:, 0]
+            linear_coeff = train_para['coefficients'][:len(centers)+1, 0]
+#            radius_coeff = parameter['coeff'][len(centers)+1:, 0]
 
             # Make prediction
 #            radius_coeff = np.ones((len(centers), 1))
-            radius_coeff = np.reshape(radius_coeff, (-1,1))
-            design_matrix_test_pure = Design_matrix(distance_matrix_testing, radius_coeff, basis_function='Gaussian')
-            row_n = np.shape(design_matrix_test_pure)[0]
-            design_matrix_test = np.hstack((design_matrix_test_pure, np.ones((row_n, 1))))
+#            radius_coeff = np.reshape(radius_coeff, (-1,1))
             pred = design_matrix_test.dot(linear_coeff)            
             # Calculate the AUC
             AUC, TPR, FPR = Calculate_AUC(pred, observed_values_test)
@@ -598,7 +435,7 @@ def Cross_validation(parameter, method,  basis_function = 'Gaussian'):
 
             list_AUC[i] += AUC
             
-    parameter['list_AUC'] = list_AUC  
+    train_para['list_AUC'] = list_AUC  
 #################################################################################
 '''
 pred: a list of predicted values
@@ -676,10 +513,18 @@ def Observed_values(training_set, binary):
     
 ###################################################################################
 def Batch_cross_validation(binary, method, basis_function):
+    
+    negative_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/Sample_0'
+    positive_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'    
+                
+    cross_number = 5         
+    percentages = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005]
+    
     # The final result will be stored in cross_coverage_RBFN
     cross_coverage_RBFN = {}
-    negative_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/Sample_0'
-    positive_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'
+    cross_coverage_RBFN['percentages'] = percentages
+    cross_coverage_RBFN['cross_number'] = cross_number    
+
     for i in range(1, 4):
         for j in range(1,4):
             p_name = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
@@ -702,35 +547,47 @@ def Batch_cross_validation(binary, method, basis_function):
             print('Working on: ' +str(i)+'_'+str(j)+'_0_0_1_2_1perchain')
             all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)
             
-#            all_training_design_matrix = Design_matrix(all_training_distance_matrix)
+            radius_coeff = np.ones((all_training_distance_matrix.shape[1], 1))
+            all_training_design_matrix = Design_matrix(all_training_distance_matrix,\
+                                                       radius_coeff, basis_function)
             
-            cross_number = 5         
-            percentages = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005]
-            for reg in [0, 0.1, 1]:
-    #            percentages = [0.005]
-                # Load up the parameter
-                parameter = {}
-                parameter['all_training_distance_matrix '] = all_training_distance_matrix 
-    #            parameter['all_training_design_matrix'] = all_training_design_matrix
-                parameter['all_training_observed_values'] = all_training_observed_values 
-                parameter['positive_training_set'] = positive_training_set 
-                parameter['negative_training_set'] = negative_training_set 
-                parameter['training_set'] = training_set 
-                parameter['cross_number'] = cross_number 
-                parameter['percentages'] = percentages 
-                parameter['reg'] = reg
+            #            percentages = [0.005]
+            # Load up the parameter
+            data_dict = {}
+            data_dict['all_training_distance_matrix '] = all_training_distance_matrix 
+            data_dict['all_training_design_matrix'] = all_training_design_matrix
+            data_dict['all_training_observed_values'] = all_training_observed_values 
+            data_dict['positive_training_set'] = positive_training_set 
+            data_dict['negative_training_set'] = negative_training_set 
+            data_dict['training_set'] = training_set 
+            
+            data_dict['cross_number'] = cross_number 
+            data_dict['percentages'] = percentages 
+            
+            for reg in [0.05, 0.1, 0.5, 1]:
+                
+                train_para ={}
+                train_para['reg'] = reg
+                train_para['method'] = 'BFGS'
+                if binary:
+                    train_para['loss_type'] = 'Sigmoid'
+                else:
+                    train_para['loss_type'] = 'SumSquares'
                 
                 # Cross_validate
-                Cross_validation(parameter, method, basis_function)               
+                Cross_validation(data_dict, train_para)               
                 # Load the results to cross_coverage_RBFN
-                key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain_'+str(reg)
-                cross_coverage_RBFN[key] = parameter['list_AUC']
+                key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain_'
+                AUC_array = np.array(train_para['list_AUC'])
+                if key in cross_coverage_RBFN:
+                    cross_coverage_RBFN[key] = AUC_array
+                else:                    
+                    cross_coverage_RBFN[key] = np.vstack((cross_coverage_RBFN[key], AUC_array))
         
     return cross_coverage_RBFN
-     
+
 ######################################################################################
-    
-################################################################################
+
 '''
 Run the main and Save the results
 '''
@@ -848,7 +705,8 @@ def Train_use_best_hyperparameter(training_set, percentage,reg, binary, basis_fu
 #    termination_grad_norm = 1E-2
     # initiate the parameter
     parameter ={}
-    parameter['coeff'] = np.ones((2*len(centers_selected )+1, 1))
+#    parameter['coeff'] = np.ones((2*len(centers_selected )+1, 1))
+    parameter['coeff'] = np.zeros((len(centers_selected )+1, 1))
     parameter['reg'] = reg
     parameter, loss = Train_RBFN_BFGS(distance_matrix, training_observed_values, rho=0.7, c = 1e-3,\
                                       termination = termination_grad_norm,\
