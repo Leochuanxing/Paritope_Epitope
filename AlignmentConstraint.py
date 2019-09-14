@@ -415,9 +415,9 @@ def main(wd, sd):
             json.dump(ac_contact, f)
 ############################################################################
     
-if __name__ == '__main__':
-    wd = '/home/leo/Documents/Database/Data_Code_Publish/Structures'
-    sd = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
-    main(wd, sd)
+#if __name__ == '__main__':
+#    wd = '/home/leo/Documents/Database/Data_Code_Publish/Structures'
+#    sd = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+#    main(wd, sd)
 
 

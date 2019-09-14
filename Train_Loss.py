@@ -68,8 +68,11 @@ def Loss_Sigmoid(design_matrix, labels, coefficients, reg):
     nrow, ncol = design_matrix.shape
     
     logit = design_matrix.dot(coefficients)
-    prob = 1/(1+np.exp(-logit))
-    loss = np.average(- np.log(prob) * labels - (1 - labels) * np.log(1 - prob))
+    prob = 1/(1+np.exp(-logit))# truncate the prob to avoid the extreme case
+#    prob = np.min(prob, 0.99)
+    loss = np.average(- np.log(prob+0.001) * labels - (1 - labels) * np.log(1 - prob+0.001))
+    # Here 0.001 affect the loss but has nothing to do with the grad_coefficients
+    # therefore, it doesn't affect the training process.
     # plus the regularization
     loss += reg * np.sum(coefficients * coefficients)
     
