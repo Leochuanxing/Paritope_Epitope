@@ -181,8 +181,6 @@ def Coverage_reduce_centers(training_training_distance_matrix, training_set,n_ce
     return centers_list
 
 #####################################################################################
-
-
 '''
 '''
 '''
@@ -551,9 +549,7 @@ def Distance_design(positive_d, negative_d, basis_function):
     return distance_design
 ###################################################################################
 def Batch_cross_validation(distance_design, binary):
-    
-#    negative_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Negative_cores/Sample_0'
-#    positive_d = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'    
+      
 #                
     cross_number = 5      
     percentages = [0.8, 0.4, 0.2, 0.1, 0.05, 0.02]
@@ -569,31 +565,7 @@ def Batch_cross_validation(distance_design, binary):
     for i in range(1, 5):
         for j in range(1,5):
             k = str(i)+'_'+str(j)
-#            p_name = 'training_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-#            os.chdir(positive_d)
-#            with open(p_name, 'r') as f:
-#                positive_training_set = json.load(f)
-#            n_name = p_name+'_negative'
-#            os.chdir(negative_d)
-#            with open(n_name, 'r') as f:
-#                negative_training_set = json.load(f)
-#            
-#            '''*******The following block is to calculate the observed values 
-#            ***********according whether the observed should be binary or not'''
-#            # Calculate 
-#            training_set = copy.deepcopy(positive_training_set)
-#            training_set.extend(negative_training_set)   
-#            # Get the observed values
-#            all_training_observed_values = Observed_values(training_set, binary)
-#            
-#            print('Working on: ' +str(i)+'_'+str(j)+'_0_0_1_2_1perchain')
-#            all_training_distance_matrix = Distance_matrix(training_set, training_set, square = True)
-#            
-#            radius_coeff = np.ones((all_training_distance_matrix.shape[1], 1))
-#            all_training_design_matrix = Design_matrix(all_training_distance_matrix,\
-#                                                       radius_coeff, basis_function)
-            
-            #            percentages = [0.005]
+
             # Load up the parameter
             data_dict = {}
             data_dict['all_training_distance_matrix'] = distance_design[k]['all_training_distance_matrix']
@@ -631,8 +603,55 @@ def Batch_cross_validation(distance_design, binary):
                     cross_coverage_RBFN[key] = np.vstack((cross_coverage_RBFN[key], AUC_array))
         
     return cross_coverage_RBFN
+'''##################################################################################'''
+def Best_parameter(saving_d):
+    # The best parameter will be stored in a dictionary
+    best_parameter = {}
+    # Select the best gap_score and the extened gap score according to the sum of all tests
+    os.chdir(saving_d)
+    for bi in ['binary', 'numerical']:
+        prefix = 'cross_'+bi+'_Gaussian_'
+        best_parameter[prefix] = {}
+        for gap_score in range(-5, 0):
+            for extended_gap_score in range(gap_score, 0):
+                file = prefix + str(gap_score)+'_'+str(extended_gap_score)
+                with open(file, 'r') as f:
+                    results = json.load(f)
+                #Calculate the sum of the AUC
+                AUC_sum = 0; AUC_largest = 0 
+                for i in range(1, 5):
+                    for j in range(1, 5):
+                        key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+                        AUC_lists = results[key]
+                        # Take the sum 
+                        AUC_sum += np.sum(np.array(AUC_lists))
+                if AUC_sum > AUC_largest:
+                    AUC_largest = AUC_sum
+                    best_gap_ext = [gap_score, extended_gap_score]
+        # Load the results
+        best_parameter[prefix] ['best_gap_ext'] = best_gap_ext
+              
+        # Select the best reg and the precentages
+        use_file = prefix + str(best_gap_ext[0])+'_'+str(best_gap_ext[1])
+        with open(use_file, 'r') as f:
+            use_results = json.load(f)
+        for i in range(1, 5):
+            for j in range(1, 5):
+                key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
+                reg_list = use_results['reg_list']
+                percentages = use_results['percentages']
+                use_AUC_lists = use_results[key]
+                use_max_auc = np.max(np.array(use_AUC_lists))
+                best_ind =np.where(np.array(use_AUC_lists) == use_max_auc)
+                best_ind = [best_ind[0][0], best_ind[1][0]]
+                best_reg_per_auc = [reg_list[best_ind[0]], percentages[best_ind[1]], use_max_auc]
+                
+                # Save the parameter
+                best_parameter[prefix][key]=best_reg_per_auc
             
+    return best_parameter
 
+'''##########################################################################'''
 '''
 Run the main and Save the results
 '''
@@ -644,7 +663,7 @@ class NumpyEncoder(json.JSONEncoder):
 ###################################################################################
 def main(negative_d, positive_d, saving_d):
     for basis_function in ['Gaussian']:
-        for gap_score in range(-4, 0):
+        for gap_score in range(-5, 0):
             for extended_gap_score in range(gap_score, 0):
             
                 aligner.open_gap_score = gap_score
@@ -665,123 +684,21 @@ def main(negative_d, positive_d, saving_d):
                         name = 'cross_numerical_'+basis_function+suffix
                     with open(name, 'w') as f:
                         json.dump(cross_coverage_RBFN_binary, f, cls=NumpyEncoder)
-                
-if __name__ == '__main__':
-
-    negative_d = '/home/leo/Documents/Database/Data_Code_Publish/Cores/Negative_cores/Sample_0'
-    positive_d = '/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores'
-    saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Cross_validation'
-    main(negative_d, positive_d, saving_d)
-
-#os.chdir(saving_d)
-#with open('cross_binary_Gaussian_-5_-1', 'r') as f:
-#    cross_numerical_Gaussian = json.load(f)
-#cross_numerical_Gaussian['3_3_0_0_1_2_1perchain']
-#len(cross_numerical_Gaussian['3_3_0_0_1_2_1perchain'])
-   
-#    cross_coverage_RBFN_numerical = Batch_cross_validation(binary = False,\
-#                                                          method=method, basis_function = 'Gaussian')
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-#    with open('cross_numerical_1', 'w') as f:
-#        json.dump(cross_coverage_RBFN_numerical, f, cls=NumpyEncoder)
-#        
-#    cross_coverage_RBFN_binary = Batch_cross_validation(binary = True,\
-#                                        method=method, basis_function = 'Markov')
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-#    with open('cross_binary_Markov_1', 'w') as f:
-#        json.dump(cross_coverage_RBFN_binary, f, cls=NumpyEncoder)
-#        
-#    cross_coverage_RBFN_numerical = Batch_cross_validation(binary = False,\
-#                                                          method=method, basis_function = 'Markov')
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-#    with open('cross_numerical_Markov_1', 'w') as f:
-#        json.dump(cross_coverage_RBFN_numerical, f, cls=NumpyEncoder)
-    
+                        
+    # Find the best hyperparameter and save
+    best_parameter = Best_parameter(saving_d)
+    os.chdir(saving_d)
+    with open('best_parameter', 'w') as f:
+        json.dump(best_parameter, f)
+        
 '''***************************************************************************'''
 '''***************************************************************************'''
 '''***************************************************************************'''
 '''***************************************************************************'''
 '''Lets run'''
-#Cross_validation_in_one_function(method='BFGS')
-#########################################################################
 
-#def Combine_cross_results():
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
-#    cross_results = {}
-#    percentages = [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005]
-#    binary = ['numerical']
-#    basis_function = ['Gaussian']
-#    for bi in binary:
-#        for basis in basis_function:
-#            name = 'cross_'+bi+'_'+basis
-#            with open(name, 'r') as f:
-#                cross=json.load(f)
-#            for key, value in cross.items():
-#                new_value = []
-#                for ind, auc in enumerate(value):
-#                    new_value.append([auc, percentages[ind], bi , basis, key[-1]])
-#                if key[:3] not in cross_results:
-#                    cross_results[key[:3]] = new_value
-#                else: 
-#                    cross_results[key[:3]].extend(new_value)
-#    return cross_results
-##cross_results = Combine_cross_results()
-##cross_results
-##os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
-##with open('cross_results', 'w') as f:
-##    json.dump(cross_results, f)
-#'''
-#Best_parameter
-#    This function is to find the best hyperparameter
-#'''
-#def Best_parameter(): 
-#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')   
-#    with open('cross_results', 'r') as f:
-#        cross_results = json.load(f)
-#    best = {}    
-#    for k, value in cross_results.items():
-#        value.sort(key = lambda x:x[0], reverse = True)
-#        best[k] = value[0]       
-#    return best
-##best = Best_parameter()
-##best
-##os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
-##with open('best', 'w') as f:
-##    json.dump(best, f)
 ##############################################################################
-#def Train_use_best_hyperparameter(training_set, percentage,reg, binary, basis_function):
-#    training_observed_values = Observed_values(training_set, binary)
-#    training_observed_values = np.reshape(training_observed_values, (-1,1))
-#    training_distance_matrix = Distance_matrix(training_set, training_set, square = True)                
-#    # Get the beginning center indices
-#    centers = []; non_redundant = []
-#    for indx in range(len(training_set)):
-#        if [training_set[indx][0],training_set[indx][1]] not in non_redundant:
-#            non_redundant.append([training_set[indx][0],training_set[indx][1]])
-#            centers.append(indx)   
-#    # Get the centers
-#    distance_matrix_center = training_distance_matrix[centers,:][:, centers]
-#    n_centers = math.floor(len(non_redundant)*percentage)
-#    centers_selected_indices_list = Coverage_reduce_centers(distance_matrix_center,centers,[n_centers])
-#    centers_selected_indices = centers_selected_indices_list[0]
-#    centers_selected_list = Coverage_reduce_centers(distance_matrix_center,non_redundant,[n_centers])
-#    centers_selected = centers_selected_list[0]
-#    # Get the training distance matrix
-#    distance_matrix = training_distance_matrix[:,centers_selected_indices]
-#    
-#    # Train the model
-#    termination_grad_norm = 1E-4*len(centers_selected_indices)
-##    termination_grad_norm = 1E-2
-#    # initiate the parameter
-#    parameter ={}
-##    parameter['coeff'] = np.ones((2*len(centers_selected )+1, 1))
-#    parameter['coeff'] = np.zeros((len(centers_selected )+1, 1))
-#    parameter['reg'] = reg
-#    parameter, loss = Train(distance_matrix, training_observed_values, rho=0.7, c = 1e-3,\
-#                                      termination = termination_grad_norm,\
-#                                     parameter_inheritance = True, parameter=parameter, \
-#                                     basis_function = basis_function)  
-#    return parameter, centers_selected
+
 ##############################################################################
 #
 #def Sub_test_AUC(testing_set, centers_selected, coeff, binary, basis_function):
@@ -907,60 +824,7 @@ if __name__ == '__main__':
 ##len(test_results['1_1_0_0_1_2_1perchain']['coeff'])
 ##len(test_results['1_1_0_0_1_2_1perchain']['centers_selected'])
 ################################################################################
-# 
-##def Test_AUC_latest(binary = True,basis_function='Gaussian'):
-##    test_results_latest={}
-##    
-##    positive_d = '/home/leo/Documents/Database/Pipeline_New/Latest/cores'
-##    positive_d1 = '/home/leo/Documents/Database/Pipeline_New/Cores'
-##    n_directory = '/home/leo/Documents/Database/Pipeline_New/Latest/Negative_cores/sample_'
-##    n_directory1 = '/home/leo/Documents/Database/Pipeline_New/Negative_Cores/Sample_'
-##      
-##    for i in range(1, 4):
-##        for j in range(1, 4):
-##            # set the empty container
-##            key = str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-##            test_results_latest[key] = {}
-##            test_results_latest[key]['AUC_average'] = 0 
-##            test_results_latest[key]['TPR_list'] = []
-##            test_results_latest[key]['FPR_list'] = []
-##            #Take out the coefficient
-##            os.chdir('/home/leo/Documents/Database/Pipeline_New/Results')
-##            with open('test_results', 'r') as f:
-##                test_results = json.load(f)
-##            coeff = test_results[key]['coeff']
-##            coeff =np.reshape(np.array(coeff), (-1,1))            
-##            centers_selected = test_results[key]['centers_selected']
-##            
-##            # Load the positive testing set
-##            p_test = 'testing_'+str(i)+'_'+str(j)+'_0_0_1_2_1perchain'
-##            os.chdir(positive_d)
-##            with open(p_test, 'r') as f:
-##                positive_testing_set = json.load(f)
-##            os.chdir(positive_d1)
-##            with open(p_test, 'r') as f:
-##                positive_testing_set1 = json.load(f)
-##            positive_testing_set.extend(positive_testing_set1)
-##                
-##            for n in range(10):
-##                testing_set = copy.deepcopy(positive_testing_set)
-##                os.chdir(n_directory+str(n))
-##                with open(p_test+'_negative', 'r') as f:
-##                    negative_testing_set = json.load(f)
-##                os.chdir(n_directory1+str(n))
-##                with open(p_test+'_negative', 'r') as f:
-##                    negative_testing_set1 = json.load(f)
-##                negative_testing_set.extend(negative_testing_set1)
-##                
-##                testing_set.extend(negative_testing_set)
-##                AUC, TPR, FPR = Sub_test_AUC(testing_set, \
-##                                             centers_selected, coeff, binary, basis_function)
-##                test_results_latest[key]['AUC_average'] += AUC/10
-##                test_results_latest[key]['TPR_list'].append(TPR)
-##                test_results_latest[key]['FPR_list'].append(FPR)
-##            
-##    return test_results_latest
-#
+
 ###############################################################################
 #'''
 #Reverse_test:
