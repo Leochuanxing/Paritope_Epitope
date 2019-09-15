@@ -133,12 +133,22 @@ if __name__ == '__main__':
     # Save the train results
     os.chdir(saving_d)
     with open('train_results', 'w') as f:
-        json.dump(train_results, cls=NumpyEncoder)
+        json.dump(train_results, f, cls=NumpyEncoder)
 
-#os.chdir(positive_d)
-#with open('training_1_1_0_0_1_2_1perchain', 'r') as f:
-#    core = json.load(f)
 
+#os.chdir(saving_d)
+#with open('train_results', 'r') as f:
+#    train_results = json.load(f)
+#train_results.keys()
+#train_results['cross_binary_Gaussian_'].keys()
+#train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain'].keys()
+#type(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['coefficients'])
+#type(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'])
+#len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['coefficients'])
+#len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'])
+##    core = json.load(f)
+#train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['coefficients'][-3:]
+#train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'][:4]
 #best_parameter
 
 
