@@ -661,7 +661,47 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 ###################################################################################
-def main(negative_d, positive_d, saving_d):
+#def main(negative_d, positive_d, saving_d):
+#    for basis_function in ['Gaussian']:
+#        for gap_score in range(-5, 0):
+#            for extended_gap_score in range(gap_score, 0):
+#            
+#                aligner.open_gap_score = gap_score
+#                aligner.extend_gap_score = extended_gap_score
+#                
+#                distance_design = Distance_design(positive_d, negative_d, basis_function)
+#                
+#                for binary in [True, False]:
+#                
+#                    cross_coverage_RBFN_binary = \
+#                    Batch_cross_validation(distance_design, binary)
+#                    
+#                    os.chdir(saving_d)
+#                    suffix = '_'+str(gap_score)+'_'+str(extended_gap_score)
+#                    if binary:
+#                        name = 'cross_binary_'+basis_function+suffix
+#                    if not binary:
+#                        name = 'cross_numerical_'+basis_function+suffix
+#                    with open(name, 'w') as f:
+#                        json.dump(cross_coverage_RBFN_binary, f, cls=NumpyEncoder)
+#                        
+#    # Find the best hyperparameter and save
+#    best_parameter = Best_parameter(saving_d)
+#    os.chdir(saving_d)
+#    with open('best_parameter', 'w') as f:
+#        json.dump(best_parameter, f)
+        
+'''***************************************************************************'''
+'''***************************************************************************'''
+'''***************************************************************************'''
+'''***************************************************************************'''
+
+##############################################################################
+if __name__ == '__name__':
+    positive_d = '/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores'
+    negative_d = '/home/leo/Documents/Database/Data_Code_Publish/Cores/Negative_cores/Sample_0'
+    saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Cross_validation'
+    
     for basis_function in ['Gaussian']:
         for gap_score in range(-5, 0):
             for extended_gap_score in range(gap_score, 0):
@@ -690,15 +730,6 @@ def main(negative_d, positive_d, saving_d):
     os.chdir(saving_d)
     with open('best_parameter', 'w') as f:
         json.dump(best_parameter, f)
-        
-'''***************************************************************************'''
-'''***************************************************************************'''
-'''***************************************************************************'''
-'''***************************************************************************'''
-'''Lets run'''
-
-##############################################################################
-
 ##############################################################################
 #
 #def Sub_test_AUC(testing_set, centers_selected, coeff, binary, basis_function):
