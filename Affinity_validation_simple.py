@@ -1,4 +1,4 @@
-simport copy
+import copy
 import numpy as np
 import math
 import json
@@ -10,10 +10,9 @@ from pyexcel_ods import get_data, save_data
 from scipy.stats.stats import pearsonr
 from pydoc import help
 #import math
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes')
+os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes')
 from AAC_2 import  Get_contact
 from FrameConstraint import Get_consecutive
-os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes')
 from RBFN_coverage import Distance_matrix, Design_matrix
 from matplotlib import pyplot as plt
 
@@ -21,21 +20,25 @@ from matplotlib import pyplot as plt
 
 from Bio import Align
 aligner = Align.PairwiseAligner()
-aligner.open_gap_score = -1 # it is unlikly that two sequence of the same source could be different by a gap
+##################################
+'''Here the open_gap score and the extened gap score is consistant with the best scores
+    selected in the cross validation'''
+aligner.open_gap_score = -1 
 aligner.extend_gap_score = -1
+#######################################
 aligner.match = 1
 aligner.mismatch = -1 
 aligner.mode = 'global'
 #####################################################################
-
-'''
-Criteria:
-    First we pick the number of mutations positions, they should be continuous in the 1_free sense.
-    
-    Second, we find all the opposite consecutive antigen amino acids in the 1_free sense.
-             Among all those consecutive antigen amino acids with length no more than 4, we 
-             choose the one with the largest contact numbers with the given mutation positions.   
-'''
+#
+#'''
+#Criteria:
+#    First we pick the number of mutations positions, they should be continuous in the 1_free sense.
+#    
+#    Second, we find all the opposite consecutive antigen amino acids in the 1_free sense.
+#             Among all those consecutive antigen amino acids with length no more than 4, we 
+#             choose the one with the largest contact numbers with the given mutation positions.   
+#'''
 ##################################################################################
 '''
 Coordinates:
@@ -58,12 +61,10 @@ def Coordinates(file, combined_chain_id, Ab_Ag, mutations_pos, mutation_chain):
         cdn[i] = []
         
     # creat a tracker dictionary, and a counter dictionary
-    tracker = {}
-    counter = {}
+    tracker = {}; counter = {}
     ids = combined_chain_id[0] + combined_chain_id[1] + combined_chain_id[2]
     for i in ids:
-        tracker[i] = ''
-        counter[i] = -1
+        tracker[i] = ''; counter[i] = -1
         
     # creat a dictionary to indicate the types of chains
     chain_type = {}
@@ -79,13 +80,13 @@ def Coordinates(file, combined_chain_id, Ab_Ag, mutations_pos, mutation_chain):
     l_range.extend(list(range(23, 41)))
     l_range.extend(list(range(49, 64)))
     l_range.extend(list(range(89, 111)))
-#        l_range = [[23, 40], [49, 63], [89, 110]]
-#        h_range = [[25, 37], [50, 71], [99, 129]]
+
 #    h_range = list(range(1000))
     h_range = []
     h_range.extend(list(range(25, 38)))
     h_range.extend(list(range(50, 72)))
     h_range.extend(list(range(99,130)))
+    
     '''Set the l_range, h_range, and a_range'''
     if mutation_chain in combined_chain_id[0]:
         for pos in mutations_pos:
@@ -283,16 +284,7 @@ def Select_contact_opposite(mutation_match_parameter, sequence, cutoff,\
                         possible_opposite.append(i[opposite_aa_pos]) 
                         equal_mutations.append(i[aa_pos])
             moving_cutoff += moving_step
-                
-#    # We have to make sure the selected_contact contains all the mutations, otherwise our
-#    # prediction doesn't make sense
-#    '''*********************************'''
-#    for mut in mutations_pos:
-#        if mut not in equal_mutations:
-#            selected_contact = []; possible_opposite = []            
-#            break        
-#       
-#    '''*******************************'''                      
+                                   
     return selected_contact, possible_opposite, pdbid_sequence
 
 
@@ -447,23 +439,21 @@ Output:
         an arrey in the shape of (len(testing_data), a), gives the predicted values
         of the paires.
 '''
-def Predition_RBFN_coverage(test_results, testing_set):
+def Predition_RBFN_coverage(train_results, testing_set):
 #testing_set = testing5
     key = str(len(testing_set[0][0]))+'_'+str(len(testing_set[0][1]))+'_0_0_1_2_1perchain' 
     '''********************Pay attention to this scale factor****************'''
 #    scale_factor = len(testing_set[0][0]) * len(testing_set[0][1])
-
-    coeff = test_results[key]['coeff']
+    
+    coeff = train_results[key]['coefficients']
     coeff = np.reshape(np.array(coeff), (-1,1))
-    centers_selected = test_results[key]['centers_selected']
+    centers_selected = train_results[key]['centers']
     # Calculate the distance matrix
     distance_matrix = Distance_matrix(testing_set, centers_selected, square = False)
-    # Calculate the design matrix
-    linear_coeff = coeff[:len(centers_selected)+1, 0]
-    linear_coeff = np.reshape(linear_coeff, (-1,1))
-    radius_coeff = coeff[len(centers_selected)+1:, 0]
-    radius_coeff = np.reshape(radius_coeff, (-1, 1))
-    
+
+    linear_coeff = np.reshape(coeff, (-1,1))
+
+    radius_coeff = np.ones((distance_matrix.shape[1], 1))
     testing_design_matrix = Design_matrix(distance_matrix, radius_coeff, basis_function = 'Gaussian')
     testing_design_matrix = np.hstack((testing_design_matrix, np.ones((len(testing_set), 1))))
     
@@ -874,7 +864,7 @@ class NumpyEncoder(json.JSONEncoder):
 ###########################################################################
 
 def My_pred(single_mutation = True, binary = True, one_to_one = False):
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
     with open('matched_ids', 'r') as f:
         matched_ids = json.load(f)
     with open('combined_ids', 'r') as f:
@@ -882,7 +872,7 @@ def My_pred(single_mutation = True, binary = True, one_to_one = False):
     with open('sequence', 'r') as f:
         sequence = json.load(f)
                 
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Mutations')
 #    data_raw = get_data('multimutations.ods')
     data_raw = get_data('Keating.ods')
     keys = data_raw.keys()
@@ -891,10 +881,14 @@ def My_pred(single_mutation = True, binary = True, one_to_one = False):
     mod='single'; mov = True  
     
     # Use different coverage model, binary or numerical
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+    with open('train_results', 'r') as f:
+        train_results = json.load(f)
+#            test_coverage_RBFN_results = json.load(f)
     if binary:
-        os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
-        with open('test_results', 'r') as f:
-            test_coverage_RBFN_results = json.load(f)
+        test_coverage_RBFN_results = train_results['cross_binary_Gaussian_']
+    else:
+        test_coverage_RBFN_results = train_results['cross_numerical_Gaussian_']
         
     sufix = 'single_'+str(single_mutation) +'_'+'mode_'+mod+'_moving_'+str(mov)+'_binary_'+str(binary)
 
@@ -1101,7 +1095,7 @@ def AUC_other(selected):
     wb = xlrd.open_workbook(loc) 
     sheet = wb.sheet_by_index(0)
     
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/All with peptide 5+ resolution 4A')
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
     with open('matched_ids','r') as f:
         matched_ids = json.load(f)
     name_index = Name_index(sheet, matched_ids)
@@ -1157,7 +1151,7 @@ def Analyze_results(affinity_results, cut_lower, cut_upper):
 def Bootstrap_my_AUC(my_pred_dict):
     selected = my_pred_dict['selected']
     boot_auc = []
-    for i in range(10_000):
+    for i in range(10000):
         bootstrap_samples = random.choices(selected, k=len(selected))
         auc, _, _, _ = AUC_under_cut(bootstrap_samples, cut_lower = 0, cut_upper = 1000)
         boot_auc.append(auc)
@@ -1225,7 +1219,7 @@ def Prediction_on_my_data():
          
 if __name__=='__main__': 
     all_pred_dict = {}
-    affinity_results = My_pred(single_mutation = False, binary = True, one_to_one=False)
+    affinity_results = My_pred(single_mutation = True, binary = True, one_to_one=True)
     all_pred_dict['affinity_results'] = affinity_results
     boundaries = [[0,1000], [0,0.5],[0.5, 1000], [1, 1000]]
     for bound in boundaries:                 

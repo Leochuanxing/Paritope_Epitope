@@ -280,29 +280,6 @@ def Form_flanked(contact_pairs, sequence, pdbid):
 '''#######################################################################'''
 '''Test the above functions'''
 
-#pdbid = '1bj1'
-#mut_chain_id = 'W'
-#mut_pos = [31]
-#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
-#with open('combined_ids', 'r') as f:
-#    combined_ids = json.load(f)
-#with open('sequence', 'r') as f:
-#    sequence = json.load(f)
-#structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'
-#mut_cdn, mut_chain_type, op_cdn = Extract_cdn(pdbid, mut_pos, mut_chain_id, combined_ids, sequence, structure_d)
-#
-#search_para = {}
-#search_para['moving'] = True
-#search_para['step_size'] = 0.5
-#search_para['start_dist'] = 5
-#search_para['end_dist'] = 8
-#search_para['cut_dist'] = 6
-#search_para['form'] = 'multiple'
-#search_para['within_range'] = True
-#contact_pairs = Extract_contacting_pairs(mut_cdn, mut_chain_type, op_cdn, search_para)
-#contact_pairs
-#formalized_pairs = Formalize_contact_pairs(pdbid, sequence, contact_pairs, search_para, combined_ids)
-#formalized_pairs
 
 
 
