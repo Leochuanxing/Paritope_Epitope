@@ -1,10 +1,10 @@
 '''PREDICT MUTATION'''
 import json
-import xlrd
+#import xlrd
 import os
 import copy
 import numpy as np
-from pyexcel_ods import get_data, save_data
+#from pyexcel_ods import get_data, save_data
 from Extract_mutation_pairs import Formalized_contacting
 '''#############################################################'''
 from Bio import Align
@@ -261,6 +261,7 @@ def Predict_affinity(workable, working_d, binary = True):
         aligner.extend_gap_score = best_gap_ext[1]
         
     for one_mut_set in workable:
+
         if one_mut_set != []:
             # Calculate the sum of the contact number
             contact_sum = 0; weighted_diff = 0
@@ -269,9 +270,10 @@ def Predict_affinity(workable, working_d, binary = True):
                 mut_pair = one_pair[1]
                 diff = Sub_predict(wt_pair, mut_pair, model_all)
                 # Take the weighted average
-                contact_sum += one_pair[3]
+                contact_sum += one_pair[2]
                 DDG = one_pair[3]
                 mut_id = one_pair[4]
+
                 
                 weighted_diff += diff * one_pair[3]
                 
@@ -280,7 +282,7 @@ def Predict_affinity(workable, working_d, binary = True):
             # Load to the predict_affinity_results
             predict_affinity_results.append([mut_id, DDG, weighted_diff[0]])
         else:
-            predict_affinity_results.append([mut_id, DDG, 'Unpredicable'])
+            predict_affinity_results.append(['', '', 'Unpredicable'])
     
     return predict_affinity_results
 
@@ -288,16 +290,16 @@ def Predict_affinity(workable, working_d, binary = True):
 '''##########################################################################'''
 def Calculate_AUC(pred, observed_values):
     # Calculate the number of positive observations
-    p_s = 0 ; n_s = 0
-    for ob in observed_values:
-        if ob > 0 :
-            n_s += 1
-        elif ob < 0:
-            p_s += 1
-    if n_s == 0:
+    positive_total = 0 ; negative_total = 0
+    for observed in observed_values:
+        if observed > 0 :
+            positive_total += 1
+        elif observed < 0:
+            negative_total += 1
+    if negative_total == 0:
         print('None negative samples in Calculating AUC')
         return None, None, None
-    if p_s == 0:
+    if positive_total == 0:
         print('None positive samples in Calculating AUC')
         return None, None, None
     # Match_up the pred with the observed_values   
@@ -311,14 +313,14 @@ def Calculate_AUC(pred, observed_values):
     n_positive = 0
     n_negative = 0
     for match in match_up:
-        if match[1] < 0:
+        if match[1] > 0:
             '''Here we use >0 to make sure it works for both binary and non binary'''
             n_positive += 1
-        elif match[1] > 0:
+        elif match[1] < 0:
             n_negative += 1
             
-        TPR.append(n_positive/p_s)
-        FPR.append(n_negative/n_s)
+        TPR.append(n_positive/positive_total)
+        FPR.append(n_negative/negative_total)
     
     # Calculate the AUC
     AUC = 0
@@ -361,64 +363,74 @@ def Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper):
 
 '''####################################################################'''
 
+if __name__ == '__main__':  
+
+    preliminary_pred = {}
+      
+    mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
+    workable_input = Workable_input(mutation_d) 
+    
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+    with open('sequence', 'r') as f:
+        sequence = json.load(f)
+    with open('combined_ids', 'r') as f:
+        combined_ids = json.load(f)
         
-mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
-workable_input = Workable_input(mutation_d) 
-#len(workable_input)
-#workable_input
-#
-#workable_input_one = []
-#for w in workable_input:
-#    if w[0][0] == '3hfm':
-#        workable_input_one.append(w)
-#workable_input_one
-
-search_para = {}
-search_para['moving'] = True
-search_para['step_size'] = 0.25
-search_para['start_dist'] = 3
-search_para['end_dist'] = 8
-search_para['cut_dist'] = 6
-search_para['form'] = 'one'
-search_para['within_range'] = True
-
-os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
-with open('sequence', 'r') as f:
-    sequence = json.load(f)
-with open('combined_ids', 'r') as f:
-    combined_ids = json.load(f)
-structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'
-
-workable = Workable_output(workable_input, search_para, combined_ids, sequence, structure_d)
-
-working_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
-predict_affinity_results = Predict_affinity(workable, working_d, binary= True )
-#predict_affinity_results
-#workable
-
-cut_DDG_lower = 0
-cut_DDG_upper = 100
-selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
-            Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper)
+    search_para = {}
+    search_para['moving'] = True
+    search_para['step_size'] = 0.25
+    search_para['start_dist'] = 3
+    search_para['end_dist'] = 8
+    search_para['cut_dist'] = 6
+    
+    for form in ['one', 'multiple']:        
+        search_para['form'] = form
+        for within_range in [True, False]:
+            search_para['within_range'] = within_range
             
-correct_ratio
-AUC
+            print('Working on: '+ form +'    '+ str(within_range))
+            
+            # Container
+            container = []
 
-os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
-with open('train_results', 'r') as f:
-    train_results = json.load(f)
+            structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'    
+            workable = Workable_output(workable_input, search_para, combined_ids, sequence, structure_d)
+            
+            working_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+            predict_affinity_results = Predict_affinity(workable, working_d, binary= True)
+            
+            for ran in [[0,0.5], [0, 100], [0.5, 100], [1, 100]]:
+                cut_DDG_lower = ran[0]
+                cut_DDG_upper = ran[1]
+                selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
+                            Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper)
+                container.append([ran, AUC, len(selected_cut_DDG)])
+                
+            preliminary_pred[form+'_WithinRange_'+str(within_range)] = copy.deepcopy(container)
+            
+            saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+            os.chdir(saving_d)
+            with open('affinity_pre_results', 'w') as f:
+                json.dump(preliminary_pred, f)
+                
 
-train_results.keys()
-train_results['cross_binary_Gaussian_'].keys()
-train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain'].keys()
-len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'])
-len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['coefficients'])
+#correct_ratio
+#AUC
+#len(TPR)
+#len(selected_cut_DDG)
+#selected_cut_DDG
 
-train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'][:5]
+#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+#with open('train_results', 'r') as f:
+#    train_results = json.load(f)
 
-
-
-
+#train_results.keys()
+#train_results['cross_binary_Gaussian_'].keys()
+#train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain'].keys()
+#len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'])
+#len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['coefficients'])
+#
+#train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'][:5]
 
 
 

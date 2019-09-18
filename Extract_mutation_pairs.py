@@ -1,6 +1,7 @@
 import os
 import json
 import copy
+import sys
 '''################################################################'''
 '''
 Sub_extract_cdn: A function to extract the coordinates for given parameters
@@ -185,15 +186,20 @@ Output:
     
 '''
 def Formalize_contact_pairs(pdbid, sequence, contact_pairs, search_para, combined_ids):
+    
     # Extract different forms#!/usr/bin/env python3
-
     form = search_para['form']
-    if form == 'one':
-        formalized_pairs = Form_one(contact_pairs)
-    elif form == 'multiple':
-        formalized_pairs = Form_multiple(contact_pairs)
-    elif form == 'flanked':
-        formalized_pairs = Form_flanked(contact_pairs, sequence, pdbid)
+    
+    try:
+        if form == 'one':
+            formalized_pairs = Form_one(contact_pairs)
+        elif form == 'multiple':
+            formalized_pairs = Form_multiple(contact_pairs)
+        elif form == 'flanked':
+            formalized_pairs = Form_flanked(contact_pairs, sequence, pdbid)
+    except UnboundLocalError:
+        print('Can not find the input form')
+        sys.exit()
     
     # Attach the op_chain_type in case it will be used latter
     formalized_pairs_c = copy.deepcopy(formalized_pairs)
