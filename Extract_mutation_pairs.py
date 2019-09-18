@@ -176,7 +176,7 @@ search_para:
 Output:
     formalized_pairs: a list with element in the form:
         
-        [ mut_pos, mut_aa, mut_chain_id,  op_pos, op_aa, op_chain_id, contact_number, mut_chain_type, op_chain_type]
+        (mut_pos, mut_aa, mut_chain_id,  op_pos, op_aa, op_chain_id, contact_number, mut_chain_type, op_chain_type)
         
         For example:
             
@@ -185,7 +185,8 @@ Output:
     
 '''
 def Formalize_contact_pairs(pdbid, sequence, contact_pairs, search_para, combined_ids):
-    # Extract different forms
+    # Extract different forms#!/usr/bin/env python3
+
     form = search_para['form']
     if form == 'one':
         formalized_pairs = Form_one(contact_pairs)
@@ -278,11 +279,69 @@ def Form_flanked(contact_pairs, sequence, pdbid):
     
     return flanked
 '''#######################################################################'''
-'''Test the above functions'''
+'''
+Formalized_contacting:
+    This function is for the convenience of using by other modules
+Input:
+    combined_ids, sequence: as before
+    structure_d: the directory of the structures
+    search_para: a dictionary containing the following values
+            search_para['moving'] 
+            search_para['step_size']
+            search_para['start_dist']
+            search_para['end_dist']
+            search_para['cut_dist']
+            search_para['form']
+            search_para['within_range']
+            search_para['pdbid']
+            earch_para['mut_pos']
+            search_para['mut_chain_id']
+Output: 
+    formalized_pairs, as explained in 'Formalize_contact_pairs' 
 
+REMARK: 
+    1.  search_para['pdbid'], a string with length 1
+    2.  earch_para['mut_pos'], a list gives the positions of the mutations
+'''
 
-
-
+def Formalized_contacting(search_para, combined_ids, sequence, structure_d):
+    pdbid = search_para['pdbid']
+    mut_pos = search_para['mut_pos']
+    mut_chain_id = search_para['mut_chain_id']
+    # Extract the cdn
+    mut_cdn, mut_chain_type, op_cdn = \
+        Extract_cdn(pdbid, mut_pos, mut_chain_id, combined_ids, sequence, structure_d)
+        
+    contact_pairs =\
+       Extract_contacting_pairs(mut_cdn, mut_chain_type, op_cdn, search_para)
+   
+    formalized_pairs =\
+       Formalize_contact_pairs(pdbid, sequence, contact_pairs, search_para, combined_ids)
+    
+    return formalized_pairs
+'''#############################################################################'''
+# A LITTLE TEST
+#search_para = {}
+#search_para['moving'] = False
+#search_para['step_size'] = 0.25
+#search_para['start_dist'] = 5
+#search_para['end_dist'] = 8
+#search_para['cut_dist'] = 8
+#search_para['form'] = 'multiple'
+#search_para['within_range'] = False
+#search_para['pdbid'] = '1dvf'
+#search_para['mut_pos'] = [32]
+#search_para['mut_chain_id'] = 'D'
+#
+#structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'
+#
+#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+#with open('combined_ids', 'r') as f:
+#    combined_ids = json.load(f)
+#with open('sequence', 'r') as f:
+#    sequence = json.load(f)
+#
+#formalized_pairs = Formalized_contacting(search_para, combined_ids, sequence, structure_d)
 
 
 
