@@ -3,9 +3,21 @@ import json
 import xlrd
 import os
 import copy
+import numpy as np
 from pyexcel_ods import get_data, save_data
 from Extract_mutation_pairs import Formalized_contacting
 '''#############################################################'''
+from Bio import Align
+from Bio.SubsMat.MatrixInfo import blosum62
+aligner = Align.PairwiseAligner()
+aligner.substitution_matrix = blosum62
+aligner.mode = 'global'
+'''###################################################################'''
+os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes')
+from AlignmentConstraint import To_seq
+from RBFN_coverage import Distance_matrix, Design_matrix, Observed_values
+from RBFN_coverage import  Coverage_reduce_centers, NumpyEncoder
+'''######################################################################'''
 # First change the mutation into the inputs of function Complete_extract_contacting
 # The basic strategy is to process each mutaion set with measured affinity as a unit
 # and iterate all the mutaion set
@@ -78,9 +90,7 @@ def Workable_input(mutation_d):
                 workable_input.append(copy.deepcopy(mut_info))
             
     return workable_input
-        
-mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
-workable_input = Workable_input(mutation_d)   
+  
 '''##############################################################3'''
 '''
 Generate_wt_mut_one: a function to generat wt_mut pairs for one_tuple
@@ -114,6 +124,10 @@ def Generate_wt_mut_one(one_tuple, form, mut_aa):
     if mut_chain_type == 'A':
         Ab_Ag_wt_pair = [wt_pair[1], wt_pair[0]]
         Ab_Ag_mut_pair = [mut_pair[1], mut_pair[0]]
+    else:
+        Ab_Ag_wt_pair = wt_pair
+        Ab_Ag_mut_pair = mut_pair
+        
     
     Ab_Ag_wt_mut_pair = [Ab_Ag_wt_pair, Ab_Ag_mut_pair]
     
@@ -123,7 +137,7 @@ One_chian_output: a sub fuction of Workable_output
 Output:
     a list with elements in the following form: 
     
-    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair], DDG, mut_id]
+    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair],contact_number, DDG, mut_id]
     
 '''
 def One_chian_output(one_chain, search_para, combined_ids, sequence, structure_d):
@@ -147,10 +161,10 @@ def One_chian_output(one_chain, search_para, combined_ids, sequence, structure_d
     for one_tuple in formalized_pairs:
         for pos, aa in zip(mut_pos_list, mut_aa_list):
             if one_tuple[0] == pos:
-                mut_aa = aa
+                mut_aa = aa; contact_number = one_tuple[6]
                 Ab_Ag_wt_mut_pair = Generate_wt_mut_one(one_tuple, form, mut_aa)
                 # Attach the DDG and the mutid
-                Ab_Ag_wt_mut_pair.extend([DDG, mut_id])
+                Ab_Ag_wt_mut_pair.extend([contact_number, DDG, mut_id])
                 # Load to the Ab_Ag_wt_mut_pairs_list
                 Ab_Ag_wt_mut_pairs_list.append(copy.deepcopy(Ab_Ag_wt_mut_pair))
 
@@ -171,12 +185,10 @@ Output:
     workable, a list with elements lists in the following form
     
     [...'
-    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair], DDG, mut_id],
+    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair], contact_number, DDG,mut_id],
     ...]
     
-    The length of this list is the same as the number of muation chains is a mutation_set:
-        mutaion_set is defined as a set of mutations of which the affinity of the complex
-        is measured.
+
 '''
 def Workable_output(workable_input, search_para, combined_ids, sequence, structure_d):
     workable = []
@@ -193,19 +205,216 @@ def Workable_output(workable_input, search_para, combined_ids, sequence, structu
     return workable
 
 '''############################################################################'''
-def Predict_affinity():
-    pass
-def Analyze_resutls():
-    pass
+# Give a little test of the workable output
+
+
+'''#################################################################################'''
+def Sub_predict(wt_pair, mut_pair, model_all):
+    
+    # Calculate the design matrix    
+    prefix = str(len(wt_pair[0])) + '_' + str(len(wt_pair[1]))
+    key = prefix + '_0_0_1_2_1perchain'
+    # Get the centers and coefficients for related match type
+    centers = model_all[key]['centers']
+    coefficients = model_all[key]['coefficients']
+    
+    # Calculate the design matrix
+    distance_matrix = Distance_matrix([wt_pair, mut_pair], centers, square=False)
+    radius_coeff = np.ones((len(centers), 1))
+    design_matrix = Design_matrix(distance_matrix, radius_coeff)
+    # Attach the constant column
+    design_matrix = np.hstack((design_matrix, np.ones((2, 1))))
+    
+    # Predict
+    coefficients = np.reshape(coefficients, (-1, 1))
+    pred = design_matrix.dot(coefficients)
+    
+    # Take the difference between the two predicted values
+    diff = pred[1] - pred[0]
+    
+    return diff
+
+###############################################################################
+'''
+working_d: Where the train_results locates.
+'''
 
 
 
+def Predict_affinity(workable, working_d, binary = True):
+    predict_affinity_results = []
+    # Open the training results
+    os.chdir(working_d)
+    with open('train_results', 'r') as f:
+        train_results = json.load(f)
+        
+    # Set the model
+    if binary:
+        model_all = train_results['cross_binary_Gaussian_']
+        best_gap_ext = model_all['best_gap_ext']
+        aligner.gap_score = best_gap_ext[0]
+        aligner.extend_gap_score = best_gap_ext[1]
+    else:
+        model_all = train_results['cross_numerical_Gaussian_']
+        best_gap_ext = model_all['best_gap_ext']
+        aligner.gap_score = best_gap_ext[0]
+        aligner.extend_gap_score = best_gap_ext[1]
+        
+    for one_mut_set in workable:
+        if one_mut_set != []:
+            # Calculate the sum of the contact number
+            contact_sum = 0; weighted_diff = 0
+            for one_pair in one_mut_set:
+                wt_pair = one_pair[0]
+                mut_pair = one_pair[1]
+                diff = Sub_predict(wt_pair, mut_pair, model_all)
+                # Take the weighted average
+                contact_sum += one_pair[3]
+                DDG = one_pair[3]
+                mut_id = one_pair[4]
+                
+                weighted_diff += diff * one_pair[3]
+                
+            weighted_diff /= contact_sum
+            
+            # Load to the predict_affinity_results
+            predict_affinity_results.append([mut_id, DDG, weighted_diff[0]])
+        else:
+            predict_affinity_results.append([mut_id, DDG, 'Unpredicable'])
+    
+    return predict_affinity_results
 
 
+'''##########################################################################'''
+def Calculate_AUC(pred, observed_values):
+    # Calculate the number of positive observations
+    p_s = 0 ; n_s = 0
+    for ob in observed_values:
+        if ob > 0 :
+            n_s += 1
+        elif ob < 0:
+            p_s += 1
+    if n_s == 0:
+        print('None negative samples in Calculating AUC')
+        return None, None, None
+    if p_s == 0:
+        print('None positive samples in Calculating AUC')
+        return None, None, None
+    # Match_up the pred with the observed_values   
+    match_up = []
+    for j in range(len(observed_values)):
+        match_up.append([pred[j], observed_values[j]])
+    match_up.sort(key = lambda x:x[0], reverse = True)
 
+    # Calculate the FPR and TPR 
+    FPR = []; TPR = []
+    n_positive = 0
+    n_negative = 0
+    for match in match_up:
+        if match[1] < 0:
+            '''Here we use >0 to make sure it works for both binary and non binary'''
+            n_positive += 1
+        elif match[1] > 0:
+            n_negative += 1
+            
+        TPR.append(n_positive/p_s)
+        FPR.append(n_negative/n_s)
+    
+    # Calculate the AUC
+    AUC = 0
+    for i in range(1, len(TPR)):
+        AUC += TPR[i] * (FPR[i] - FPR[i-1])
+    
+    return AUC, TPR, FPR
+#################################################################################
+'''
+Input:
+    cut_DDG_lower, cut_DDG_upper: cut values, only to consider the mutations with 
+            the DDG in 
+                        (cut_DDG_lower, cut_DDG_upper]
+            open in the left and closed in the right.
+'''
+def Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper):
+    # Select the prediction by cut_DDG
+    selected_cut_DDG = []
+    for res in predict_affinity_results:
+        if res[2] != 'Unpredicable' and res[1] != 0:
+            if abs(res[1]) > cut_DDG_lower and abs(res[1]) <= cut_DDG_upper:
+                selected_cut_DDG.append(res)
+    # Calculate AUC, FPR, TPR
+    observed_values = []; pred = []
+    for match in selected_cut_DDG:
+        # We have to add a nagetive sign to the observed to make it consistant 
+        observed_values.append(-match[1])
+        pred.append(match[2])
+        
+    AUC, TPR, FPR = Calculate_AUC(pred, observed_values)
+    
+    # Calculate the absolute correct
+    number_correct = 0
+    for match in selected_cut_DDG:
+        if match[1] * match[2] < 0:
+            number_correct += 1
+    correct_ratio = number_correct / len(selected_cut_DDG)
+    
+    return selected_cut_DDG, AUC, TPR, FPR, correct_ratio
 
+'''####################################################################'''
 
+        
+mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
+workable_input = Workable_input(mutation_d) 
+#len(workable_input)
+#workable_input
+#
+#workable_input_one = []
+#for w in workable_input:
+#    if w[0][0] == '3hfm':
+#        workable_input_one.append(w)
+#workable_input_one
 
+search_para = {}
+search_para['moving'] = True
+search_para['step_size'] = 0.25
+search_para['start_dist'] = 3
+search_para['end_dist'] = 8
+search_para['cut_dist'] = 6
+search_para['form'] = 'one'
+search_para['within_range'] = True
+
+os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+with open('sequence', 'r') as f:
+    sequence = json.load(f)
+with open('combined_ids', 'r') as f:
+    combined_ids = json.load(f)
+structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'
+
+workable = Workable_output(workable_input, search_para, combined_ids, sequence, structure_d)
+
+working_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+predict_affinity_results = Predict_affinity(workable, working_d, binary= True )
+#predict_affinity_results
+#workable
+
+cut_DDG_lower = 0
+cut_DDG_upper = 100
+selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
+            Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper)
+            
+correct_ratio
+AUC
+
+os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+with open('train_results', 'r') as f:
+    train_results = json.load(f)
+
+train_results.keys()
+train_results['cross_binary_Gaussian_'].keys()
+train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain'].keys()
+len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'])
+len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['coefficients'])
+
+train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'][:5]
 
 
 
