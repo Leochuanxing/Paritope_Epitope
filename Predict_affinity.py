@@ -1,10 +1,10 @@
 '''PREDICT MUTATION'''
 import json
-#import xlrd
+import math
 import os
 import copy
 import numpy as np
-#from pyexcel_ods import get_data, save_data
+from pyexcel_ods import get_data, save_data
 from Extract_mutation_pairs import Formalized_contacting
 '''#############################################################'''
 from Bio import Align
@@ -237,6 +237,11 @@ def Sub_predict(wt_pair, mut_pair, model_all):
 ###############################################################################
 '''
 working_d: Where the train_results locates.
+Output:
+    predict_affinity_results, a list with elements in the following form
+    
+        [mut_id, DDG, weighted_diff]
+    
 '''
 
 
@@ -329,6 +334,24 @@ def Calculate_AUC(pred, observed_values):
     
     return AUC, TPR, FPR
 #################################################################################
+def Calculate_concentration(TPR, top_percent = 0.1):
+    concentration = round(TPR[math.floor(len(TPR) * top_percent)] / top_percent, 2)
+    
+    return concentration
+################################################################################
+def Calculate_correlation(selected_cut_DDG):
+    ar = np.array(selected_cut_DDG)[:,[1,2]]
+    ar_mean = np.average(ar, axis=0).reshape((1,-1))
+    ar_d_mean = ar - ar_mean
+    x_y = - np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 1])
+    x_SR = np.sqrt(np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 0]))
+    y_SR = np.sqrt(np.sum(ar_d_mean[:, 1] * ar_d_mean[:, 1]))
+    
+    corr = round(x_y/(x_SR * y_SR), 2)
+    
+    return corr
+
+##############################################################################
 '''
 Input:
     cut_DDG_lower, cut_DDG_upper: cut values, only to consider the mutations with 
@@ -383,13 +406,13 @@ if __name__ == '__main__':
     search_para['end_dist'] = 8
     search_para['cut_dist'] = 6
     
-    for form in ['one', 'multiple']:        
+    for form in ['one', 'multiple', 'flanked']:        
         search_para['form'] = form
         for within_range in [True, False]:
             search_para['within_range'] = within_range
             
             print('Working on: '+ form +'    '+ str(within_range))
-            
+            preliminary_pred[form+'_WithinRange_'+str(within_range)] = {}
             # Container
             container = []
 
@@ -399,21 +422,36 @@ if __name__ == '__main__':
             working_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
             predict_affinity_results = Predict_affinity(workable, working_d, binary= True)
             
+            preliminary_pred[form+'_WithinRange_'+str(within_range)]['predict_results_all'] = \
+                                            predict_affinity_results
+            
             for ran in [[0,0.5], [0, 100], [0.5, 100], [1, 100]]:
                 cut_DDG_lower = ran[0]
                 cut_DDG_upper = ran[1]
                 selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
                             Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper)
-                container.append([ran, AUC, len(selected_cut_DDG)])
+                concentrations = [Calculate_concentration(TPR, 0.1), Calculate_concentration(TPR, 0.05)]
+                container.append([ran, AUC, concentrations[:], len(selected_cut_DDG)])
                 
-            preliminary_pred[form+'_WithinRange_'+str(within_range)] = copy.deepcopy(container)
+            preliminary_pred[form+'_WithinRange_'+str(within_range)]['range_auc_concentn_len'] =\
+                            copy.deepcopy(container)
             
-            saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
-            os.chdir(saving_d)
-            with open('affinity_pre_results', 'w') as f:
-                json.dump(preliminary_pred, f)
-                
-
+#    saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+#    os.chdir(saving_d)
+#    with open('affinity_pre_results', 'w') as f:
+#        json.dump(preliminary_pred, f)
+'''###################################################################################################'''
+#preliminary_pred.keys()
+#preliminary_pred['one_WithinRange_True'].keys()
+#preliminary_pred['one_WithinRange_False']['range_auc_concentn_len']
+#
+#predict_affinity_results = preliminary_pred['one_WithinRange_False']['predict_results_all']
+#
+#
+#selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
+#            Analyze_resutls(predict_affinity_results, cut_DDG_lower= 0, cut_DDG_upper = 100)
+#            
+#Calculate_correlation(selected_cut_DDG)
 #correct_ratio
 #AUC
 #len(TPR)
