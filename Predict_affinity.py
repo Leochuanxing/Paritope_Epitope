@@ -1,4 +1,5 @@
 '''PREDICT MUTATION'''
+import sys
 import json
 import math
 import os
@@ -109,16 +110,20 @@ Output:
 def Generate_wt_mut_one(one_tuple, form, mut_aa):
     mut_chain_type = one_tuple[7]
     # Extract wt information from one_tuple and generate mut_info
-    if form == 'one' or 'multiple':
+    if form == 'one' or form == 'multiple':
         wt_pair = [[one_tuple[1]], [one_tuple[4]]]
         mut_pair = [[mut_aa], [one_tuple[4]]]
 
     elif form == 'flanked':
-        wt_pair = [one_tuple[1], one_tuple[4]]
+        wt_pair_1 = [x for x in one_tuple[1] if x != '']
+        wt_pair_2 = [x for x in one_tuple[4] if x != '']
+        wt_pair = [wt_pair_1 , wt_pair_2]
         
-        tri = one_tuple[1]
+        tri = one_tuple[1][:]
         tri[1] = mut_aa
-        mut_pair = [tri, one_tuple[4]]
+        mut_pair_1 = [x for x in tri if x != '']
+        mut_pair_2 = [x for x in one_tuple[4] if x!= '']
+        mut_pair = [mut_pair_1 , mut_pair_2]
         
     # Put the Ab first
     if mut_chain_type == 'A':
@@ -132,6 +137,7 @@ def Generate_wt_mut_one(one_tuple, form, mut_aa):
     Ab_Ag_wt_mut_pair = [Ab_Ag_wt_pair, Ab_Ag_mut_pair]
     
     return Ab_Ag_wt_mut_pair
+
 '''
 One_chian_output: a sub fuction of Workable_output
 Output:
@@ -204,10 +210,6 @@ def Workable_output(workable_input, search_para, combined_ids, sequence, structu
     
     return workable
 
-'''############################################################################'''
-# Give a little test of the workable output
-
-
 '''#################################################################################'''
 def Sub_predict(wt_pair, mut_pair, model_all):
     
@@ -273,7 +275,11 @@ def Predict_affinity(workable, working_d, binary = True):
             for one_pair in one_mut_set:
                 wt_pair = one_pair[0]
                 mut_pair = one_pair[1]
-                diff = Sub_predict(wt_pair, mut_pair, model_all)
+                try:
+                    diff = Sub_predict(wt_pair, mut_pair, model_all)
+                except:
+                    print(wt_pair, mut_pair)
+                    sys.exit()
                 # Take the weighted average
                 contact_sum += one_pair[2]
                 DDG = one_pair[3]
@@ -406,7 +412,7 @@ if __name__ == '__main__':
     search_para['end_dist'] = 8
     search_para['cut_dist'] = 6
     
-    for form in ['one', 'multiple', 'flanked']:        
+    for form in ['one', 'multiple']:       
         search_para['form'] = form
         for within_range in [True, False]:
             search_para['within_range'] = within_range
@@ -442,38 +448,28 @@ if __name__ == '__main__':
 #        json.dump(preliminary_pred, f)
 '''###################################################################################################'''
 #preliminary_pred.keys()
-#preliminary_pred['one_WithinRange_True'].keys()
-#preliminary_pred['one_WithinRange_False']['range_auc_concentn_len']
+#preliminary_pred['flanked_WithinRange_True'].keys()
+#preliminary_pred['flanked_WithinRange_False']['range_auc_concentn_len']
 #
-#predict_affinity_results = preliminary_pred['one_WithinRange_False']['predict_results_all']
+#predict_affinity_results = preliminary_pred['flanked_WithinRange_True']['predict_results_all']
 #
 #
 #selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
 #            Analyze_resutls(predict_affinity_results, cut_DDG_lower= 0, cut_DDG_upper = 100)
 #            
 #Calculate_correlation(selected_cut_DDG)
-#correct_ratio
-#AUC
-#len(TPR)
-#len(selected_cut_DDG)
-#selected_cut_DDG
 
-#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
-#with open('train_results', 'r') as f:
-#    train_results = json.load(f)
-
-#train_results.keys()
-#train_results['cross_binary_Gaussian_'].keys()
-#train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain'].keys()
-#len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'])
-#len(train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['coefficients'])
+#workable_input = Workable_input(mutation_d)
+#workable_input
 #
-#train_results['cross_binary_Gaussian_']['1_1_0_0_1_2_1perchain']['centers'][:5]
 
 
 
 
-
+#search_para['form'] = 'flanked'
+#search_para['within_range'] = False
+#workable = Workable_output(workable_input[:3], search_para, combined_ids, sequence, structure_d)
+#workable
 
 
 

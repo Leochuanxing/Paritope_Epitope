@@ -269,13 +269,24 @@ def Form_flanked(contact_pairs, sequence, pdbid):
         mut_before_pos = max(0, mut_pos - 1)
         op_before_pos = max(0, op_pos - 1)
         
+        mut_after_pos = min(mut_pos + 2, len(sequence[pdbid][mut_chain_id]))
+        op_after_pos = min(op_pos + 2, len(sequence[pdbid][op_chain_id]))
+        
         flanked_mut = []
-        for m in range(mut_before_pos, mut_pos+2):
+        for m in range(mut_before_pos, mut_after_pos):
             flanked_mut.append(sequence[pdbid][mut_chain_id][m])
+        if mut_before_pos > mut_pos - 1:
+            flanked_mut.insert(0, '')
+        if mut_after_pos < mut_pos + 2:
+            flanked_mut.append('')
         
         flanked_op = []
-        for o in range(op_before_pos, op_pos + 2):
+        for o in range(op_before_pos, op_after_pos):
             flanked_op.append(sequence[pdbid][op_chain_id][o])
+        if op_before_pos > op_pos - 1:
+            flanked_op.insert(0, '')
+        if op_after_pos < op_pos + 2:
+            flanked_op.append('')
             
         # Replace the mut_aa and op_aa in form one with the flanked
         flanked = list(form_one)
@@ -348,7 +359,4 @@ def Formalized_contacting(search_para, combined_ids, sequence, structure_d):
 #    sequence = json.load(f)
 #
 #formalized_pairs = Formalized_contacting(search_para, combined_ids, sequence, structure_d)
-
-
-
 
