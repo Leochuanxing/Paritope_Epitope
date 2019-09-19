@@ -9,6 +9,8 @@ import json
 import xlrd
 import os
 import copy
+import pandas as pd
+import numpy as np
 from pyexcel_ods import get_data, save_data
 os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes')
 from AAC_2 import Chain_seq
@@ -89,7 +91,7 @@ Output:
 def Parse(sheet, matched_ids):
     parse_dictionary_list=[]
     # Lets collect the mutation ids first
-    for i in range(1,1015):
+    for i in range(1,sheet.nrows):
         pdbid = sheet.cell_value(i,0).lower()        
         mut_set = (sheet.cell_value(i,4)).split(',')
         dG = sheet.cell_value(i,5)
@@ -158,12 +160,13 @@ def Direct_match(sequence, onepdb_parsed_dictionary):
             data_index = int(mu[2])
             chain = mu[1]
             data_aa = mu[4]
+            mu[2] = data_index
             if chain_sequence[chain][data_index] != data_aa:
                 unmatch.append(mu)               
     return unmatch
 
 ##############################################################################
-def Match_Dic(parse_dictionary_list):   
+def Match_Dic(combined_ids, parse_dictionary_list):   
     # Get all the pdbids
     dic_all_mutations = {}
     
@@ -241,6 +244,7 @@ Do the following step by step
 #sequence[pdb]['I'][94]
 #len(sequence[pdb]['I'])
 def Change_ind_to_match(sequence, matched_indices, onepdb_parsed):
+    
     onepdb_parsed_dictionary = copy.deepcopy(onepdb_parsed)
     onepdb_parsed_dictionary = Use_match(matched_indices, onepdb_parsed_dictionary)
     #onepdb_parsed_dictionary = Use_unmatch(onepdb_parsed_dictionary)
@@ -285,46 +289,49 @@ def Format_affinities(data):
 #                mu[1] = 0
 #                mu[2] = dg
 '''##################################################################################'''
-if __name__ == '__main__':
-    
-    loc = '/home/leo/Documents/Database/Data_Code_Publish/Mutations/Mutation.xlsx'
-    wb = xlrd.open_workbook(loc) 
+#if __name__ == '__main__':
+def Main(mut_file_name, mutation_d, working_d):   
+    os.chdir(mutation_d)
+    wb = xlrd.open_workbook(mut_file_name) 
     sheet = wb.sheet_by_index(0) 
     # Update the data with 1dvf  
-    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+    os.chdir(working_d)
     with open('matched_ids', 'r') as f:
         matched_ids = json.load(f)
     with open('combined_ids', 'r') as f:
         combined_ids = json.load(f)
     with open('sequence', 'r') as f:
         sequence = json.load(f)
-        
-    matched_1dvf = {}
-    matched_1dvf['1dvf'] = [['B', 'A', 'C'], ['B', 'A', 'D']]
-    combined_1dvf = {}
-    combined_1dvf['1dvf'] = ['B', 'A', 'CD']
-    # Get the sequence of idvf
-    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt')
-    with open('1dvf.pdb', 'r') as file:
-        sequence_1dvf = Chain_seq(file, combined_1dvf['1dvf'])
-    sequence_1dvf_dict = {}
-    sequence_1dvf_dict['1dvf'] = sequence_1dvf
+   
+    # THIS IS TO UPDATE THE INFORMATION RELATED TO idvf.
     
-    matched_ids.update(matched_1dvf)
-    combined_ids.update(combined_1dvf)
-    sequence.update(sequence_1dvf_dict)
+#    matched_1dvf = {}
+#    matched_1dvf['1dvf'] = [['B', 'A', 'C'], ['B', 'A', 'D']]
+#    combined_1dvf = {}
+#    combined_1dvf['1dvf'] = ['B', 'A', 'CD']
+#    # Get the sequence of idvf
+#    os.chdir(structure_d)
+#    with open('1dvf.pdb', 'r') as file:
+#        sequence_1dvf = Chain_seq(file, combined_1dvf['1dvf'])
+#    sequence_1dvf_dict = {}
+#    sequence_1dvf_dict['1dvf'] = sequence_1dvf
+#    
+#    matched_ids.update(matched_1dvf)
+#    combined_ids.update(combined_1dvf)
+#    sequence.update(sequence_1dvf_dict)
+
+
 
     # Check if the sequences matched 
-    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Mutations') 
     parse_dictionary_list = Parse(sheet, matched_ids)
 #    parse_dictionary_list[:6]   
-    match_indices_dict, dic_all_mutations = Match_Dic(parse_dictionary_list)
+    match_indices_dict, dic_all_mutations = Match_Dic(combined_ids, parse_dictionary_list)
 #    len(match_indices_dict)
 #    len(dic_all_mutations)
     keys = list(match_indices_dict.keys())
 
     # Find the final qualified mutaions
-    pdb_qualified = []; parsed_dictionaries = []
+    pdb_qualified = []; parsed_dictionaries = []; pdb_unqualified = []
     for pdb in keys:
 #        pdb = keys[6]                
         onepdb_parsed = dic_all_mutations[pdb]
@@ -338,16 +345,15 @@ if __name__ == '__main__':
                 direct_unmatch, onepdb_parsed_dictionary = Change_chain_name(sequence, combined_id_one, matched_indices, onepdb_parsed)
             except :
                 direct_unmatch = ['Not good']
-                print(pdb)
+
         except :
             direct_unmatch = ['Not good']
-            print(pdb)
         
         if direct_unmatch == []:
             pdb_qualified.append(pdb)
             parsed_dictionaries.append(onepdb_parsed_dictionary)
         else:
-            print(pdb)
+            pdb_unqualified.append(pdb)
             
     # Format the dictionary before saving
     formated_dictionary = {}
@@ -357,9 +363,154 @@ if __name__ == '__main__':
     # Change the format of the affinity a little bit   
     Format_affinities(formated_dictionary)
     # Save the results    
-    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Mutations')   
-    save_data('Formated.ods', formated_dictionary)
+    os.chdir(mutation_d)   
+    save_data('Formated_skempi.ods', formated_dictionary)
     
-#formated_dictionary
+    return pdb_qualified, pdb_unqualified
+
 #########################################################################
+'''###################################################################'''
+'''THIS BLOCK IS TO PROCESS THE MUTATION DATA FROM skempi_2'''
+def Format_mut(mut):
+    mu_list = mut.split(',')
+    formated = ''
+    for i, mu in enumerate(mu_list):
+        new_mu = mu[1]+':'+mu[0]+mu[2:]
+        if i == 0:
+            formated += new_mu
+        else:
+            formated += ','
+            formated += new_mu
+            
+    return formated
+#########################################################################
+def Format_skempi():
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Mutations')
+    
+    formated = get_data('Formated.ods')
+    keys = list(formated.keys())
+    
+    # Take a look at the skempi
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Mutations/More_mutation_papers')
+    skempi = pd.read_csv('skempi_v2.csv', sep=';')
+    
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+    with open('combined_ids', 'r') as f:
+        combined_ids = json.load(f)
+    
+    abag_ids = list(combined_ids.keys())
+    row = []; new_ids = []
+    for i in range(0, skempi.shape[0]):
+        if skempi.iloc[i, 0][:4].lower() in abag_ids and skempi.iloc[i, 0][:4].lower() not in keys:
+            row.append(i)
+            new_ids.append(skempi.iloc[i, 0][:4].lower())
+    
+    new_point_mu = skempi.iloc[row,:]
+    new_point_mu.loc[:, 'pdb'] = new_ids
+    
+    for i in range(0, new_point_mu.shape[0]):
+        if new_point_mu.iloc[i,0][:4].lower() != new_point_mu.iloc[i]['pdb']:
+            print(i, '  does not get correct pdbid!')
+    
+    temperature = []
+    for i in range(0, new_point_mu.shape[0]):
+        temperature.append(int(new_point_mu.iloc[i]['Temperature'][:3]))
+    
+    new_point_mu.loc[:,'Temperature'] = temperature
+    
+    # Calculate the DDG by simply using the formula dG = RTln(affinity) * 0.001
+    DDG =np.round( 0.001 * 8.31 * new_point_mu['Temperature'] *\
+              np.log(new_point_mu['Affinity_mut_parsed']/new_point_mu['Affinity_wt_parsed']), 2)
+    new_point_mu.loc[:, 'DDG'] = DDG
+    
+    
+    
+    formated_mutations = new_point_mu.loc[:,['Mutation(s)_cleaned']].applymap(Format_mut)
+    new_point_mu.loc[:, 'Mutation'] = formated_mutations.iloc[:, 0]
+    # Get ready to save
+    to_save = pd.DataFrame()
+    to_save['#PDB'] = new_point_mu['pdb']
+    to_save['index'] = new_point_mu.index
+    to_save['Protein-1'] = ['' for i in range(to_save.shape[0])]
+    to_save['Protein-2'] = ['' for i in range(to_save.shape[0])]
+    to_save['Mutaion'] = new_point_mu['Mutation']
+    to_save['DDG'] = DDG
+    
+    
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Mutations')
+    to_save.to_excel('Mutations_skempi.xlsx', index = False)
+    
+    return to_save
+
+##################################################################################
+ 
+'''RUN THE FOLLOWING CODE FOR skempi'''       
+
+#mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
+#working_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures'
+##structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'
+#mut_file_name = 'Mutations_skempi.xlsx'
+#
+#pdb_qualified, pdb_unqualified = Main(mut_file_name, mutation_d, working_d)
+#
+#os.chdir(mutation_d)
+#wb = xlrd.open_workbook(mut_file_name) 
+#sheet = wb.sheet_by_index(0) 
+## Update the data with 1dvf  
+#os.chdir(working_d)
+#with open('matched_ids', 'r') as f:
+#    matched_ids = json.load(f)
+#with open('combined_ids', 'r') as f:
+#    combined_ids = json.load(f)
+#with open('sequence', 'r') as f:
+#    sequence = json.load(f)
+#
+## Check if the sequences matched 
+#parse_dictionary_list = Parse(sheet, matched_ids)
+##    parse_dictionary_list[:6]   
+#match_indices_dict, dic_all_mutations = Match_Dic(combined_ids, parse_dictionary_list)
+##    len(match_indices_dict)
+##    len(dic_all_mutations)
+#keys = list(match_indices_dict.keys())
+#keys
+#del keys[8]
+### Find the final qualified mutaions
+#pdb_qualified = []; parsed_dictionaries = []; pdb_unqualified = []
+#
+#formated_dictionary = {}
+#for pdb in keys:
+#    #        pdb = keys[6]                
+#    onepdb_parsed = dic_all_mutations[pdb]
+#    matched_indices = match_indices_dict[pdb] 
+#    combined_id_one = combined_ids[pdb]
+#    onepdb_parsed
+#    
+#    direct_unmatch = Direct_match(sequence, onepdb_parsed)
+#    if direct_unmatch != []:
+#        direct_unmatch = Use_unmatch(-1, onepdb_parsed)
+#        direct_unmatch = Direct_match(sequence, onepdb_parsed)
+#    
+#
+#
+#    if direct_unmatch == []:
+#        pdb_qualified.append(pdb)
+#        parsed_dictionaries.append(onepdb_parsed)
+#    else:
+#        pdb_unqualified.append(pdb)
+#            
+#    # Format the dictionary before saving
+#    # Format the dictionary before saving
+#formated_dictionary = {}
+#for one_pdb in parsed_dictionaries:
+#    formated = Format(one_pdb)
+#    formated_dictionary[one_pdb[0]['pdbid']] = copy.deepcopy(formated)
+## Change the format of the affinity a little bit   
+#Format_affinities(formated_dictionary)
+#
+#
+#os.chdir(mutation_d)
+#
+#len(formated_dictionary)
+#save_data('Formated_skempi.ods', formated_dictionary)
+
 
