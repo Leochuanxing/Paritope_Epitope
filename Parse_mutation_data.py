@@ -446,11 +446,17 @@ def Format_skempi():
  
 '''RUN THE FOLLOWING CODE FOR skempi'''       
 
-#mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
+mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
 #working_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures'
 ##structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'
 #mut_file_name = 'Mutations_skempi.xlsx'
 #
+#os.chdir(working_d)
+#with open('sequence', 'r') as f:
+#    sequence = json.load(f)
+
+
+
 #pdb_qualified, pdb_unqualified = Main(mut_file_name, mutation_d, working_d)
 #
 #os.chdir(mutation_d)
@@ -508,9 +514,6 @@ def Format_skempi():
 #Format_affinities(formated_dictionary)
 #
 #
-#os.chdir(mutation_d)
-#
-#len(formated_dictionary)
-#save_data('Formated_skempi.ods', formated_dictionary)
 
+            
 

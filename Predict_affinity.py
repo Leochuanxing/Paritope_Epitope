@@ -76,7 +76,7 @@ Output:
 '''
 def Workable_input(mutation_d):
     os.chdir(mutation_d)
-    formated = get_data('Formated.ods')
+    formated = get_data('Formated_skempi.ods')
 
     workable_input = []
     for pdb, mutations in formated.items():
@@ -397,7 +397,7 @@ if __name__ == '__main__':
     preliminary_pred = {}
       
     mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
-    workable_input = Workable_input(mutation_d) 
+    workable_input = Workable_input(mutation_d) # Change the file names inside this function.
     
     os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
     with open('sequence', 'r') as f:
@@ -426,12 +426,12 @@ if __name__ == '__main__':
             workable = Workable_output(workable_input, search_para, combined_ids, sequence, structure_d)
             
             working_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
-            predict_affinity_results = Predict_affinity(workable, working_d, binary= True)
+            predict_affinity_results = Predict_affinity(workable, working_d, binary= False)
             
             preliminary_pred[form+'_WithinRange_'+str(within_range)]['predict_results_all'] = \
                                             predict_affinity_results
             
-            for ran in [[0,0.5], [0, 100], [0.5, 100], [1, 100]]:
+            for ran in [[0,5], [0, 15],[0, 100]]:
                 cut_DDG_lower = ran[0]
                 cut_DDG_upper = ran[1]
                 selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
@@ -442,21 +442,23 @@ if __name__ == '__main__':
             preliminary_pred[form+'_WithinRange_'+str(within_range)]['range_auc_concentn_len'] =\
                             copy.deepcopy(container)
             
-#    saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
-#    os.chdir(saving_d)
-#    with open('affinity_pre_results', 'w') as f:
-#        json.dump(preliminary_pred, f)
+    saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+    os.chdir(saving_d)
+    with open('affinity_pre_results_skempi_numerical', 'w') as f:
+        json.dump(preliminary_pred, f)
 '''###################################################################################################'''
 #preliminary_pred.keys()
-#preliminary_pred['flanked_WithinRange_True'].keys()
-#preliminary_pred['flanked_WithinRange_False']['range_auc_concentn_len']
-#
-#predict_affinity_results = preliminary_pred['flanked_WithinRange_True']['predict_results_all']
-#
-#
+#preliminary_pred['one_WithinRange_True'].keys()
+#preliminary_pred['one_WithinRange_False']['range_auc_concentn_len']
+
+#predict_affinity_results = preliminary_pred['multiple_WithinRange_True']['predict_results_all']
+####
+####
 #selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
-#            Analyze_resutls(predict_affinity_results, cut_DDG_lower= 0, cut_DDG_upper = 100)
-#            
+#            Analyze_resutls(predict_affinity_results, cut_DDG_lower= 0, cut_DDG_upper = 10)
+##
+#len(TPR)
+#AUC            
 #Calculate_correlation(selected_cut_DDG)
 
 #workable_input = Workable_input(mutation_d)
@@ -466,10 +468,6 @@ if __name__ == '__main__':
 
 
 
-#search_para['form'] = 'flanked'
-#search_para['within_range'] = False
-#workable = Workable_output(workable_input[:3], search_para, combined_ids, sequence, structure_d)
-#workable
 
 
 
