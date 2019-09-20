@@ -4,9 +4,12 @@ import json
 import math
 import os
 import copy
+import random
 import numpy as np
+import pandas as pd
 from pyexcel_ods import get_data, save_data
-from Extract_mutation_pairs import Formalized_contacting
+
+
 '''#############################################################'''
 from Bio import Align
 from Bio.SubsMat.MatrixInfo import blosum62
@@ -18,6 +21,8 @@ os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes')
 from AlignmentConstraint import To_seq
 from RBFN_coverage import Distance_matrix, Design_matrix, Observed_values
 from RBFN_coverage import  Coverage_reduce_centers, NumpyEncoder
+from Extract_mutation_pairs import Formalized_contacting
+from Some_basic_fuctions import AUC_TPR_FPR, Bootstrap_AUC
 '''######################################################################'''
 # First change the mutation into the inputs of function Complete_extract_contacting
 # The basic strategy is to process each mutaion set with measured affinity as a unit
@@ -76,7 +81,7 @@ Output:
 '''
 def Workable_input(mutation_d):
     os.chdir(mutation_d)
-    formated = get_data('Formated_skempi.ods')
+    formated = get_data('Formated.ods')
 
     workable_input = []
     for pdb, mutations in formated.items():
@@ -191,7 +196,7 @@ Output:
     workable, a list with elements lists in the following form
     
     [...'
-    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair], contact_number, DDG,mut_id],
+    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair], contact_number, DDG, mut_id],
     ...]
     
 
@@ -284,9 +289,8 @@ def Predict_affinity(workable, working_d, binary = True):
                 contact_sum += one_pair[2]
                 DDG = one_pair[3]
                 mut_id = one_pair[4]
-
                 
-                weighted_diff += diff * one_pair[3]
+                weighted_diff += diff * one_pair[2]
                 
             weighted_diff /= contact_sum
             
@@ -299,46 +303,6 @@ def Predict_affinity(workable, working_d, binary = True):
 
 
 '''##########################################################################'''
-def Calculate_AUC(pred, observed_values):
-    # Calculate the number of positive observations
-    positive_total = 0 ; negative_total = 0
-    for observed in observed_values:
-        if observed > 0 :
-            positive_total += 1
-        elif observed < 0:
-            negative_total += 1
-    if negative_total == 0:
-        print('None negative samples in Calculating AUC')
-        return None, None, None
-    if positive_total == 0:
-        print('None positive samples in Calculating AUC')
-        return None, None, None
-    # Match_up the pred with the observed_values   
-    match_up = []
-    for j in range(len(observed_values)):
-        match_up.append([pred[j], observed_values[j]])
-    match_up.sort(key = lambda x:x[0], reverse = True)
-
-    # Calculate the FPR and TPR 
-    FPR = []; TPR = []
-    n_positive = 0
-    n_negative = 0
-    for match in match_up:
-        if match[1] > 0:
-            '''Here we use >0 to make sure it works for both binary and non binary'''
-            n_positive += 1
-        elif match[1] < 0:
-            n_negative += 1
-            
-        TPR.append(n_positive/positive_total)
-        FPR.append(n_negative/negative_total)
-    
-    # Calculate the AUC
-    AUC = 0
-    for i in range(1, len(TPR)):
-        AUC += TPR[i] * (FPR[i] - FPR[i-1])
-    
-    return AUC, TPR, FPR
 #################################################################################
 def Calculate_concentration(TPR, top_percent = 0.1):
     concentration = round(TPR[math.floor(len(TPR) * top_percent)] / top_percent, 2)
@@ -349,7 +313,7 @@ def Calculate_correlation(selected_cut_DDG):
     ar = np.array(selected_cut_DDG)[:,[1,2]]
     ar_mean = np.average(ar, axis=0).reshape((1,-1))
     ar_d_mean = ar - ar_mean
-    x_y = - np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 1])
+    x_y = np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 1])
     x_SR = np.sqrt(np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 0]))
     y_SR = np.sqrt(np.sum(ar_d_mean[:, 1] * ar_d_mean[:, 1]))
     
@@ -379,7 +343,7 @@ def Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper):
         observed_values.append(-match[1])
         pred.append(match[2])
         
-    AUC, TPR, FPR = Calculate_AUC(pred, observed_values)
+    AUC, TPR, FPR = AUC_TPR_FPR(pred, observed_values, 0)
     
     # Calculate the absolute correct
     number_correct = 0
@@ -431,7 +395,7 @@ if __name__ == '__main__':
             preliminary_pred[form+'_WithinRange_'+str(within_range)]['predict_results_all'] = \
                                             predict_affinity_results
             
-            for ran in [[0,5], [0, 15],[0, 100]]:
+            for ran in [[0,0.5], [0, 100],[0.5, 100], [1, 100]]:
                 cut_DDG_lower = ran[0]
                 cut_DDG_upper = ran[1]
                 selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
@@ -443,27 +407,125 @@ if __name__ == '__main__':
                             copy.deepcopy(container)
             
     saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
-    os.chdir(saving_d)
-    with open('affinity_pre_results_skempi_numerical', 'w') as f:
-        json.dump(preliminary_pred, f)
-'''###################################################################################################'''
+#    os.chdir(saving_d)
+#    with open('affinity_pre_results', 'w') as f:
+#        json.dump(preliminary_pred, f)
 #preliminary_pred.keys()
-#preliminary_pred['one_WithinRange_True'].keys()
 #preliminary_pred['one_WithinRange_False']['range_auc_concentn_len']
+'''###################################################################################################'''
+'''WE USE THE form multiple_WithinRange_True, and binary model, WHICH IS MORE REASONABLE.'''
+          
+def Sub_Bootstrap_corr(predictable, iteration):
+        # boot
+    boot_AUC = []; AUC_CI95 = []; boot_corr=[]; corr_CI95=[]
+    for i in range(iteration):
+        boot_samples = random.choices(predictable, k = len(predictable))
+        # cut the boot sample on basis of differnt DDG
+        AUC_unit = []; corr_unit = []
+        for ran in [(0, 0.5), (0, 100), (0.5, 100), (1, 100)]:
+            DDG_selected_boot = [b for b in boot_samples if abs(b[1])>ran[0] and abs(b[1])<=ran[1]]
+            corr = Calculate_correlation(DDG_selected_boot)
+            # get the pred and the observed
+            pred = [x[2] for x in DDG_selected_boot]
+            observed = [x[1] for x in DDG_selected_boot]# use the opposit for the sake of DDG
+            
+            # Calculate the AUC
+            AUC, _, _ = AUC_TPR_FPR(pred, observed, cut = 0)
+            # Load
+            AUC_unit.append(AUC)
+            corr_unit.append(corr)
+        # load
+        boot_AUC.append(AUC_unit[:])
+        boot_corr.append(corr_unit[:])
+    # calculate the 95% confidence interval
+    for i in range(4):
+        # Get the AUC_CI95
+        temp_AUC = [x[i] for x in boot_AUC if x[i] != []]# some of the AUC may be []
+    
+        temp_AUC.sort
+        small_ind = math.floor(len(temp_AUC) * 0.025)
+        large_ind = math.floor(len(temp_AUC) * 0.975)
+    
+        AUC_CI95.append([round(temp_AUC[small_ind],2), round(temp_AUC[large_ind],2)])
+        
+        # Get the corr_CI95
+        temp_corr = [x[i] for x in boot_corr]
+    
+        temp_corr.sort
+        small = math.floor(len(temp_corr) * 0.025)
+        large = math.floor(len(temp_corr) * 0.975)
+        
+        corr_CI95.append([round(temp_corr[small],2), round(temp_corr[large],2)])        
+    
+    return AUC_CI95, corr_CI95
+##################################################################################
+'''This function has to be carefully tested'''
+def Select_other_pred(predictable_mut_ids, original_mut_df, pred_all_df):
+    # check the pdbid and the mutation
+    selected = []
+    for mutid in predictable_mut_ids:
+        original_pdb = original_mut_df.iloc[mutid-1]['#PDB']
+        original_mut = original_mut_df.iloc[mutid-1]['Mutation'].upper().split(',')
+        original_mut.sort()
+        for i in range(pred_all_df.shape[0]):
+            pred_pdb = pred_all_df.iloc[i]['#pdb'][-4:]
+            if pred_pdb == original_pdb:
+                pred_mut = pred_all_df.iloc[i]['mutation'].split(',')
+                pred_mut.sort()
+                if pred_mut == original_mut:
+                    selected.append([mutid, pred_all_df.iloc[i]['expt'], pred_all_df.iloc[i]['comp']])
+                    break
+    return selected
+##################################################################################
+def Bootstrap_AUC_corr(iteration, WithinRange = True):
+    AUC_corr_CI95 = {}
+    # Get the pred results of different methods
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+    with open('affinity_pre_results', 'r') as f:        
+        affinity_pred = json.load(f)
+        
+    # Here the key can be changed to get different results under different model
+    key = 'multiple_WithinRange_'+str(WithinRange)
+    my_pred = affinity_pred[key]['predict_results_all']
+    
+    # Get rid of the unpredictable
+    predictable = []
+    for res in my_pred:
+        if res[2] != 'Unpredicable' and res[1] != 0:
+                predictable.append([res[0], -res[1], res[2]])# Use the opposite of res[1] because of DDG
+    # Get the mut ids of the predictable
+    predictable_mut_ids = [x[0] for x in predictable]
+    # boot
+    print('Bootstraping CN')
+    AUC_CI95_my, corr_CI95_my = Sub_Bootstrap_corr(predictable, iteration)
+    AUC_corr_CI95['CN'] = ('AUC_CI95:', AUC_CI95_my, 'corr_CI95', corr_CI95_my)
+        # Boot other results
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Mutations')
+    original_mutations = pd.read_excel('Mutation.xlsx')
+    # Read the original mutation 
+    for method in ['bASA', 'dDfire','dfire', 'discovery_studio', 'rosetta', 'statium', 'foldX']:
+        print('Bootstraping '+ method)        
+        scores = pd.read_csv(method+'.dat', sep = ';')    
+        selected = Select_other_pred(predictable_mut_ids, original_mutations, scores)
+        AUC_CI95_other, corr_CI95_other = Sub_Bootstrap_corr(selected , iteration)
+        
+        AUC_corr_CI95[method] = ('AUC_CI95:', AUC_CI95_other, 'corr_CI95', corr_CI95_other)
+  
+    return AUC_corr_CI95
 
-#predict_affinity_results = preliminary_pred['multiple_WithinRange_True']['predict_results_all']
-####
-####
-#selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
-#            Analyze_resutls(predict_affinity_results, cut_DDG_lower= 0, cut_DDG_upper = 10)
-##
-#len(TPR)
-#AUC            
-#Calculate_correlation(selected_cut_DDG)
-
-#workable_input = Workable_input(mutation_d)
-#workable_input
+#########################################################################
+#CI95 = {}
+#for WithinRange in [True, False]:    
+#    AUC_corr_CI95 = Bootstrap_AUC_corr(10000)
+#    CI95['multiple_WithinRange_'+str(WithinRange)] = AUC_corr_CI95
+#   
+#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
 #
+#with open('AUC_corr_CI95', 'r') as f:  
+#    CI95_read = json.load(f)
+#CI95_read  
+
+
 
 
 
