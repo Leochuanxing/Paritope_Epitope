@@ -240,6 +240,35 @@ def Sub_predict(wt_pair, mut_pair, model_all):
     diff = pred[1] - pred[0]
     
     return diff
+####################################################################################
+'''THIS PREDICTION IS TO USE THE PREVIOUS RESULTS'''
+def Predition_RBFN_coverage(wt_pair, mut_pair, test_results):
+#testing_set = testing5
+    key = str(len(wt_pair[0]))+'_'+str(len(wt_pair[1]))+'_0_0_1_2_1perchain' 
+    '''********************Pay attention to this scale factor****************'''
+#    scale_factor = len(testing_set[0][0]) * len(testing_set[0][1])
+
+    coeff = test_results[key]['coeff']
+    coeff = np.reshape(np.array(coeff), (-1,1))
+    centers_selected = test_results[key]['centers_selected']
+    # Calculate the distance matrix
+    distance_matrix = Distance_matrix([wt_pair, mut_pair], centers_selected, square = False)
+    # Calculate the design matrix
+    linear_coeff = coeff[:len(centers_selected)+1, 0]
+    linear_coeff = np.reshape(linear_coeff, (-1,1))
+    radius_coeff = coeff[len(centers_selected)+1:, 0]
+    radius_coeff = np.reshape(radius_coeff, (-1, 1))
+    
+    testing_design_matrix = Design_matrix(distance_matrix, radius_coeff, basis_function = 'Gaussian')
+    testing_design_matrix = np.hstack((testing_design_matrix, np.ones((2, 1))))
+    
+    pred = testing_design_matrix.dot(linear_coeff)
+    
+    diff = pred[1] - pred[0]
+    '''******************************'''
+#    predictions *= scale_factor
+    
+    return diff
 
 ###############################################################################
 '''
@@ -256,22 +285,28 @@ Output:
 def Predict_affinity(workable, working_d, binary = True):
     predict_affinity_results = []
     # Open the training results
-    os.chdir(working_d)
-    with open('train_results', 'r') as f:
-        train_results = json.load(f)
-        
+#    os.chdir(working_d)
+#    with open('train_results', 'r') as f:
+#        train_results = json.load(f)
+#   #######################################################################     
+    os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
+    with open('test_results', 'r') as f:
+        test_results = json.load(f)
+    aligner.gap_score = -5
+    aligner.extend_gap_score = -1
+#############################################################################33    
     # Set the model
-    if binary:
-        model_all = train_results['cross_binary_Gaussian_']
-        best_gap_ext = model_all['best_gap_ext']
-        aligner.gap_score = best_gap_ext[0]
-        aligner.extend_gap_score = best_gap_ext[1]
-    else:
-        model_all = train_results['cross_numerical_Gaussian_']
-        best_gap_ext = model_all['best_gap_ext']
-        aligner.gap_score = best_gap_ext[0]
-        aligner.extend_gap_score = best_gap_ext[1]
-        
+#    if binary:
+#        model_all = train_results['cross_binary_Gaussian_']
+#        best_gap_ext = model_all['best_gap_ext']
+#        aligner.gap_score = best_gap_ext[0]
+#        aligner.extend_gap_score = best_gap_ext[1]
+#    else:
+#        model_all = train_results['cross_numerical_Gaussian_']
+#        best_gap_ext = model_all['best_gap_ext']
+#        aligner.gap_score = best_gap_ext[0]
+#        aligner.extend_gap_score = best_gap_ext[1]
+##################################################################################        
     for one_mut_set in workable:
 
         if one_mut_set != []:
@@ -281,7 +316,8 @@ def Predict_affinity(workable, working_d, binary = True):
                 wt_pair = one_pair[0]
                 mut_pair = one_pair[1]
                 try:
-                    diff = Sub_predict(wt_pair, mut_pair, model_all)
+                    diff = Predition_RBFN_coverage(wt_pair, mut_pair, test_results)
+#                    diff = Sub_predict(wt_pair, mut_pair, model_all)
                 except:
                     print(wt_pair, mut_pair)
                     sys.exit()
@@ -290,9 +326,10 @@ def Predict_affinity(workable, working_d, binary = True):
                 DDG = one_pair[3]
                 mut_id = one_pair[4]
                 
-                weighted_diff += diff * one_pair[2]
+#                weighted_diff += diff * one_pair[2]
+                weighted_diff += diff
                 
-            weighted_diff /= contact_sum
+#            weighted_diff /= contact_sum
             
             # Load to the predict_affinity_results
             predict_affinity_results.append([mut_id, DDG, weighted_diff[0]])
@@ -346,11 +383,12 @@ def Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper):
     AUC, TPR, FPR = AUC_TPR_FPR(pred, observed_values, 0)
     
     # Calculate the absolute correct
-    number_correct = 0
-    for match in selected_cut_DDG:
-        if match[1] * match[2] < 0:
-            number_correct += 1
-    correct_ratio = number_correct / len(selected_cut_DDG)
+    number_correct = 0; correct_ratio = 0
+    if len(selected_cut_DDG) != 0:
+        for match in selected_cut_DDG:
+            if match[1] * match[2] < 0:
+                number_correct += 1
+        correct_ratio = number_correct / len(selected_cut_DDG)
     
     return selected_cut_DDG, AUC, TPR, FPR, correct_ratio
 
@@ -361,6 +399,7 @@ if __name__ == '__main__':
     preliminary_pred = {}
       
     mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
+#    mutation_d = '/home/leo/Documents/Database/Pipeline_New/Codes/Results'
     workable_input = Workable_input(mutation_d) # Change the file names inside this function.
     
     os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
@@ -526,27 +565,85 @@ def Bootstrap_AUC_corr(iteration, WithinRange = True):
 #CI95_read  
 
 
+'''Change the file name in the Workable function can change the source of mutations'''
+
+# CHECK IF THE WORKABLE IS CONSISTANT WITH THE GIVEN
+#mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
+#
+#workable_input = Workable_input(mutation_d) 
+#
+#workable_input
+#
+#search_para = {}
+#search_para['moving'] = True
+#search_para['step_size'] = 0.25
+#search_para['start_dist'] = 3
+#search_para['end_dist'] = 8
+#search_para['cut_dist'] = 6
+#
+#search_para['within_range'] = True
+#search_para['form'] = 'one'
+#
+#
+#structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt' 
+#workable_output = \
+#        Workable_output(workable_input, search_para, combined_ids, sequence, structure_d)
+#
+#
+#mut_id = 90
+#
+#len(workable_output)
+#len(workable_input)
+#
+#lower  = 532
+#upper = 537
+#
+#workable_output[lower:upper]
+#workable_input[lower:upper]
+#
+#combined_ids['3be1']
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
+#with open('one_to_one_results', 'r') as f:
+#    one_to_one = json.load(f)
+#
+#
+##one_to_one.keys()
+##one_to_one['affinity_results']['results_dict'].keys()
+##one_to_one['affinity_results']['results_dict']['single_True_mode_single_moving_True_binary_True'].keys()
+#res = one_to_one['affinity_results']['results_dict']['single_True_mode_single_moving_True_binary_True']['0']
+#
+#old_workable = []
+#for complicated in res:
+#    mutation = complicated[1:len(complicated)-1]
+#
+#    mut_id = complicated[0][3]
+#    DDG = complicated[0][2][2]
+#
+#    mu_set = []
+#    for mmu in mutation:
+#        if mmu != []:
+#            mu_set.append([mmu[0][0], mmu[1][0], 1, DDG, mut_id])
+#    old_workable.append(mu_set[:])
+#
+#
+#working_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+#predict_affinity_results = Predict_affinity(old_workable, working_d, binary = True)
+#container = []
+#for ran in [[0,0.5], [0, 100],[0.5, 100], [1, 100]]:
+#    cut_DDG_lower = ran[0]
+#    cut_DDG_upper = ran[1]
+#    selected_cut_DDG, AUC, TPR, FPR, correct_ratio = \
+#                Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper)
+#    concentrations = [Calculate_concentration(TPR, 0.1), Calculate_concentration(TPR, 0.05)]
+#    container.append([ran, AUC, concentrations[:], len(selected_cut_DDG)])
+#    
+#container
+#correct_ratio
 
 
 

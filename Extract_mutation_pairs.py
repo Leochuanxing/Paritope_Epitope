@@ -235,9 +235,9 @@ def Formalize_contact_pairs(pdbid, sequence, contact_pairs, search_para, combine
                 return []
             if pair[7] == 'L' and pair[0] not in l_range:
                 return []
-            if pair[8] == 'H' and pair[0] not in h_range:
+            if pair[8] == 'H' and pair[3] not in h_range:
                 return []
-            if pair[8] == 'L' and pair[0] not in l_range:
+            if pair[8] == 'L' and pair[3] not in l_range:
                 return []
 
     return formalized_pairs
@@ -255,45 +255,47 @@ def Form_multiple(contact_pairs):
 def Form_flanked(contact_pairs, sequence, pdbid):
     flanked = []
     
-    form = Form_one(contact_pairs)
+#    form = Form_one(contact_pairs)
+    form = Form_multiple(contact_pairs)
     
     if form != []:
-        form_one = form[0]
-        
-        mut_pos = form_one[0]
-        mut_chain_id = form_one[2]
-        op_pos = form_one[3]
-        op_chain_id = form_one[5]
-        
-        # Find the amino acids before and after
-        mut_before_pos = max(0, mut_pos - 1)
-        op_before_pos = max(0, op_pos - 1)
-        
-        mut_after_pos = min(mut_pos + 2, len(sequence[pdbid][mut_chain_id]))
-        op_after_pos = min(op_pos + 2, len(sequence[pdbid][op_chain_id]))
-        
-        flanked_mut = []
-        for m in range(mut_before_pos, mut_after_pos):
-            flanked_mut.append(sequence[pdbid][mut_chain_id][m])
-        if mut_before_pos > mut_pos - 1:
-            flanked_mut.insert(0, '')
-        if mut_after_pos < mut_pos + 2:
-            flanked_mut.append('')
-        
-        flanked_op = []
-        for o in range(op_before_pos, op_after_pos):
-            flanked_op.append(sequence[pdbid][op_chain_id][o])
-        if op_before_pos > op_pos - 1:
-            flanked_op.insert(0, '')
-        if op_after_pos < op_pos + 2:
-            flanked_op.append('')
+        for i in range(len(form)):
+            form_one = form[i]
             
-        # Replace the mut_aa and op_aa in form one with the flanked
-        flanked = list(form_one)
-        flanked[1] = flanked_mut
-        flanked[4] = flanked_op
-        flanked = [tuple(flanked)]# Change back into the same form
-    
+            mut_pos = form_one[0]
+            mut_chain_id = form_one[2]
+            op_pos = form_one[3]
+            op_chain_id = form_one[5]
+            
+            # Find the amino acids before and after
+            mut_before_pos = max(0, mut_pos - 1)
+            op_before_pos = max(0, op_pos - 1)
+            
+            mut_after_pos = min(mut_pos + 2, len(sequence[pdbid][mut_chain_id]))
+            op_after_pos = min(op_pos + 2, len(sequence[pdbid][op_chain_id]))
+            
+            flanked_mut = []
+            for m in range(mut_before_pos, mut_after_pos):
+                flanked_mut.append(sequence[pdbid][mut_chain_id][m])
+            if mut_before_pos > mut_pos - 1:
+                flanked_mut.insert(0, '')
+            if mut_after_pos < mut_pos + 2:
+                flanked_mut.append('')
+            
+            flanked_op = []
+            for o in range(op_before_pos, op_after_pos):
+                flanked_op.append(sequence[pdbid][op_chain_id][o])
+            if op_before_pos > op_pos - 1:
+                flanked_op.insert(0, '')
+            if op_after_pos < op_pos + 2:
+                flanked_op.append('')
+                
+            # Replace the mut_aa and op_aa in form one with the flanked
+            flanked = list(form_one)
+            flanked[1] = flanked_mut
+            flanked[4] = flanked_op
+            flanked = [tuple(flanked)]# Change back into the same form
+        
     return flanked
 '''#######################################################################'''
 '''
