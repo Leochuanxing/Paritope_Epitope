@@ -2,6 +2,7 @@ import os
 import json
 import copy
 import sys
+from pyexcel_ods import get_data
 '''################################################################'''
 '''
 Sub_extract_cdn: A function to extract the coordinates for given parameters
@@ -323,7 +324,7 @@ REMARK:
     2.  earch_para['mut_pos'], a list gives the positions of the mutations
 '''
 
-def Formalized_contacting(search_para, combined_ids, matched_ids, sequence, structure_d):
+def Formalized_contacting(search_para, combined_ids, sequence, structure_d):
     pdbid = search_para['pdbid']
     mut_pos = search_para['mut_pos']
     mut_chain_id = search_para['mut_chain_id']
@@ -339,56 +340,240 @@ def Formalized_contacting(search_para, combined_ids, matched_ids, sequence, stru
     
     return formalized_pairs
 '''#############################################################################'''
-# A LITTLE TEST
-#search_para = {}
-#search_para['moving'] = True
-#search_para['step_size'] = 0.25
-#search_para['start_dist'] = 3
-#search_para['end_dist'] = 8
-#search_para['cut_dist'] = 4
-#search_para['form'] = 'flanked'
-#search_para['within_range'] = True
-#search_para['pdbid'] = '1vfb'
-#search_para['mut_pos'] = [100]
-#search_para['mut_chain_id'] = 'B'
+'''##############################################################
+Processing_mutation_set: a sub function of Workable input
+'''
+
+def Processing_mutation_set(mutation_set):
+    mut_info = []
+    # Separate the information
+    DDG = mutation_set[-1][1]
+    pdbid = mutation_set[0][0]
+    mut_id = mutation_set[0][5]
+    mutations = mutation_set[:-1]
+    
+    # Get the chains, and pos
+#    chains = []
+    for mu in mutations:
+        mut_info.append([pdbid, mu[1], [mu[2]], [mu[3]], DDG, mut_id])
+#        if mu[1] not in chains:
+#            chains.append(mu[1])
+#    
+#    mut_info = []
+#    for chain in chains:
+#        pos = [mu[2] for mu in mutations if mu[1] == chain]
+#        mut_aa = [mu[3] for mu in mutations if mu[1] == chain]
 #
-#structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'
-#
-#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
-#with open('combined_ids', 'r') as f:
-#    combined_ids = json.load(f)
-#with open('sequence', 'r') as f:
-#    sequence = json.load(f)
-#
-#formalized_pairs = Formalized_contacting(search_para, combined_ids, sequence, structure_d)
+#        mut_info.append([pdbid, chain, pos, mut_aa, DDG, mut_id])
+    
+    return mut_info
+'''#############################################################################'''
+'''
+Output:
+    workable_input:
+        a list with elements in the form 
+        
+        [...,
+        [pdbid, mut_chain_id, [pos], [mut_aa], affinities, mut_id],
+        ...]
+        
+        The element is a list with the number of elements equals the number of 
+        mutation chains.
+'''
+def Workable_input(mutation_d):
+    os.chdir(mutation_d)
+    formated = get_data('Formated.ods')
 
-#formalized_pairs
-#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
-#with open('training_ac_contact', 'r') as f:
-#    training_ac_contact = json.load(f)
-#
-#type(training_ac_contact)
-#
-#vfb = []
-#
-#for key, values in training_ac_contact.items():
-#    if key[:4] == '1vfb':
-#        vfb.append(key)
-#
-#vfb
-#
-#training_ac_contact['1vfbBh']
-#
-#sequence['1vfb']['B'][99:102]
+    workable_input = []
+    for pdb, mutations in formated.items():
+        begin = 0; end = 0
+        for ind, mut in enumerate(mutations):
+            if mut[0] == 'affinities':
+                end = ind + 1
+                mutation_set = mutations[begin: end]
+                begin = end
+                # processing the mutation set
+                mut_info = Processing_mutation_set(mutation_set)
+                workable_input.append(mut_info)
+            
+    return workable_input
+  
+'''##############################################################3'''
+'''
+Generate_wt_mut_one: a function to generat wt_mut pairs for one_tuple
+Input:
+    one_tuple:
+        in the form
+        
+        ( mut_pos, mut_aa, mut_chain_id,  op_pos, op_aa, op_chain_id,\
+        contact_number, mut_chain_type, op_chain_type)
+        
+        if form == 'flanked', mut_aa and op_aa are lists
+Output:
+    Ab_Ag_wt_mut_pair: a list in the form
+    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair]]
+'''
+def Generate_wt_mut_one(one_tuple, form, mut_aa):
+    mut_chain_type = one_tuple[7]
+    # Extract wt information from one_tuple and generate mut_info
+    if form == 'one' or form == 'multiple':
+        wt_pair = [[one_tuple[1]], [one_tuple[4]]]
+        mut_pair = [[mut_aa], [one_tuple[4]]]
 
+    elif form == 'flanked':
+        wt_pair_1 = [x for x in one_tuple[1] if x != '']
+        wt_pair_2 = [x for x in one_tuple[4] if x != '']
+        wt_pair = [wt_pair_1 , wt_pair_2]
+        
+        tri = one_tuple[1][:]
+        tri[1] = mut_aa
+        mut_pair_1 = [x for x in tri if x != '']
+        mut_pair_2 = [x for x in one_tuple[4] if x!= '']
+        mut_pair = [mut_pair_1 , mut_pair_2]
+        
+    # Put the Ab first
+    if mut_chain_type == 'A':
+        Ab_Ag_wt_pair = [wt_pair[1], wt_pair[0]]
+        Ab_Ag_mut_pair = [mut_pair[1], mut_pair[0]]
+    else:
+        Ab_Ag_wt_pair = wt_pair
+        Ab_Ag_mut_pair = mut_pair
+        
+    
+    Ab_Ag_wt_mut_pair = [Ab_Ag_wt_pair, Ab_Ag_mut_pair]
+    
+    return Ab_Ag_wt_mut_pair
+'''###################################################################################'''
 
+'''
+One_chian_output: a sub fuction of Workable_output
+Output:
+    a list with elements in the following form: 
+    
+    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair],contact_number, DDG, mut_id]    
+'''
+def Single_mut_output(single_mut, search_para, combined_ids, sequence, structure_d):
+    
+    search_para['pdbid'] = single_mut[0]
+    search_para['mut_chain_id'] = single_mut[1]
+    search_para['mut_pos'] = single_mut[2]
+    
+    mut_pos_list = single_mut[2]
+    mut_aa_list = single_mut[3]
+    DDG = single_mut[4]
+    mut_id = single_mut[5]
+    
+    form = search_para['form']
+    
+    formalized_pairs = \
+        Formalized_contacting(search_para, combined_ids, sequence, structure_d)
+    
+    # reformat the formalized pairs with more information and transform into wt mut pairs
+    Ab_Ag_wt_mut_pairs_list = []
+    for one_tuple in formalized_pairs:
+        for pos, aa in zip(mut_pos_list, mut_aa_list):
+            if one_tuple[0] == pos:
+                mut_aa = aa; contact_number = one_tuple[6]
+                Ab_Ag_wt_mut_pair = Generate_wt_mut_one(one_tuple, form, mut_aa)
+                # Attach the DDG and the mutid
+                Ab_Ag_wt_mut_pair.extend([contact_number, DDG, mut_id])
+                # Load to the Ab_Ag_wt_mut_pairs_list
+                Ab_Ag_wt_mut_pairs_list.append(copy.deepcopy(Ab_Ag_wt_mut_pair))
+        
+    return Ab_Ag_wt_mut_pairs_list
+'''###########################################################################################'''
+'''
+Input:
+    search parameter contains the following values:
+        search_para['moving'] 
+        search_para['step_size']
+        search_para['start_dist']
+        search_para['end_dist']
+        search_para['cut_dist']
+        search_para['form']
+        search_para['within_range']
+        
+Output:
+    workable, a list with elements lists in the following form
+    
+    [...'
+    [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair], contact_number, DDG, mut_id],
+    ...]    
+'''
+ 
+def Workable_output(workable_input, search_para, combined_ids, sequence, structure_d):
+    workable = []
 
+    for one_mutation in workable_input:
+        one_mut_workable = []
+        for single_mut in one_mutation:
+            Ab_Ag_wt_mut_pairs_list =\
+                Single_mut_output(single_mut, search_para, combined_ids, sequence, structure_d)
+            one_mut_workable.extend(Ab_Ag_wt_mut_pairs_list)
+            
+        workable.append(copy.deepcopy(one_mut_workable))
+    
+    return workable
+###################################################################################
+'''
+The input of this module:
+    mutation_d: mutation directory, where the mutation information file is located. Refer to 
+                the function 'Workable_input' for more details
+    sequence: the sequence extracted from the 'AAC_2', The least sequence info it should have
+                is the sequence of all the mutation complexes
+    combined_ids: a dictionary with keys and values in the form:
+                {'pdbid':['H_chains', 'L_chains', 'A_chains']}
+    structure_d: the directory where the structure information is located.
+    
+    search_para: a dictionary, contains the parameters of extrating wild type and mutation pairs.
+                Refer to the explaination in related functions
+Output:
+    workable_output: a list with element list in the following form:
+        [..., [wt_Ab_Ag_pair, mut_Ab_Ag_pair, contact_number, DDG, mut_id]]
+    each element list contains all the mutaion information related to one measured affinity.
+    
+    'wt_Ab_Ag_pair' and 'mut_Ab_Ag_pair' can be directly fed into the RBFN model to generate scores 
+    about the propensity of them being a core.
+'''
+if __name__ == '__main__':  
 
+    preliminary_pred = {}; workable_output = {}
+      
+    mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
+#    mutation_d = '/home/leo/Documents/Database/Pipeline_New/Codes/Results'
+    workable_input = Workable_input(mutation_d) # Change the file names inside this function.
+    
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+    with open('sequence', 'r') as f:
+        sequence = json.load(f)
+    with open('combined_ids', 'r') as f:
+        combined_ids = json.load(f)
+        
+    search_para = {}
+    search_para['moving'] = True
+    search_para['step_size'] = 0.25
+    search_para['start_dist'] = 3
+    search_para['end_dist'] = 8
+    search_para['cut_dist'] = 5.5
+    
+    for form in ['one', 'multiple', 'flanked']:       
+        search_para['form'] = form
+        for within_range in [True, False]:
+            search_para['within_range'] = within_range
+            
+            print('Working on: '+ form +'    '+ str(within_range))
+            preliminary_pred[form+'_WithinRange_'+str(within_range)] = {}
+            # Container
+            container = []
 
+            structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'    
+            workable = Workable_output(workable_input, search_para, combined_ids, sequence, structure_d)
+            workable_output[form+'_WithinRange_'+str(within_range)] = workable
 
-
-
-
+#    saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+#    with open('workable_formated', 'w') as f:
+#        json.dump(workable_output, f)
+#        
 
 
 
