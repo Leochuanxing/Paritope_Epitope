@@ -46,6 +46,7 @@ Processing_mutation_set: a sub function of Workable input
 '''
 
 def Processing_mutation_set(mutation_set):
+    mut_info = []
     # Separate the information
     DDG = mutation_set[-1][1]
     pdbid = mutation_set[0][0]
@@ -53,17 +54,18 @@ def Processing_mutation_set(mutation_set):
     mutations = mutation_set[:-1]
     
     # Get the chains, and pos
-    chains = []
+#    chains = []
     for mu in mutations:
-        if mu[1] not in chains:
-            chains.append(mu[1])
-    
-    mut_info = []
-    for chain in chains:
-        pos = [mu[2] for mu in mutations if mu[1] == chain]
-        mut_aa = [mu[3] for mu in mutations if mu[1] == chain]
-
-        mut_info.append(copy.deepcopy([pdbid, chain, pos, mut_aa, DDG, mut_id]))
+        mut_info.append([pdbid, mu[1], [mu[2]], [mu[3]], DDG, mut_id])
+#        if mu[1] not in chains:
+#            chains.append(mu[1])
+#    
+#    mut_info = []
+#    for chain in chains:
+#        pos = [mu[2] for mu in mutations if mu[1] == chain]
+#        mut_aa = [mu[3] for mu in mutations if mu[1] == chain]
+#
+#        mut_info.append([pdbid, chain, pos, mut_aa, DDG, mut_id])
     
     return mut_info
 # Read the parsed mutation information
@@ -93,7 +95,7 @@ def Workable_input(mutation_d):
                 begin = end
                 # processing the mutation set
                 mut_info = Processing_mutation_set(mutation_set)
-                workable_input.append(copy.deepcopy(mut_info))
+                workable_input.append(mut_info)
             
     return workable_input
   
@@ -151,21 +153,21 @@ Output:
     [[wt_Ab_Ag_pair], [mut_Ab_Ag_pair],contact_number, DDG, mut_id]
     
 '''
-def One_chian_output(one_chain, search_para, combined_ids, sequence, structure_d):
+def Single_mut_output(single_mut, search_para, combined_ids, matched_ids, sequence, structure_d):
     
-    search_para['pdbid'] = one_chain[0]
-    search_para['mut_chain_id'] = one_chain[1]
-    search_para['mut_pos'] = one_chain[2]
+    search_para['pdbid'] = single_mut[0]
+    search_para['mut_chain_id'] = single_mut[1]
+    search_para['mut_pos'] = single_mut[2]
     
-    mut_pos_list = one_chain[2]
-    mut_aa_list = one_chain[3]
-    DDG = one_chain[4]
-    mut_id = one_chain[5]
+    mut_pos_list = single_mut[2]
+    mut_aa_list = single_mut[3]
+    DDG = single_mut[4]
+    mut_id = single_mut[5]
     
     form = search_para['form']
     
     formalized_pairs = \
-        Formalized_contacting(search_para, combined_ids, sequence, structure_d)
+        Formalized_contacting(search_para, combined_ids, matched_ids, sequence, structure_d)
     
     # reformat the formalized pairs with more information and transform into wt mut pairs
     Ab_Ag_wt_mut_pairs_list = []
@@ -178,7 +180,6 @@ def One_chian_output(one_chain, search_para, combined_ids, sequence, structure_d
                 Ab_Ag_wt_mut_pair.extend([contact_number, DDG, mut_id])
                 # Load to the Ab_Ag_wt_mut_pairs_list
                 Ab_Ag_wt_mut_pairs_list.append(copy.deepcopy(Ab_Ag_wt_mut_pair))
-
         
     return Ab_Ag_wt_mut_pairs_list
 '''
@@ -201,14 +202,14 @@ Output:
     
 
 '''
-def Workable_output(workable_input, search_para, combined_ids, sequence, structure_d):
+def Workable_output(workable_input, search_para, combined_ids,matched_ids, sequence, structure_d):
     workable = []
 
     for one_mutation in workable_input:
         one_mut_workable = []
-        for one_chain in one_mutation:
+        for single_mut in one_mutation:
             Ab_Ag_wt_mut_pairs_list =\
-                One_chian_output(one_chain, search_para, combined_ids, sequence, structure_d)
+                Single_mut_output(single_mut, search_para, combined_ids, matched_ids, sequence, structure_d)
             one_mut_workable.extend(Ab_Ag_wt_mut_pairs_list)
             
         workable.append(copy.deepcopy(one_mut_workable))
@@ -285,39 +286,40 @@ Output:
 def Predict_affinity(workable, working_d, binary = True):
     predict_affinity_results = []
     # Open the training results
-#    os.chdir(working_d)
-#    with open('train_results', 'r') as f:
-#        train_results = json.load(f)
+    os.chdir(working_d)
+    with open('train_results', 'r') as f:
+        train_results = json.load(f)
 #   #######################################################################     
-    os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
-    with open('test_results', 'r') as f:
-        test_results = json.load(f)
-    aligner.gap_score = -5
-    aligner.extend_gap_score = -1
+#    os.chdir('/home/leo/Documents/Database/Pipeline_New/Complexes/Results')
+#    with open('test_results', 'r') as f:
+#        test_results = json.load(f)
+#    aligner.gap_score = -5
+#    aligner.extend_gap_score = -1
 #############################################################################33    
     # Set the model
-#    if binary:
-#        model_all = train_results['cross_binary_Gaussian_']
-#        best_gap_ext = model_all['best_gap_ext']
-#        aligner.gap_score = best_gap_ext[0]
-#        aligner.extend_gap_score = best_gap_ext[1]
-#    else:
-#        model_all = train_results['cross_numerical_Gaussian_']
-#        best_gap_ext = model_all['best_gap_ext']
-#        aligner.gap_score = best_gap_ext[0]
-#        aligner.extend_gap_score = best_gap_ext[1]
+    if binary:
+        model_all = train_results['cross_binary_Gaussian_']
+        best_gap_ext = model_all['best_gap_ext']
+        aligner.gap_score = best_gap_ext[0]
+        aligner.extend_gap_score = best_gap_ext[1]
+    else:
+        model_all = train_results['cross_numerical_Gaussian_']
+        best_gap_ext = model_all['best_gap_ext']
+        aligner.gap_score = best_gap_ext[0]
+        aligner.extend_gap_score = best_gap_ext[1]
 ##################################################################################        
     for one_mut_set in workable:
 
         if one_mut_set != []:
+            print('Working on   ', one_mut_set[0][-1])
             # Calculate the sum of the contact number
             contact_sum = 0; weighted_diff = 0
             for one_pair in one_mut_set:
                 wt_pair = one_pair[0]
                 mut_pair = one_pair[1]
                 try:
-                    diff = Predition_RBFN_coverage(wt_pair, mut_pair, test_results)
-#                    diff = Sub_predict(wt_pair, mut_pair, model_all)
+#                    diff = Predition_RBFN_coverage(wt_pair, mut_pair, test_results)
+                    diff = Sub_predict(wt_pair, mut_pair, model_all)
                 except:
                     print(wt_pair, mut_pair)
                     sys.exit()
@@ -330,6 +332,7 @@ def Predict_affinity(workable, working_d, binary = True):
                 weighted_diff += diff
                 
 #            weighted_diff /= contact_sum
+            weighted_diff /= len(one_mut_set)
             
             # Load to the predict_affinity_results
             predict_affinity_results.append([mut_id, DDG, weighted_diff[0]])
@@ -396,7 +399,7 @@ def Analyze_resutls(predict_affinity_results, cut_DDG_lower, cut_DDG_upper):
 
 if __name__ == '__main__':  
 
-    preliminary_pred = {}
+    preliminary_pred = {}; workable_output = {}
       
     mutation_d = '/home/leo/Documents/Database/Data_Code_Publish/Mutations'
 #    mutation_d = '/home/leo/Documents/Database/Pipeline_New/Codes/Results'
@@ -407,17 +410,18 @@ if __name__ == '__main__':
         sequence = json.load(f)
     with open('combined_ids', 'r') as f:
         combined_ids = json.load(f)
-        
+    with open('matched_ids', 'r') as f:
+        matched_ids = json.load(f)
     search_para = {}
     search_para['moving'] = True
     search_para['step_size'] = 0.25
     search_para['start_dist'] = 3
     search_para['end_dist'] = 8
-    search_para['cut_dist'] = 6
+    search_para['cut_dist'] = 5.5
     
-    for form in ['one', 'multiple']:       
+    for form in ['one']:       
         search_para['form'] = form
-        for within_range in [True, False]:
+        for within_range in [True]:
             search_para['within_range'] = within_range
             
             print('Working on: '+ form +'    '+ str(within_range))
@@ -426,10 +430,11 @@ if __name__ == '__main__':
             container = []
 
             structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'    
-            workable = Workable_output(workable_input, search_para, combined_ids, sequence, structure_d)
+            workable = Workable_output(workable_input, search_para, combined_ids,matched_ids, sequence, structure_d)
+            workable_output[form+'_WithinRange_'+str(within_range)] = workable
             
             working_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
-            predict_affinity_results = Predict_affinity(workable, working_d, binary= False)
+            predict_affinity_results = Predict_affinity(workable, working_d, binary= True)
             
             preliminary_pred[form+'_WithinRange_'+str(within_range)]['predict_results_all'] = \
                                             predict_affinity_results
@@ -449,8 +454,16 @@ if __name__ == '__main__':
 #    os.chdir(saving_d)
 #    with open('affinity_pre_results', 'w') as f:
 #        json.dump(preliminary_pred, f)
+#    with open('workable_output', 'w') as f:
+#        json.dump(workable_output, f)
 #preliminary_pred.keys()
-#preliminary_pred['one_WithinRange_False']['range_auc_concentn_len']
+#preliminary_pred['one_WithinRange_True'].keys()
+#preliminary_pred['one_WithinRange_True']['range_auc_concentn_len']
+#correct_ratio
+#preliminary_pred['flanked_WithinRange_False']['predict_results_all']
+#predict_affinity_results
+
+
 '''###################################################################################################'''
 '''WE USE THE form multiple_WithinRange_True, and binary model, WHICH IS MORE REASONABLE.'''
           
@@ -605,8 +618,8 @@ def Bootstrap_AUC_corr(iteration, WithinRange = True):
 
 
 
-
-
+#
+#
 #os.chdir('/home/leo/Documents/Database/Pipeline_New/Codes/Results')
 #with open('one_to_one_results', 'r') as f:
 #    one_to_one = json.load(f)
@@ -643,8 +656,6 @@ def Bootstrap_AUC_corr(iteration, WithinRange = True):
 #    container.append([ran, AUC, concentrations[:], len(selected_cut_DDG)])
 #    
 #container
-#correct_ratio
-
 
 
 

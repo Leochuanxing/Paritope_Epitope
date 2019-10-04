@@ -37,18 +37,17 @@ Inputs:
 def Extract_cdn(pdbid, mut_pos, mut_chain_id, combined_ids, sequence, structure_d):
     # Decide the mut_chain_type      
     combined = combined_ids[pdbid]
+#    for matched in combined_pdb:
     if mut_chain_id in combined[0]:
         mut_chain_type = 'H'
+        op_chain_ids = combined[2]
     elif mut_chain_id in combined[1]:
         mut_chain_type = 'L'
+        op_chain_ids = combined[2]
     elif mut_chain_id in combined[2]:
         mut_chain_type = 'A'
-        
-    # Find the opposite chain_ids and pos
-    if mut_chain_type in ['H', 'L']:
-        op_chain_ids = combined[2]
-    elif mut_chain_type == 'A':
         op_chain_ids = combined[0]+combined[1]
+        
         
     # Extract the coordinates for given pdbid, chain_id, pos
     os.chdir(structure_d)
@@ -64,7 +63,7 @@ def Extract_cdn(pdbid, mut_pos, mut_chain_id, combined_ids, sequence, structure_
             op_cdn.extend(Sub_extract_cdn(file, op_chain, op_pos))
             file.close
             
-    return mut_cdn, mut_chain_type, op_cdn
+    return mut_cdn, mut_chain_type, op_cdn, op_chain_ids
 '''#####################################################################'''
 '''
 Output:
@@ -98,8 +97,8 @@ def Sub_extract_contacting_pairs(mut_cdn, op_cdn, mut_chain_type, dist):
                     cn += 1
                     
             # Extend the tuple        
-            six_c = copy.deepcopy(six)
-            six_c = list(six_c)
+#            six_c = copy.deepcopy(six)
+            six_c = list(six)
             six_c.extend([cn, mut_chain_type])
             six_c = tuple(six_c)
             # load
@@ -224,8 +223,8 @@ def Formalize_contact_pairs(pdbid, sequence, contact_pairs, search_para, combine
     l_range.extend(list(range(89,110)))
 #    l_range = [[23, 40], [49, 63], [89, 110]]
     h_range = list(range(25, 37))
-    h_range.append(list(range(50, 71)))
-    h_range.append(list(range(99, 129)))
+    h_range.extend(list(range(50, 71)))
+    h_range.extend(list(range(99, 129)))
 #    h_range = [[25, 37], [50, 71], [99, 129]]
     within_range = search_para['within_range']
     
@@ -245,8 +244,8 @@ def Formalize_contact_pairs(pdbid, sequence, contact_pairs, search_para, combine
 def Form_one(contact_pairs):
     form_one = []
     if contact_pairs !=[]:
-        contact_pairs.sort(key=lambda x : x[6])
-        form_one = [contact_pairs[-1]]
+        contact_pairs.sort(key=lambda x : x[6], reverse = True)
+        form_one = [contact_pairs[0]]
     return form_one
 
 def Form_multiple(contact_pairs):
@@ -291,10 +290,11 @@ def Form_flanked(contact_pairs, sequence, pdbid):
                 flanked_op.append('')
                 
             # Replace the mut_aa and op_aa in form one with the flanked
-            flanked = list(form_one)
-            flanked[1] = flanked_mut
-            flanked[4] = flanked_op
-            flanked = [tuple(flanked)]# Change back into the same form
+            flanked_one = list(form_one)
+            flanked_one[1] = flanked_mut
+            flanked_one[4] = flanked_op
+            flanked.append(tuple(flanked_one))
+#            flanked = [tuple(flanked)]# Change back into the same form
         
     return flanked
 '''#######################################################################'''
@@ -313,7 +313,7 @@ Input:
             search_para['form']
             search_para['within_range']
             search_para['pdbid']
-            earch_para['mut_pos']
+            search_para['mut_pos']
             search_para['mut_chain_id']
 Output: 
     formalized_pairs, as explained in 'Formalize_contact_pairs' 
@@ -323,12 +323,12 @@ REMARK:
     2.  earch_para['mut_pos'], a list gives the positions of the mutations
 '''
 
-def Formalized_contacting(search_para, combined_ids, sequence, structure_d):
+def Formalized_contacting(search_para, combined_ids, matched_ids, sequence, structure_d):
     pdbid = search_para['pdbid']
     mut_pos = search_para['mut_pos']
     mut_chain_id = search_para['mut_chain_id']
     # Extract the cdn
-    mut_cdn, mut_chain_type, op_cdn = \
+    mut_cdn, mut_chain_type, op_cdn, op_chain_ids = \
         Extract_cdn(pdbid, mut_pos, mut_chain_id, combined_ids, sequence, structure_d)
         
     contact_pairs =\
@@ -341,16 +341,16 @@ def Formalized_contacting(search_para, combined_ids, sequence, structure_d):
 '''#############################################################################'''
 # A LITTLE TEST
 #search_para = {}
-#search_para['moving'] = False
+#search_para['moving'] = True
 #search_para['step_size'] = 0.25
-#search_para['start_dist'] = 5
+#search_para['start_dist'] = 3
 #search_para['end_dist'] = 8
-#search_para['cut_dist'] = 8
-#search_para['form'] = 'multiple'
-#search_para['within_range'] = False
-#search_para['pdbid'] = '1dvf'
-#search_para['mut_pos'] = [32]
-#search_para['mut_chain_id'] = 'D'
+#search_para['cut_dist'] = 4
+#search_para['form'] = 'flanked'
+#search_para['within_range'] = True
+#search_para['pdbid'] = '1vfb'
+#search_para['mut_pos'] = [100]
+#search_para['mut_chain_id'] = 'B'
 #
 #structure_d = '/home/leo/Documents/Database/Data_Code_Publish/Structures/imgt'
 #
@@ -361,4 +361,45 @@ def Formalized_contacting(search_para, combined_ids, sequence, structure_d):
 #    sequence = json.load(f)
 #
 #formalized_pairs = Formalized_contacting(search_para, combined_ids, sequence, structure_d)
+
+#formalized_pairs
+#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+#with open('training_ac_contact', 'r') as f:
+#    training_ac_contact = json.load(f)
+#
+#type(training_ac_contact)
+#
+#vfb = []
+#
+#for key, values in training_ac_contact.items():
+#    if key[:4] == '1vfb':
+#        vfb.append(key)
+#
+#vfb
+#
+#training_ac_contact['1vfbBh']
+#
+#sequence['1vfb']['B'][99:102]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
