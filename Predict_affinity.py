@@ -150,17 +150,17 @@ def Calculate_concentration(TPR, top_percent = 0.1):
     
     return concentration
 '''################################################################################'''
-def Calculate_correlation(selected_cut_DDG):
-    ar = np.array(selected_cut_DDG)[:,[1,2]]
-    ar_mean = np.average(ar, axis=0).reshape((1,-1))
-    ar_d_mean = ar - ar_mean
-    x_y = np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 1])
-    x_SR = np.sqrt(np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 0]))
-    y_SR = np.sqrt(np.sum(ar_d_mean[:, 1] * ar_d_mean[:, 1]))
-    
-    corr = round(x_y/(x_SR * y_SR), 2)
-    
-    return corr
+#def Calculate_correlation(selected_cut_DDG):
+#    ar = np.array(selected_cut_DDG)[:,[1,2]]
+#    ar_mean = np.average(ar, axis=0).reshape((1,-1))
+#    ar_d_mean = ar - ar_mean
+#    x_y = np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 1])
+#    x_SR = np.sqrt(np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 0]))
+#    y_SR = np.sqrt(np.sum(ar_d_mean[:, 1] * ar_d_mean[:, 1]))
+#    
+#    corr = round(x_y/(x_SR * y_SR), 2)
+#    
+#    return corr
 
 '''##############################################################################'''
 '''
@@ -186,7 +186,7 @@ def Analyze_resutls(predict_affinity_results, cut_range):
         for match in selected_cut_DDG:
             # We have to add a nagetive sign to the observed to make sure the 
             # observed_values and the pred have monotonicity
-            observed_values.append(-match[1])
+            observed_values.append(match[1])
             pred.append(match[2])
             
         AUC, TPR, FPR = AUC_TPR_FPR(pred, observed_values, 0)
@@ -202,14 +202,14 @@ def Analyze_resutls(predict_affinity_results, cut_range):
           
 def Sub_Bootstrap_corr(predictable, cut_range, iteration):
         # boot
-    boot_AUC = []; AUC_CI95 = []; boot_corr=[]; corr_CI95=[]
+    boot_AUC = []; AUC_CI95 = []
     for i in range(iteration):
         boot_samples = random.choices(predictable, k = len(predictable))
         # cut the boot sample on basis of differnt DDG
-        AUC_unit = []; corr_unit = []
+        AUC_unit = []
         for ran in cut_range:
             DDG_selected_boot = [b for b in boot_samples if abs(b[1])>ran[0] and abs(b[1])<=ran[1]]
-            corr = Calculate_correlation(DDG_selected_boot)
+
             # get the pred and the observed
             pred = [x[2] for x in DDG_selected_boot]
             observed = [x[1] for x in DDG_selected_boot]
@@ -218,31 +218,23 @@ def Sub_Bootstrap_corr(predictable, cut_range, iteration):
             AUC, _, _ = AUC_TPR_FPR(pred, observed, cut = 0)
             # Load
             AUC_unit.append(AUC)
-            corr_unit.append(corr)
+
         # load
         boot_AUC.append(AUC_unit[:])
-        boot_corr.append(corr_unit[:])
+
     # calculate the 95% confidence interval
-    for i in range(4):
+    for i in range(len(cut_range)):
         # Get the AUC_CI95
         temp_AUC = [x[i] for x in boot_AUC if x[i] != []]# some of the AUC may be []
     
-        temp_AUC.sort
+        temp_AUC.sort(reverse = False)
         small_ind = math.floor(len(temp_AUC) * 0.025)
         large_ind = math.floor(len(temp_AUC) * 0.975)
     
         AUC_CI95.append([round(temp_AUC[small_ind],2), round(temp_AUC[large_ind],2)])
-        
-        # Get the corr_CI95
-        temp_corr = [x[i] for x in boot_corr]
+             
     
-        temp_corr.sort
-        small = math.floor(len(temp_corr) * 0.025)
-        large = math.floor(len(temp_corr) * 0.975)
-        
-        corr_CI95.append([round(temp_corr[small],2), round(temp_corr[large],2)])        
-    
-    return AUC_CI95, corr_CI95
+    return AUC_CI95
 ##################################################################################
 '''This function has to be carefully tested'''
 def Select_other_pred(predictable_mut_ids, original_mut_df, pred_all_df):
@@ -306,6 +298,8 @@ if __name__ == '__main__':
         workable_formated = json.load(f)
     # The results under different mode
     for key, workable in workable_formated.items():
+#    key = 'one_WithinRange_True'
+#    workable = workable_formated[key]
         print('Working one mode    ', key)
         pred_workable_formated[key]={}
         # Get the pred results
@@ -320,14 +314,14 @@ if __name__ == '__main__':
         
         # Calculate AUC, FPR, TPR CI95,corr, concentration and draw AUROC
         # CN method
-        AUC_list, TPR_list, FPR_list = Analyze_resutls(pred_results, cut_range)
+        AUC_list, TPR_list, FPR_list = Analyze_resutls(predictable, cut_range)
         pred_workable_formated[key]['CN'] = {}
         pred_workable_formated[key]['CN']['AUC_list'] = AUC_list[:]
         pred_workable_formated[key]['CN']['TPR_list'] = TPR_list[:]
         pred_workable_formated[key]['CN']['FPR_list'] = FPR_list[:]
         print('Bootstraping CN')
-        AUC_CI95_my, corr_CI95_my = Sub_Bootstrap_corr(predictable, cut_range, iteration)
-        pred_workable_formated[key]['CN']['BootStrap'] = ('AUC_CI95:', AUC_CI95_my, 'corr_CI95', corr_CI95_my)        
+        AUC_CI95_my = Sub_Bootstrap_corr(predictable, cut_range, iteration)
+        pred_workable_formated[key]['CN']['BootStrap'] = ('AUC_CI95:', AUC_CI95_my)        
         
         # Other methods
         # Get the mut ids of the predictable
@@ -344,10 +338,20 @@ if __name__ == '__main__':
             pred_workable_formated[key][method]['TPR_list'] = TPR_list[:]
             pred_workable_formated[key][method]['FPR_list'] = FPR_list[:]
             print('Bootstraping '+ method)
-            AUC_CI95_other, corr_CI95_other = Sub_Bootstrap_corr(selected,cut_range, iteration)
-            pred_workable_formated[key][method]['BootStrap'] = ('AUC_CI95:', AUC_CI95_other, 'corr_CI95', corr_CI95_other)
-            
+            AUC_CI95_other= Sub_Bootstrap_corr(selected,cut_range, iteration)
+            pred_workable_formated[key][method]['BootStrap'] = ('AUC_CI95:', AUC_CI95_other)
+    # Save the results
+#    os.chdir(working_d)
+#    with open('pred_workable_skempi', 'w') as f:
+#        json.dump(pred_workable_formated, f, cls=NumpyEncoder)
         
+#for me in ['CN', 'bASA', 'dDfire','dfire', 'discovery_studio', 'rosetta', 'statium', 'foldX']: 
+#    print(me)     
 
+#    print(pred_workable_formated['flanked_WithinRange_True'][me]['AUC_list'])
+###    print(pred_workable_formated['flanked_WithinRange_True'][me]['AUC_list'])
+#    print([len(tpr) for tpr in pred_workable_formated['flanked_WithinRange_True'][me]['TPR_list']])
+#    print(pred_workable_formated['flanked_WithinRange_True'][me]['BootStrap'] )
+#    print('n/')
 
 

@@ -255,8 +255,8 @@ def Form_multiple(contact_pairs):
 def Form_flanked(contact_pairs, sequence, pdbid):
     flanked = []
     
-#    form = Form_one(contact_pairs)
-    form = Form_multiple(contact_pairs)
+    form = Form_one(contact_pairs)
+#    form = Form_multiple(contact_pairs)
     
     if form != []:
         for i in range(len(form)):
@@ -352,19 +352,8 @@ def Processing_mutation_set(mutation_set):
     mut_id = mutation_set[0][5]
     mutations = mutation_set[:-1]
     
-    # Get the chains, and pos
-#    chains = []
     for mu in mutations:
         mut_info.append([pdbid, mu[1], [mu[2]], [mu[3]], DDG, mut_id])
-#        if mu[1] not in chains:
-#            chains.append(mu[1])
-#    
-#    mut_info = []
-#    for chain in chains:
-#        pos = [mu[2] for mu in mutations if mu[1] == chain]
-#        mut_aa = [mu[3] for mu in mutations if mu[1] == chain]
-#
-#        mut_info.append([pdbid, chain, pos, mut_aa, DDG, mut_id])
     
     return mut_info
 '''#############################################################################'''
@@ -556,7 +545,7 @@ if __name__ == '__main__':
     search_para['end_dist'] = 8
     search_para['cut_dist'] = 5.5
     
-    for form in ['one', 'multiple', 'flanked']:       
+    for form in ['one', 'multiple', 'flanked']:  
         search_para['form'] = form
         for within_range in [True, False]:
             search_para['within_range'] = within_range
@@ -570,9 +559,9 @@ if __name__ == '__main__':
             workable = Workable_output(workable_input, search_para, combined_ids, sequence, structure_d)
             workable_output[form+'_WithinRange_'+str(within_range)] = workable
 
-#    saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
-#    with open('workable_formated', 'w') as f:
-#        json.dump(workable_output, f)
+    saving_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
+    with open('workable_formated', 'w') as f:
+        json.dump(workable_output, f)
 #        
 
 
