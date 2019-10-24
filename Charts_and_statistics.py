@@ -197,6 +197,9 @@ def Draw_all(results_d, save_d):
     Draw_integrated_reverse_AUC(results_d, save_d)
     Draw_affinity(results_d, save_d)
     
+'''***********************************************************************'''    
+'''***********************************************************************'''
+'''***********************************************************************'''
     
 #os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
 #with open('pred_workable_formated', 'r') as f:
@@ -212,23 +215,173 @@ def Draw_all(results_d, save_d):
 results_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
 save_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results/Graphs'
 #Draw_all(results_d, save_d)
+'''
+This output of AA_relative_freq should be the relative frequency and the frequency 
+of different amino acids for antibody, antigen, cdr, and cores
+'''
+def AA_relative_freq():
+    # Calculate the frequency and relative frequency for antibody and antigens
+    # Use the complexes after the redundency elimination
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+    with open('testing_ac_contact', 'r') as f:
+        testing_ac_contact = json.load(f)
+    with open('training_ac_contact', 'r') as f:
+        training_ac_contact = json.load(f)
+    with open('sequence', 'r') as f:
+        sequence = json.load(f)
+    with open('combined_ids', 'r') as f:
+        combined_ids = json.load(f)
+    
+    complexes = list(testing_ac_contact.keys())
+    complexes.extend(list(training_ac_contact))
+    
+    # Calculate the frequency of the heavy and light chains
+    Ab_aa_freq = {}; pdb_list = []; n = 0
+    for pdbHL in complexes:
+        pdb = pdbHL[:4]; HL = pdbHL[4:5]
+        pdb_list.append(pdb)
+        seq = sequence[pdb][HL]
+        for aa in seq:
+            if aa  in Ab_aa_freq:
+                Ab_aa_freq[aa] += 1
+                n += 1
+            else:
+                Ab_aa_freq[aa] = 1
+                n += 1
+    # Calculate the relative frequency
+    Ab_aa_tuple_list = []
+    for key, v in Ab_aa_freq.items():
+        Ab_aa_tuple_list.append((key, v, round(v/n, 3)))
+    Ab_aa_tuple_list.sort(key=lambda x:x[1], reverse=True)
+
+    # Calculate the aa frequencies of the antigens
+    Ag_aa_freq = {}; n = 0
+    pdb_list = list(set(pdb_list))
+    for pdb in pdb_list:
+        antigen_ids = combined_ids[pdb][2]
+        for antigen in antigen_ids:
+            anti_seq = sequence[pdb][antigen]
+            for aa in anti_seq:
+                if aa in Ag_aa_freq:
+                    Ag_aa_freq[aa] += 1
+                    n += 1
+                else:
+                    Ag_aa_freq[aa] = 1
+                    n += 1
+        # Calculate the relative frequency
+    Ag_aa_tuple_list = []
+    for key, v in Ag_aa_freq.items():
+        Ag_aa_tuple_list.append((key, v, round(v/n, 3)))
+    Ag_aa_tuple_list.sort(key=lambda x:x[1], reverse=True)
+    
+    # Calculate the aa frequencies in the CDR
+    l_range = [[23, 40], [49, 63], [89, 110]]
+    h_range = [[25, 37], [50, 71], [99, 129]]
+    
+    l_inds = []; h_inds = []
+    for l_ran, h_ran in zip(l_range, h_range):
+        l_inds.extend(range(l_ran[0], l_ran[1]+1))
+        h_inds.extend(range(h_ran[0], h_ran[1] + 1))
+        
+    CDR_aa_freq = {}
+    CDR_aa_freq['CDRH1'] = {}
+    CDR_aa_freq['CDRH2'] = {}
+    CDR_aa_freq['CDRH3'] = {}
+    CDR_aa_freq['CDRL1'] = {}
+    CDR_aa_freq['CDRL2'] = {}
+    CDR_aa_freq['CDRL3'] = {}
+    
+    for pdbHL in complexes:
+        pdb = pdbHL[:4]; HL = pdbHL[4:5]; hl = pdbHL[5]
+        seq = sequence[pdb][HL]
+        if hl == 'h':
+            for i in range(len(seq)):
+                for j in [0, 1, 2]:
+                    key = 'CDRH'+str(j+1)
+                    if i in range(h_range[j][0], h_range[j][1] + 1):
+                        if seq[i] in CDR_aa_freq[key]:
+                            CDR_aa_freq[key][seq[i]] += 1
+                        else:
+                            CDR_aa_freq[key][seq[i]] = 1
+        elif hl == 'l':
+            for i in range(len(seq)):
+                for j in [0, 1, 2]:
+                    key = 'CDRL'+str(j+1)
+                    if i in range(l_range[j][0], l_range[j][1] + 1):
+                        if seq[i] in CDR_aa_freq[key]:
+                            CDR_aa_freq[key][seq[i]] += 1
+                        else:
+                            CDR_aa_freq[key][seq[i]] = 1
+    # Calculate the relative frequencies
+    for CDR, aa_freq in CDR_aa_freq.items():
+        temp_tuple = []; n = 0
+        for aa, freq in aa_freq.items():
+            n += freq
+        for aa, freq in aa_freq.items():
+            temp_tuple.append((aa, freq, round(freq/n, 3)))
+        temp_tuple.sort(key = lambda x:x[1], reverse=True)   
+        CDR_aa_freq[CDR] = temp_tuple[:]
+                            
+    # Calculate the aa frequencies in cores of different match-types
+    core_aa_freq = {}
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores')
+    for i in range(1, 4):
+        for j in range(1, 4):
+            core_aa_freq[str(i)+'_'+str(j)] = {}
+            core_aa_freq[str(i)+'_'+str(j)]['Ab_aa'] = {}
+            core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'] = {}
+            
+            test_key = 'testing_'+str(i)+'_' + str(j)+'_0_0_1_2_1perchain'
+            train_key = 'training_'+str(i)+'_' + str(j)+'_0_0_1_2_1perchain'
+            with open(test_key, 'r') as f:
+                test_cores = json.load(f)
+            with open(train_key, 'r') as f:
+                train_cores = json.load(f)
+                
+            cores = []
+            cores.extend(test_cores)
+            cores.extend(train_cores)
+            
+            Ab_n = 0; Ag_n = 0
+            for match in cores:
+                for Ab_aa in match[0]:
+                    if Ab_aa in core_aa_freq[str(i)+'_'+str(j)]['Ab_aa']:
+                        core_aa_freq[str(i)+'_'+str(j)]['Ab_aa'][Ab_aa] += 1
+                        Ab_n += 1
+                    else:
+                        core_aa_freq[str(i)+'_'+str(j)]['Ab_aa'][Ab_aa] = 1
+                        Ab_n += 1
+                        
+                for Ag_aa in match[1]:
+                    if Ag_aa in core_aa_freq[str(i)+'_'+str(j)]['Ag_aa']:
+                        core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'][Ag_aa] += 1
+                        Ag_n += 1
+                    else:
+                        core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'][Ag_aa] = 1  
+                        Ag_n += 1
+            # Calculate the relative frequencies
+            Ag_tuple = []; Ab_tuple = []
+            for aa, freq in core_aa_freq[str(i)+'_'+str(j)]['Ab_aa'].items():
+                Ab_tuple.append((aa, freq, round(freq/Ab_n, 3)))
+            Ab_tuple.sort(key = lambda x:x[1], reverse=True)
+            core_aa_freq[str(i)+'_'+str(j)]['Ab_aa'] = Ab_tuple[:]
+            
+            for aa, freq in core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'].items():
+                Ag_tuple.append((aa, freq, round(freq/Ab_n, 3)))
+            Ag_tuple.sort(key=lambda x:x[1], reverse=True)
+            core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'] = Ag_tuple[:]    
+
+    # Store the above results in a dictionary
+    AA_freq = {}
+    AA_freq['Ag_aa'] = Ag_aa_tuple_list
+    AA_freq['Ab_aa'] = Ab_aa_tuple_list
+    AA_freq['CDR_aa_freq'] = CDR_aa_freq
+    AA_freq['core_aa_freq'] = core_aa_freq             
+                    
+    return AA_freq
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#AA_freq = AA_relative_freq()
+'''*****************************************************************************'''
 
 
