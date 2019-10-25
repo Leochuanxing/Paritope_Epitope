@@ -251,7 +251,7 @@ def AA_relative_freq():
     # Calculate the relative frequency
     Ab_aa_tuple_list = []
     for key, v in Ab_aa_freq.items():
-        Ab_aa_tuple_list.append((key, v, round(v/n, 3)))
+        Ab_aa_tuple_list.append((key, v, round(v/n, 3), n))
     Ab_aa_tuple_list.sort(key=lambda x:x[1], reverse=True)
 
     # Calculate the aa frequencies of the antigens
@@ -271,7 +271,7 @@ def AA_relative_freq():
         # Calculate the relative frequency
     Ag_aa_tuple_list = []
     for key, v in Ag_aa_freq.items():
-        Ag_aa_tuple_list.append((key, v, round(v/n, 3)))
+        Ag_aa_tuple_list.append((key, v, round(v/n, 3), n))
     Ag_aa_tuple_list.sort(key=lambda x:x[1], reverse=True)
     
     # Calculate the aa frequencies in the CDR
@@ -318,7 +318,7 @@ def AA_relative_freq():
         for aa, freq in aa_freq.items():
             n += freq
         for aa, freq in aa_freq.items():
-            temp_tuple.append((aa, freq, round(freq/n, 3)))
+            temp_tuple.append((aa, freq, round(freq/n, 3), n))
         temp_tuple.sort(key = lambda x:x[1], reverse=True)   
         CDR_aa_freq[CDR] = temp_tuple[:]
                             
@@ -362,12 +362,12 @@ def AA_relative_freq():
             # Calculate the relative frequencies
             Ag_tuple = []; Ab_tuple = []
             for aa, freq in core_aa_freq[str(i)+'_'+str(j)]['Ab_aa'].items():
-                Ab_tuple.append((aa, freq, round(freq/Ab_n, 3)))
+                Ab_tuple.append((aa, freq, round(freq/Ab_n, 3), Ab_n))
             Ab_tuple.sort(key = lambda x:x[1], reverse=True)
             core_aa_freq[str(i)+'_'+str(j)]['Ab_aa'] = Ab_tuple[:]
             
             for aa, freq in core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'].items():
-                Ag_tuple.append((aa, freq, round(freq/Ab_n, 3)))
+                Ag_tuple.append((aa, freq, round(freq/Ab_n, 3), Ag_n))
             Ag_tuple.sort(key=lambda x:x[1], reverse=True)
             core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'] = Ag_tuple[:]    
 
@@ -380,8 +380,6 @@ def AA_relative_freq():
                     
     return AA_freq
 
-
-#AA_freq = AA_relative_freq()
 '''*****************************************************************************'''
 
 

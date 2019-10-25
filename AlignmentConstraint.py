@@ -353,6 +353,19 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 #######################################################################
+'''
+Output:
+    training_ac_contact:
+        a dictionary with element in the following form
+             '6cf2Ah':[['h3AF', 100, 45, 2]], ...]
+        ## '6cf2Ah': 6cf2 is the pdbid; h means it is about the heavy chain;
+        ## A is the name of the heavy chain.
+        ## 'h3AF': h3, means the CDR3 in the heavy chain; A is the name of the
+        ## heavy chain; F is the name of the corresponding antigen chain
+        ## 100 is the amino acid location in the heavy chain;
+        ## 45 is the amino acid location in the antigen chain;
+        ## 2 is the contact number.
+'''
 def main(wd, sd):     
     os.chdir(wd)
     # We have to process the training and the testing data separetely
@@ -420,4 +433,30 @@ def main(wd, sd):
 #    sd = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
 #    main(wd, sd)
 
-
+os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+with open('testing_ac_contact', 'r') as f:
+    testing_ac_contact = json.load(f)
+    
+keys = list(testing_ac_contact.keys())    
+testing_ac_contact[keys[0]]    
+    
+    
+    
+ keys[0]   
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

@@ -391,45 +391,6 @@ def Choose_the_best(G):
             max_contact = match[2]
             best = match
     return best                    
-######################################################################
-'''
-Each_CDR_get_one:
-    a function to try to select a core on each CDR
-    
-    ###This function can only be run after Select_match_up_indices, because
-        it needs the 'matched_up_indices' be modified ###
-Input: FC_parameter
-Output:
-    FC_parameter['each_CDR_get_one']:
-        in the same form as the FC_parameter['selected_match_up_indices']
-        
-'''
-#def Each_CDR_get_one(FC_parameter):
-#    matched_up_indices = FC_parameter['matched_up_indices']
-#    l_range = FC_parameter['l_range']
-#    h_range = FC_parameter['h_range']
-#    
-#    each_CDR_get_one = {}
-#    for key, value in matched_up_indices.items():
-#        each_CDR_get_one[key] = []
-#        if key[5] == 'l':
-#            Rs = l_range
-#        elif key[5] == 'h':
-#            Rs = h_range
-#        R1=Rs[0];R2=Rs[1];R3=Rs[2]  
-#        # Group the value into three groups according to the Rs
-#        G1=[]; G2=[]; G3=[]
-#        for match in value:
-#            if match[0][0]>= R1[0] and match[0][0] <= R1[-1]:
-#                G1.append(match)
-#            elif match[0][0]>= R2[0] and match[0][0] <= R2[-1]:
-#                G2.append(match)
-#            elif match[0][0]>= R3[0] and match[0][0] <= R3[-1]:
-#                G3.append(match)
-#        # Select the one with the largest contact number from each group
-#        each_CDR_get_one[key] = [Choose_the_best(G1), Choose_the_best(G2), Choose_the_best(G3)]
-#        
-#    FC_parameter['each_CDR_get_one'] = each_CDR_get_one
 
 ########################################################################
 '''
@@ -509,13 +470,10 @@ def The_middle_aa(FC_parameter):
     FC_parameter['middle_Ag_aa'] = middle_Ag_aa
          
 ################################################################################            
-           
+'''
+As to the meanings fo the parameters, please refer to the explanations of FC_parameter in the above
+'''     
 def Main(wd, sd):
-    
-#    # Set the working directory and the saving directory
-#    wd = '/home/leo/Documents/Database/Pipeline_New/Complexes'
-#    sd = '/home/leo/Documents/Database/Pipeline_New/Complexes/Cores'
-
     
     training_testing = ['training', 'testing']
     for train_test in training_testing:
@@ -585,16 +543,6 @@ def Main(wd, sd):
                         os.chdir(sd)
                         with open(train_test+'_'+name, 'w') as f:
                             json.dump(FC_parameter['core_aa'], f)
-                            
-#                    Each_CDR_get_one(FC_parameter)
-#                    FC_parameter['selected_match_up_indices'] = FC_parameter['each_CDR_get_one']
-#                    Change_to_aa(FC_parameter)                    
-#                    # save the results
-#                    os.chdir(sd)
-#                    name = str(i)+'_'+str(j)+'_'+str(k)+'_'+str(k)+'_1_'+'1perCDR'
-#                    print('working on '+ name)
-#                    with open(train_test+'_'+name, 'w') as f:
-#                        json.dump(FC_parameter['core_aa'], f)
 
     
 ##########################################################################

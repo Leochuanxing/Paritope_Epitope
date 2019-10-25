@@ -20,11 +20,7 @@ from Some_basic_fuctions import AUC_TPR_FPR
 Input: matched pair
 Output: a score
 '''         
-
-#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores')  
-#with open('testing_1_1_0_0_1_2_1perchain','r') as f:
-#    testing = json.load(f)        
-#testing[:5]    
+ 
        
 def One_integrated(matched_pair, binary, working_d):
     Ab_aa = matched_pair[0]
@@ -149,21 +145,7 @@ if __name__ == '__main__':
         
     
                 
-#    
-##
-#suffix =  '1_2_0_0_1_2_1perchain' 
-#key = 'testing_'+ suffix        
-##integrated_results[key]['AUC_list']     
-##integrated_reverse[key]['AUC']
-#    
-#with open('integrated_discrimination', 'r') as f:
-#    integrated_discrimination = json.load(f)
-#with open('integrated_reverse', 'r') as f:
-#    integrated_reverse = json.load(f)
-#    
-#integrated_discrimination[key].keys()
-#integrated_reverse[key].keys()    
-    
+
     
     
     

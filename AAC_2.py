@@ -291,6 +291,20 @@ def main(wd, cutoff = 4):
     
    
 ######################################################################
+'''
+Input:
+    working_directory:
+        the directory where the pdb files are located
+    cutoff:
+        if the Euclidean distance between two atoms is below this value, 
+        they are considered in contact.
+Output:
+    sequence:
+        a dictionary with each element in the following form:
+            pdbid:{A: ['ALA', 'SER', ...], 'B':['THR', 'ARG', ...]}
+    contact:
+        refer to Get_contact.
+'''
 
 if __name__ == '__main__':
     # wd is the working directory, sd is the saving directory

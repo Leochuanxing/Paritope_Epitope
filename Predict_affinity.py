@@ -145,24 +145,6 @@ def Predict_affinity(workable, working_d, binary = True):
 
 '''##########################################################################'''
 
-def Calculate_concentration(TPR, top_percent = 0.1):
-    concentration = round(TPR[math.floor(len(TPR) * top_percent)] / top_percent, 2)
-    
-    return concentration
-'''################################################################################'''
-#def Calculate_correlation(selected_cut_DDG):
-#    ar = np.array(selected_cut_DDG)[:,[1,2]]
-#    ar_mean = np.average(ar, axis=0).reshape((1,-1))
-#    ar_d_mean = ar - ar_mean
-#    x_y = np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 1])
-#    x_SR = np.sqrt(np.sum(ar_d_mean[:, 0] * ar_d_mean[:, 0]))
-#    y_SR = np.sqrt(np.sum(ar_d_mean[:, 1] * ar_d_mean[:, 1]))
-#    
-#    corr = round(x_y/(x_SR * y_SR), 2)
-#    
-#    return corr
-
-'''##############################################################################'''
 '''
 Input:
     cut_DDG_lower, cut_DDG_upper: cut values, only to consider the mutations with 
@@ -254,33 +236,7 @@ def Select_other_pred(predictable_mut_ids, original_mut_df, pred_all_df):
                     break
     return selected
 ##################################################################################
-#def Bootstrap_AUC_corr(pred_results, iteration):
-#    AUC_corr_CI95 = {}
-#    
-#    # Get rid of the unpredictable
-#    predictable = []
-#    for res in pred_results:
-#        if res[2] != 'Unpredicable' and res[1] != 0:
-#                predictable.append([res[0], -res[1], res[2]])# Use the opposite of res[1] because of DDG
-#    # Get the mut ids of the predictable
-#    predictable_mut_ids = [x[0] for x in predictable]
-#    # boot
-#    print('Bootstraping CN')
-#    AUC_CI95_my, corr_CI95_my = Sub_Bootstrap_corr(predictable, iteration)
-#    AUC_corr_CI95['CN'] = ('AUC_CI95:', AUC_CI95_my, 'corr_CI95', corr_CI95_my)
-#        # Boot other results
-#    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Mutations')
-#    original_mutations = pd.read_excel('Mutation.xlsx')
-#    # Read the original mutation 
-#    for method in ['bASA', 'dDfire','dfire', 'discovery_studio', 'rosetta', 'statium', 'foldX']:
-#        print('Bootstraping '+ method)        
-#        scores = pd.read_csv(method+'.dat', sep = ';')    
-#        selected = Select_other_pred(predictable_mut_ids, original_mutations, scores)
-#        AUC_CI95_other, corr_CI95_other = Sub_Bootstrap_corr(selected , iteration)
-#        
-#        AUC_corr_CI95[method] = ('AUC_CI95:', AUC_CI95_other, 'corr_CI95', corr_CI95_other)
-#  
-#    return AUC_corr_CI95
+
 
 #########################################################################
 if __name__ == '__main__':

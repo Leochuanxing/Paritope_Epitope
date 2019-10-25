@@ -1,0 +1,74 @@
+
+This file is to explain how to use the codes. The codes are executed in the following order
+
+1. Select_complex
+	This module is select the required complexes from all the antibody-antigen complexes
+	downloaded. For further information, refer to the module.
+
+2. AAC_2
+	This module is to extract the amino acid sequence and all the possible contacts between 
+	antibody and antigen in each complex.
+
+3. AlignmentConstraint
+	This module is to eliminate the redundency by using the hierachical clustering method.
+
+4. FrameConstraint
+	This modle is to generate the cores of different match-types.
+
+5. GenerateNegativeSamples
+	This file is to generate random negative samples. The size of the negative samples is the
+	same as the positive samples of the same math-type.
+
+6. RBFN_coverage
+	This module is to perform cross validation to select the best parameters for the RBFN
+
+7. Train_RBFN_coverage
+	This module is to train the RBFN model by using the best parameters and the training sets.
+
+8. Test_RBFN_coverage
+	This module is to test the trained RBFN model on two tasks:
+		a. The ability to discriminate the positive cores from the negative cores
+		b. Switch the positions of the antibody and antigen pairs, see if the model can
+ 			tell them from the normal cores.
+9. Integrated_model
+	This module is to perform the same tasks as in Test_RBFN_coverage on the integrated model.
+
+10. Extract_mutation_pairs
+	This module is to extract the mutation pairs according to the information in Formated.ods
+
+11. Predict_affinity
+	This module is to predict whether the mutations increased or decreased the affinity on 		basis of the extracted mutaion pairs.
+
+12. Charts_and_statistics
+	This module is draw the curves and calculate the statistics.
+
+13. Some_bais_fuctions
+	This module contains some frequently used functions
+
+14. Train_loss:
+	This module contains different training methods and loss functions.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

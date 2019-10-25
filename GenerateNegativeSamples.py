@@ -16,7 +16,7 @@ as the training and testing data
 import os
 import json
 import random
-import copy
+#import copy
 ########################################################################### 
 '''
 Generate_random_negative: 

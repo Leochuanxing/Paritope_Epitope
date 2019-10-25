@@ -172,8 +172,6 @@ Generate_testing_training_ids:
 Inputs:
     cut_resolution: only select the complexes with the resolution no larger than cut_resolution
     precentage: the percentage of complexes will be used as the testing set
-Outputs:
-
 
 '''
 def Generate_testing_training_ids(cut_resolution=3, precentage=0.1):
@@ -215,6 +213,39 @@ def Generate_testing_training_ids(cut_resolution=3, precentage=0.1):
     return training_ids, testing_ids, cut_date
 
 '''##########################################################################################'''
+'''
+Input:
+    working_directory: 
+        the directory where the summary file is located. When you download the complexes from 
+                    http://opig.stats.ox.ac.uk/webapps/newsabdab/sabdab/
+        there will be an summary file
+    cut_resolution:
+        only select complexes with the resolution no larger than this value
+    percentage:
+        gives the what percentage of complexes will  the put away as testing set.
+        Here we only select the latest complexes as the testing complexes.
+Output:
+    matched_ids:
+        a dictionary in the following form
+            pdbid: [[Heavy_chain, Light_chain, Antigen_chains], ...]
+        ## This is for the sake when the complex is multimer, when we want to match up the
+        ## heavy_chain, light_chain and the antigen_chain
+    combined_ids:
+        a dictionay in the following form:
+            pdbid: [Heavy_chains, Light_chains, Antigen_chains]
+        ## For each complex, we combine all the heavy_chains, all the light_chains and all
+        ## the antigen_chains together.
+    training_combined_ids:
+        a subset of combined_ids, only containing the training complexes
+    training_matched_ids:
+        a subset of matched_ids, only containing the training complexes
+    testing_combined_ids:
+        a subset of combined_ids, only containing the testing complexes
+    testing_matched_ids:
+        a subset of matched_ids, only containing the testing complexes.
+    train_test_ids_dates:
+        gives the date when each complex was deposited.
+'''
 def main(working_directory, cut_resolution=3, precentage=0.1):
 
     working_directory = '/home/leo/Documents/Database/Data_Code_Publish/Structures'
