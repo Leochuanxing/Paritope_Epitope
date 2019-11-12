@@ -198,24 +198,14 @@ def Draw_all(results_d, save_d):
     Draw_integrated_reverse_AUC(results_d, save_d)
     Draw_affinity(results_d, save_d)
     
-'''***********************************************************************'''    
-'''***********************************************************************'''
-'''***********************************************************************'''
-    
-#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
-#with open('pred_workable_formated', 'r') as f:
-#    pred_workable_formated = json.load(f)
-#pred_workable_formated.keys()
-#pred_workable_formated['cut_range']
-#pred_workable_formated['iteration']
-#pred_workable_formated['one_WithinRange_True']['CN'].keys()
-#pred_workable_formated['one_WithinRange_True']['CN']['BootStrap']
-#len(pred_workable_formated['one_WithinRange_True']['CN']['TPR_list'])
-#pred_workable_formated['one_WithinRange_True'].keys()
-
 results_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
 save_d = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results/Graphs'
 #Draw_all(results_d, save_d)
+    
+'''***********************************************************************'''    
+''' SECTION, SECTION SECTION SECTION SECTION SECTION SECTION SECTION SECTION '''
+'''***********************************************************************'''
+    
 '''
 This output of AA_relative_freq should be the relative frequency and the frequency 
 of different amino acids for antibody, antigen, cdr, and cores
@@ -381,13 +371,7 @@ def AA_relative_freq():
                     
     return AA_freq
 
-'''*****************************************************************************'''
-AA_freq = AA_relative_freq()
-AA_freq.keys()
-AA_freq['Ag_aa']
-AA_freq['CDR_aa_freq'].keys()
-AA_freq['core_aa_freq'].keys()
-# Compare the distribution of AA distribution
+
 def Two_sample_z_proportion(n1, p1, n2, p2, test = 'p1>p2'):
     # Calculat the pooled proportion
     p_pool = (n1*p1 + n2*p2)/(n1+n2)
@@ -469,9 +453,213 @@ def Top_5_aa_distribution(AA_freq):
     
     return top_5_aa, all_aa
 
+'''
+top_5_aa:
+    For each match type, top_5_aa gives the statistics of comparing the top 5 most
+    frequent amino acids with the baseline distribution. The baseline distribution of 
+    Antibody amino acids is the distribution of the amino acides from the CDRs. The 
+    baseline distribution of the antigen amino acids is the distribution of the amino acids
+    from the whole antigen.
+all_aa:
+    It gives all the statistics of all the 20 amino acids. The baselines are the same as
+    in the top 5 aa.
+AA_freq:
+    Gives the frequencies and relative frequencies of the amino acids in cores, CDRs and 
+    the whole proterin.
+'''
+
+def AA_distribution_statistics():
+    AA_freq = AA_relative_freq()
+    top_5_aa, all_aa = Top_5_aa_distribution(AA_freq)
+    # Load all the above results to one dictionary
+    aa_distribution_stats ={}
+    aa_distribution_stats['AA_freq '] = AA_freq 
+    aa_distribution_stats['top_5_aa'] = top_5_aa
+    aa_distribution_stats['all_aa'] = all_aa
+    # Save the results
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+    with open('aa_distribution_statistics', 'w') as f:
+        json.dump(aa_distribution_stats, f)
+
+        
 
 
+'''***********************************************************************'''    
+''' SECTION, SECTION SECTION SECTION SECTION SECTION SECTION SECTION SECTION '''
+'''***********************************************************************'''
 
+
+def Count_cores_over_CDRs():
+    l_range = [[23, 40], [49, 63], [89, 110]]
+    h_range = [[25, 37], [50, 71], [99, 129]]
+
+    l_total = 0; h_total = 0
+    for l, h in zip(l_range, h_range):
+        l_total += l[1] - l[0] +1
+        h_total += h[1] - h[0] +1
+        
+    l_prop = []; h_prop = []    
+    for l, h in zip(l_range, h_range):
+        l_prop.append((l[1]-l[0]+1)/l_total)
+        h_prop.append((h[1]-h[0]+1)/h_total)
+        
+    
+    l_exp_ob = {}; h_exp_ob = {}
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores')
+    core_count_CDRs = {}
+    for i in range(1,4):
+        for j in range(1, 4):
+            match_type = str(i)+'_'+str(j)
+    
+            test_name = 'testing_'+match_type+'_0_0_1_2_1perchain'
+            train_name = 'training_'+match_type+'_0_0_1_2_1perchain'
+            
+            with open(test_name,'r') as f:
+                testing = json.load(f)
+            with open(train_name,'r') as f:
+                training= json.load(f)
+        
+            cores_match_type = testing[:]
+            cores_match_type.extend(training)
+            
+            h1 = 0; h2 = 0; h3 = 0; l1 = 0; l2 = 0; l3 = 0
+            for fcdn in cores_match_type:
+                if fcdn[3][:2] == 'h1':
+                    h1 += 1
+                elif fcdn[3][:2] == 'h2':
+                    h2 += 1 
+                elif fcdn[3][:2] == 'h3':
+                    h3 += 1 
+                elif fcdn[3][:2] == 'l1':
+                    l1 += 1 
+                elif fcdn[3][:2] == 'l2':
+                    l2 += 1 
+                elif fcdn[3][:2] == 'l3':
+                    l3 += 1 
+                    
+            core_count_CDRs[match_type] = [(h1, 'h1'),(h2, 'h2'),(h3, 'h3'),(l1, 'l1'),\
+                           (l2, 'l2'),(l3, 'l3')]
+            
+            l_exp_ob[match_type] = []
+            h_exp_ob[match_type] = []
+            
+            l_total = l1 + l2 + l3
+            l_exp_ob[match_type].append([l_total*l_prop[0], l_total*l_prop[1], l_total*l_prop[2]])
+            l_exp_ob[match_type].append([l1, l2, l3])
+            
+            h_total = h1 + h2 + h3
+            h_exp_ob[match_type].append([h_total*h_prop[0], h_total*h_prop[1], h_total*h_prop[2]])
+            h_exp_ob[match_type].append([h1, h2, h3])
+
+            
+    return core_count_CDRs, l_exp_ob, h_exp_ob, l_prop, h_prop
+
+
+def One_p_z_test(l_exp_ob, l_prop):
+    exp_prop = l_prop[2]
+    pvs = {}
+    for i in range(1,4):
+        for j in range(1, 4):
+            match_type = str(i)+'_'+str(j)
+            ob = l_exp_ob[match_type][1]
+            cdr_total = ob[0]+ob[1]+ob[2]
+            ob_prop = ob[2]/cdr_total
+            z = ob_prop-exp_prop
+            z /= (exp_prop*(1-exp_prop)/cdr_total)**0.5
+            p_value = 1 - norm.cdf(z)
+            
+            pvs[match_type] = p_value
+    return pvs
+
+
+def Top_5_percent_cores():
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores')
+    top_5_percent_cores = {}
+    for i in range(1, 4):
+        for j in range(1,4):
+            match_type = str(i)+'_'+str(j)
+            test_name = 'testing_'+match_type+'_0_0_1_2_1perchain'
+            train_name = 'training_'+match_type+'_0_0_1_2_1perchain'
+            
+            
+            with open(test_name, 'r') as f:
+                test = json.load(f)
+            with open(train_name, 'r') as f:
+                train = json.load(f)
+            
+            # Extract the top 5 percent cores, frequency and relative frequency
+            cores_list = test[:]
+            cores_list.extend(train)
+            
+            cores = []
+            for fcdn in cores_list:
+                AA=''
+                for Ab_aa in fcdn[0]:
+                    AA += Ab_aa
+                for Ag_aa in fcdn[1]:
+                    AA += Ag_aa
+                cores.append(AA)
+                
+            cores_set = set(cores)
+            
+            cores_count = []
+            for c in cores_set:
+                cores_count.append([c, cores.count(c)])
+            cores_count.sort(key=lambda x:x[1], reverse=True)
+            
+            # Append the relative frequency
+            total = len(cores_list)
+            for cc in cores_count:
+                cc.append(round(cc[1]/total, 5))
+                
+            temp = cores_count[:math.ceil(0.05*len(cores_set))]
+            # Change the cores into normal form
+            container = []
+            for core_freq in temp:
+                core_verb = core_freq[0]
+#                l = len(core_verb)
+                Ab_verb = core_verb[:i*3]
+                Ag_verb = core_verb[i*3:]
+                Ab_aa = []; Ag_aa = []
+                for k in range(i):
+                    Ab_aa.append(Ab_verb[3*k:3*(k+1)])
+                for k in range(j):
+                    Ag_aa.append(Ag_verb[3*k:3*(k+1)])
+                container.append([Ab_aa, Ag_aa, core_freq[1], core_freq[2]])
+            # Load to the dictionary
+            top_5_percent_cores[match_type]=container[:]
+                
+    return top_5_percent_cores
+
+
+def Core_over_CDR_statistics():
+    core_count_CDRs, l_exp_ob, h_exp_ob, l_prop, h_prop = Count_cores_over_CDRs()
+    chains = ['heavy_chain', 'light_chain']
+    p_values_CDR3_more_cores = {}
+    for chain in chains:
+        if chain == 'heavy_chain':
+            p_values_CDR3_more_cores[chain]=One_p_z_test(h_exp_ob, h_prop)
+        elif chain == 'light_chain':
+            p_values_CDR3_more_cores[chain] = One_p_z_test(l_exp_ob, l_prop)
+    # Load all the results into a dicitonary
+    core_over_CDR_statistics = {}
+    core_over_CDR_statistics['p_values_CDR3_more_cores'] = p_values_CDR3_more_cores
+    core_over_CDR_statistics['core_count_CDRs'] = core_count_CDRs    
+
+    top_5_percent_cores = Top_5_percent_cores()  
+    core_over_CDR_statistics['top_5_percent_cores'] = top_5_percent_cores    
+
+    # Save the results
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+    with open('core_over_CDR_statistics', 'w') as f:
+        json.dump(core_over_CDR_statistics, f)
+    
+    
+def Statistics():
+    AA_distribution_statistics()
+    Core_over_CDR_statistics()
+    
+#Statistics()
 
 
 

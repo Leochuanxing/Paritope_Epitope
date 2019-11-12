@@ -1,26 +1,10 @@
 import json
 import os
+import math
 from scipy.stats import norm
 
 
-# Take a look at the dates
-#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
-#with open('training_combined_ids', 'r') as f:
-#    training_combined_ids = json.load(f)
-#with open('testing_combined_ids', 'r') as f:
-#    testing_combined_ids = json.load(f)
-#with open('train_test_ids_dates', 'r') as f:
-#    train_test_ids_dates = json.load(f)
-#    
-#len(train_test_ids_dates)
-#len(training_combined_ids)
-#len(testing_combined_ids)
-#train_test_ids_dates.keys()
-#len(train_test_ids_dates['training_ids_dates'])
-#len(train_test_ids_dates['testing_ids_dates'])
-#train_test_ids_dates['training_ids_dates'][-5:]
-#train_test_ids_dates['testing_ids_dates'][:5]
-#train_test_ids_dates['testing_ids_dates'][-5:]
+
 ####################################################################################3
 # Take a look at the distribution of cores over different CDRs
 def Count_cores_over_CDRs():
@@ -130,6 +114,85 @@ def Core_over_CDR_statistics():
 
 '''##########################################################################'''
 # Calculate the statistics of the distribution of amino acids
+os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+with open('sequence', 'r') as f:
+    sequences = json.load(f)
+with open('combined_ids', 'r') as f:
+    combined_ids = json.load(f)
+with open('matched_ids', 'r') as f:
+    matched_ids = json.load(f)
+
+def Top_5_percent_cores():
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores')
+    top_5_percent_cores = {}
+    for i in range(1, 4):
+        for j in range(1,4):
+            match_type = str(i)+'_'+str(j)
+            test_name = 'testing_'+match_type+'_0_0_1_2_1perchain'
+            train_name = 'training_'+match_type+'_0_0_1_2_1perchain'
+            
+            
+            with open(test_name, 'r') as f:
+                test = json.load(f)
+            with open(train_name, 'r') as f:
+                train = json.load(f)
+            
+            # Extract the top 5 percent cores, frequency and relative frequency
+            cores_list = test[:]
+            cores_list.extend(train)
+            
+            cores = []
+            for fcdn in cores_list:
+                AA=''
+                for Ab_aa in fcdn[0]:
+                    AA += Ab_aa
+                for Ag_aa in fcdn[1]:
+                    AA += Ag_aa
+                cores.append(AA)
+                
+            cores_set = set(cores)
+            
+            cores_count = []
+            for c in cores_set:
+                cores_count.append([c, cores.count(c)])
+            cores_count.sort(key=lambda x:x[1], reverse=True)
+            
+            # Append the relative frequency
+            total = len(cores_list)
+            for cc in cores_count:
+                cc.append(round(cc[1]/total, 5))
+            # Load to the dictionary
+            top_5_percent_cores[match_type]=cores_count[:math.ceil(0.05*len(cores_set))]
+                
+    return top_5_percent_cores
+
+# 
+top_5_percent_cores = Top_5_percent_cores()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
