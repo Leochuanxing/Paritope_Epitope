@@ -88,10 +88,12 @@ def Count_cores_over_CDRs():
             
     return core_count_CDRs, l_exp_ob, h_exp_ob, l_prop, h_prop
 
-core_count_CDRs, l_exp_ob, h_exp_ob, l_prop, h_prop = Count_cores_over_CDRs()
-l_exp_ob.keys()
-l_prop
-h_prop
+#core_count_CDRs, l_exp_ob, h_exp_ob, l_prop, h_prop = Count_cores_over_CDRs()
+#l_exp_ob.keys()
+#l_prop
+#h_prop
+# Calculate the p values to tell whether proportion of cores in CDR3 are larger
+# after corrected by the length
 def One_p_z_test(l_exp_ob, l_prop):
     exp_prop = l_prop[2]
     pvs = {}
@@ -107,11 +109,28 @@ def One_p_z_test(l_exp_ob, l_prop):
             
             pvs[match_type] = p_value
     return pvs
-            
-            
-pvs = One_p_z_test(h_exp_ob, h_prop)
-pvs        
-            
+
+
+# Pack up the above functions
+def Core_over_CDR_statistics():
+    core_count_CDRs, l_exp_ob, h_exp_ob, l_prop, h_prop = Count_cores_over_CDRs()
+    chains = ['heavy_chain', 'light_chain']
+    p_values_CDR3_more_cores = {}
+    for chain in chains:
+        if chain == 'heavy_chain':
+            p_values_CDR3_more_cores[chain]=One_p_z_test(h_exp_ob, h_prop)
+        elif chain == 'light_chain':
+            p_values_CDR3_more_cores[chain] = One_p_z_test(l_exp_ob, l_prop)
+    # Load all the results into a dicitonary
+    core_over_CDR_statistics = {}
+    core_over_CDR_statistics['p_values_CDR3_more_cores'] = p_values_CDR3_more_cores
+    core_over_CDR_statistics['core_count_CDRs'] = core_count_CDRs            
+    
+    return core_over_CDR_statistics
+
+'''##########################################################################'''
+# Calculate the statistics of the distribution of amino acids
+
 
 
 

@@ -5,6 +5,7 @@ import random
 import math
 import json
 import os
+from scipy.stats import norm
 #from matplotlib.ticker import StrMethodFormatter
 import matplotlib.pyplot as plt
 #######################################################################
@@ -367,7 +368,7 @@ def AA_relative_freq():
             core_aa_freq[str(i)+'_'+str(j)]['Ab_aa'] = Ab_tuple[:]
             
             for aa, freq in core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'].items():
-                Ag_tuple.append((aa, freq, round(freq/Ab_n, 3), Ag_n))
+                Ag_tuple.append((aa, freq, round(freq/Ag_n, 3), Ag_n))
             Ag_tuple.sort(key=lambda x:x[1], reverse=True)
             core_aa_freq[str(i)+'_'+str(j)]['Ag_aa'] = Ag_tuple[:]    
 
@@ -381,5 +382,111 @@ def AA_relative_freq():
     return AA_freq
 
 '''*****************************************************************************'''
+AA_freq = AA_relative_freq()
+AA_freq.keys()
+AA_freq['Ag_aa']
+AA_freq['CDR_aa_freq'].keys()
+AA_freq['core_aa_freq'].keys()
+# Compare the distribution of AA distribution
+def Two_sample_z_proportion(n1, p1, n2, p2, test = 'p1>p2'):
+    # Calculat the pooled proportion
+    p_pool = (n1*p1 + n2*p2)/(n1+n2)
+    variance = p_pool*(1-p_pool)*(1/n1 + 1/n2)
+    # Calculate the test statistic z
+    z = (p1-p2)/(variance**0.5)
+    # Calculate p_value
+    if test == 'p1>p2':
+        p_value = 1 - norm.cdf(z)
+    elif test == 'p1<p2':
+        p_value = norm.cdf(z)
+    elif test == 'p1 != p2':
+        p_value = 2*min(norm.cdf(z), 1-norm.cdf(z))
+    else:
+        print('test is not proper!')
+        return
+        
+    return p_value
+
+def Sub_Top_5_aa_distribution(aa_match_type, base_line, top = 5):
+    top_n = []
+    for k in range(top):
+        aa_info_match_type = list(aa_match_type[k])
+        for aa_base_line in base_line:
+            if aa_base_line[0] == aa_info_match_type[0]:
+                aa_info_base_line = aa_base_line
+                break
+        # Calculate the p values for Ab-aa
+        n1 = aa_info_match_type[3]
+        p1 = aa_info_match_type[2]
+        n2 = aa_info_base_line[3]
+        p2 = aa_info_base_line[2]
+        p_value = Two_sample_z_proportion(n1,p1,n2,p2,test= 'p1>p2')
+        
+        aa_info_match_type.append(p_value)
+        top_n.append(aa_info_match_type)
+        
+    return top_n
+
+def Top_5_aa_distribution(AA_freq):
+    # Compare the aa distribution in cores with aa distribution in CDRs
+    Ag_aa = AA_freq['Ag_aa']
+    CDR_aa_freq = AA_freq['CDR_aa_freq']
+    core_aa_freq = AA_freq['core_aa_freq']
+    # Add up the aa in CDR_aa_freq
+    sum_aa_CDR = {}; total = 0
+    for CDR, aa in CDR_aa_freq.items():
+        for aa_freq in aa:
+            if aa_freq[0] not in sum_aa_CDR:
+                sum_aa_CDR[aa_freq[0]] = aa_freq[1]
+                total += aa_freq[1]
+            else:
+                sum_aa_CDR[aa_freq[0]] += aa_freq[1]
+                total += aa_freq[1]
+    # Calculate the relative frequency of aa in CDRs
+    aa_CDR = []
+    for aa, freq in sum_aa_CDR.items():
+        aa_CDR.append((aa, freq, round(freq/total, 5), total))
+    aa_CDR.sort(key=lambda x:x[1])
+    # Calculate the p values of the top 5 aa of different match type 
+    top_5_aa = {}; all_aa = {}
+    for i in range(1, 4):
+        for j in range(1, 4):
+            match_type = str(i)+'_'+str(j)
+            top_5_aa[match_type] = {}
+            all_aa[match_type] = {}
+            
+            Ab_aa_match_type = core_aa_freq[match_type]['Ab_aa']
+            Ag_aa_match_type = core_aa_freq[match_type]['Ag_aa']
+            
+            all_aa[match_type]['Ab'] = Sub_Top_5_aa_distribution(Ab_aa_match_type, aa_CDR, top = 20)
+            all_aa[match_type]['Ag'] = Sub_Top_5_aa_distribution(Ag_aa_match_type, Ag_aa, top = 20)
+            
+            top_5_aa[match_type]['Ab'] = all_aa[match_type]['Ab'][:5]
+            top_5_aa[match_type]['Ag'] = all_aa[match_type]['Ag'][:5]  
+            
+            all_aa[match_type]['Ab'].sort(key=lambda x:x[4])
+            all_aa[match_type]['Ag'].sort(key=lambda x:x[4])
+    
+    return top_5_aa, all_aa
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
