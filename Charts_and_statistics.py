@@ -6,6 +6,7 @@ import math
 import json
 import os
 from scipy.stats import norm
+from scipy.stats import ks_2samp
 #from matplotlib.ticker import StrMethodFormatter
 import matplotlib.pyplot as plt
 #######################################################################
@@ -473,7 +474,7 @@ def AA_distribution_statistics():
     top_5_aa, all_aa = Top_5_aa_distribution(AA_freq)
     # Load all the above results to one dictionary
     aa_distribution_stats ={}
-    aa_distribution_stats['AA_freq '] = AA_freq 
+    aa_distribution_stats['AA_freq'] = AA_freq 
     aa_distribution_stats['top_5_aa'] = top_5_aa
     aa_distribution_stats['all_aa'] = all_aa
     # Save the results
@@ -660,6 +661,148 @@ def Statistics():
     Core_over_CDR_statistics()
     
 #Statistics()
+
+
+'''***********************************************************************'''    
+''' SECTION, SECTION SECTION SECTION SECTION SECTION SECTION SECTION SECTION '''
+'''***********************************************************************'''
+
+def Core_distribution_over_match_type():
+#    from mpl_toolkits.mplot3d import axes3d  
+#    fig = plt.figure(figsize= (40, 24))
+    fig = plt.figure(figsize= (10, 6))
+    ax1 = fig.add_subplot(111, projection='3d')
+    
+    
+    x3 = []
+    y3 = []
+    for i in range(1, 5):
+        for j in range(1, 5):
+            x3.append(i-0.25)
+            y3.append(j-0.25)
+
+    z3 = np.zeros(len(x3))
+    
+    dx = np.ones(len(x3))*0.5
+    dy = np.ones(len(x3))*0.5
+    # Load the heights of the bars
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores')
+    dz = []; nCores_match_type = []
+    for i in range(1, 5):
+        for j in range(1, 5):
+            match = str(i)+'_'+str(j)
+            test_name = 'testing_'+match+'_0_0_1_2_1perchain'
+            train_name = 'training_'+match+'_0_0_1_2_1perchain'
+            with open(test_name, 'r') as f:
+                test = json.load(f)
+            with open(train_name, 'r') as f:
+                train = json.load(f)
+            dz.append(len(test)+len(train))
+            nCores_match_type.append((match, len(test)+len(train)))
+    
+    ax1.bar3d(x3, y3, z3, dx, dy, dz, color= 'c')
+    
+    
+    ax1.set_xlabel('Length of antibody amino acids')
+    ax1.set_ylabel('Length of antigen amino acids')
+    ax1.set_zlabel('Number of Cores')
+    
+    ax1.set_xticks(ticks = [1, 2, 3,4,5])
+    ax1.set_yticks(ticks = [1,2,3,4,5])
+    # Save
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results/Graphs')
+    plt.savefig('Core_districution_over_Match_type.eps')
+    plt.show()
+    
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+    with open('nCores_match_type', 'w') as f:
+        json.dump(nCores_match_type, f)
+
+#Core_distribution_over_match_type()
+
+'''***********************************************************************'''    
+''' SECTION, SECTION SECTION SECTION SECTION SECTION SECTION SECTION SECTION '''
+'''***********************************************************************'''
+
+def Compare_Ab_aa_Ag_aa_in_cores():
+
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+    with open('aa_distribution_statistics', 'r') as f:
+        aa_distribution_stats = json.load(f)
+    Ab_aa = {}; Ag_aa = {}
+    for i in range(1, 4):
+        for j in range(1, 4):
+            key = str(i)+'_'+str(j)
+            for aa in aa_distribution_stats['AA_freq ']['core_aa_freq'][key]['Ab_aa'][:20]:
+                if aa[0] not in Ab_aa:
+                    Ab_aa[aa[0]] = aa[1]
+                else:
+                    Ab_aa[aa[0]] += aa[1]
+            for aa in aa_distribution_stats['AA_freq ']['core_aa_freq'][key]['Ag_aa'][:20]:
+                if aa[0] not in Ag_aa:
+                    Ag_aa[aa[0]] = aa[1]
+                else:
+                    Ag_aa[aa[0]] += aa[1]
+    # Calculate total                
+    Ab_total = 0; Ag_total = 0
+    for aa, n in Ab_aa.items():
+        Ab_total += n
+    for aa, n in Ag_aa.items():
+        Ag_total += n
+    # Calculate relative frequency
+    Ab_Ag_relfreq = []
+    for aa, n in Ab_aa.items():
+        Ab_Ag_relfreq.append([aa, round(n/Ab_total, 3), round(Ag_aa[aa]/Ag_total, 3), n, Ag_aa[aa]])
+        
+    # Sort accroding to Ab
+    Ab_Ag_relfreq.sort(key = lambda x:x[1], reverse = True)
+    # Load the results to the aa distribution dicitonary
+    aa_distribution_stats['Ab_Ag_in_cores_felfreq'] = Ab_Ag_relfreq
+    # Save the results 
+    
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results')
+    with open('aa_distribution_statistics', 'w') as f:
+        json.dump(aa_distribution_stats, f)
+    
+    # Draw graph and save
+        
+    Ab_relative = []; Ag_relative = []; aa_20 = []
+    for Ab_Ag in Ab_Ag_relfreq:
+        aa_20.append(Ab_Ag[0])
+        Ab_relative.append(Ab_Ag[1])
+        Ag_relative.append(Ab_Ag[2])
+
+        
+    x = np.arange(20)
+    plt.figure(figsize = (15, 6))
+    #plt.gca().yaxis.set_major_formatter(StrMethodFormatter('{x:,.2f}'))
+    plt.bar(x-0.15, Ab_relative, width = 0.3, label = 'Antibody Core Amino Acids')
+    plt.bar(x+0.15, Ag_relative, width = 0.3, label = 'Antigen Core Amino Acids')
+    plt.xticks(ticks = np.arange(20),labels=aa_20, fontsize=15)
+    plt.ylabel('Relative frequency', fontsize = 30)
+    plt.rcParams['ytick.labelsize']=20
+    plt.legend(loc = 1, prop={'size': 25})
+    #plt.title('Antibody amino acids and Antibody amino acids in cores', y=1.05, fontsize = 40)
+    plt.xlim([-0.5, 20])
+    os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Codes/Results/Graphs')
+    plt.savefig('aa_distribution_overall.eps')
+    plt.show()
+
+#Compare_Ab_aa_Ag_aa_in_cores()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
