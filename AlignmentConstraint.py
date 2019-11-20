@@ -433,17 +433,15 @@ def main(wd, sd):
 #    sd = '/home/leo/Documents/Database/Data_Code_Publish/Codes/Results'
 #    main(wd, sd)
 
-os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
-with open('testing_ac_contact', 'r') as f:
-    testing_ac_contact = json.load(f)
+#os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Structures')
+#with open('testing_ac_contact', 'r') as f:
+#    testing_ac_contact = json.load(f)
+#    
+#keys = list(testing_ac_contact.keys())    
+#testing_ac_contact[keys[0]]    
     
-keys = list(testing_ac_contact.keys())    
-testing_ac_contact[keys[0]]    
     
-    
-    
- keys[0]   
-    
+
     
     
     
