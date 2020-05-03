@@ -125,6 +125,7 @@ with open('matched_ids', 'r') as f:
 def Top_5_percent_cores():
     os.chdir('/home/leo/Documents/Database/Data_Code_Publish/Cores/Positive_cores')
     top_5_percent_cores = {}
+    number_cores = {}
     for i in range(1, 4):
         for j in range(1,4):
             match_type = str(i)+'_'+str(j)
@@ -163,20 +164,12 @@ def Top_5_percent_cores():
                 cc.append(round(cc[1]/total, 5))
             # Load to the dictionary
             top_5_percent_cores[match_type]=cores_count[:math.ceil(0.05*len(cores_set))]
+            number_cores[match_type] = len(cores_set)
                 
-    return top_5_percent_cores
+    return top_5_percent_cores, number_cores
 
 # 
-top_5_percent_cores = Top_5_percent_cores()
-
-
-
-
-
-
-
-
-
+top_5_percent_cores, number_cores = Top_5_percent_cores()
 
 
 
